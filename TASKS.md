@@ -88,7 +88,7 @@ All AI output must be **validated** before showing to learners (fail closed → 
 - [x] **3.1** Define Dart classes / `freezed` / `json_serializable` for **Cloze**: `sentence`, `answer`, `options` (3–4 strings), optional `hint_en`, `hint_xh`, `hint_zu`, `hint_af`. **(P0)**
 - [x] **3.2** Define payload for **Reorder**: ordered list of tokens or short phrases; correct permutation reference. **(P1)**
 - [x] **3.3** Define payload for **Match**: `left[]`, `right[]`, `pairs` map or list. **(P1)**
-- [ ] **3.4** Define payload for **Dialogue choice**: short context, `question`, `options`, `correctIndex` or `correctId`. **(P1)**
+- [x] **3.4** Define payload for **Dialogue choice**: short context, `question`, `options`, `correctIndex` or `correctId`. **(P1)**
 - [ ] **3.5** Implement **JSON schema validation** (manual null checks or `json_schema` package): reject empty strings, wrong option count, duplicate options, sentence length policy (spec: prefer &lt;10 words for A1 — enforce per level table). **(P0)**
 - [ ] **3.6** Central **TaskNormalizer**: map wrong shapes / legacy keys to canonical model; log validation failures for tuning prompts. **(P1)**
 
