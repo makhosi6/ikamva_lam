@@ -7,16 +7,19 @@ class SettingsStore extends ChangeNotifier {
   bool _ttsEnabled = true;
   String _hintLanguageCode = 'en';
   bool _reduceMotion = false;
+  bool _lowRamProfile = false;
 
   bool get onboardingComplete => _onboardingComplete;
   bool get ttsEnabled => _ttsEnabled;
   String get hintLanguageCode => _hintLanguageCode;
   bool get reduceMotion => _reduceMotion;
+  bool get lowRamProfile => _lowRamProfile;
 
   static const _kOnboarding = 'onboarding_complete';
   static const _kTts = 'tts_enabled';
   static const _kHintLang = 'hint_language_code';
   static const _kReduceMotion = 'reduce_motion';
+  static const _kLowRam = 'low_ram_profile';
 
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
@@ -24,6 +27,7 @@ class SettingsStore extends ChangeNotifier {
     _ttsEnabled = p.getBool(_kTts) ?? true;
     _hintLanguageCode = p.getString(_kHintLang) ?? 'en';
     _reduceMotion = p.getBool(_kReduceMotion) ?? false;
+    _lowRamProfile = p.getBool(_kLowRam) ?? false;
     notifyListeners();
   }
 
@@ -53,5 +57,12 @@ class SettingsStore extends ChangeNotifier {
     notifyListeners();
     final p = await SharedPreferences.getInstance();
     await p.setBool(_kReduceMotion, value);
+  }
+
+  Future<void> setLowRamProfile(bool value) async {
+    _lowRamProfile = value;
+    notifyListeners();
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kLowRam, value);
   }
 }

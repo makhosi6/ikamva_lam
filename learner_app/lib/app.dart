@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'db/app_database.dart';
+import 'llm/llm_service.dart';
 import 'router/app_router.dart';
 import 'state/database_scope.dart';
 import 'state/settings_scope.dart';
@@ -24,6 +25,12 @@ class IkamvaApp extends StatefulWidget {
 
 class _IkamvaAppState extends State<IkamvaApp> {
   late final GoRouter _router = createAppRouter(widget.settings);
+
+  @override
+  void dispose() {
+    LlmService.instance.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -127,15 +127,15 @@ Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 
 **Core differentiator** — allocate focused time here.
 
-- [ ] **6.1** Choose integration strategy: **`dart:ffi`** to bundled `libllama` **or** subprocess to small native CLI **or** platform channel to Kotlin/Swift wrapper. Document tradeoffs in `native/README.md`. **(P0)**
-- [ ] **6.2** Script **building llama.cpp** for target platforms (macOS dev, Android arm64, Windows if needed); pin commit hash. **(P0)**
-- [ ] **6.3** Bundle **Gemma 4 GGUF** `Q4_K_M` (E2B for weak devices, E4B for demo machine); document download location & checksum. **(P0)**
-- [ ] **6.4** Implement **model load once** at app start (or lazy on first AI feature) with clear loading UI; handle OOM gracefully with user message. **(P0)**
-- [ ] **6.5** Inference API: `generate({required String prompt, int maxTokens, List<int> stopSequences, int contextSize})` returning string or stream. **(P0)**
-- [ ] **6.6** Apply spec **context limits** (512–1024 tokens) and **max new tokens** (~120); use stop at first complete JSON `}` where applicable. **(P0)**
-- [ ] **6.7** **Threading:** run inference on background isolate / native thread; never block UI isolate. **(P0)**
-- [ ] **6.8** **Memory:** reuse context across calls; avoid reload per task; expose `dispose` for shutdown. **(P1)**
-- [ ] **6.9** Device profile flag: `lowRam` selects E2B + smaller context; `standard` uses E4B. **(P1)**
+- [x] **6.1** Choose integration strategy: **`dart:ffi`** to bundled `libllama` **or** subprocess to small native CLI **or** platform channel to Kotlin/Swift wrapper. Document tradeoffs in `native/README.md`. **(P0)**
+- [x] **6.2** Script **building llama.cpp** for target platforms (macOS dev, Android arm64, Windows if needed); pin commit hash. **(P0)**
+- [x] **6.3** Bundle **Gemma 4 GGUF** `Q4_K_M` (E2B for weak devices, E4B for demo machine); document download location & checksum. **(P0)**
+- [x] **6.4** Implement **model load once** at app start (or lazy on first AI feature) with clear loading UI; handle OOM gracefully with user message. **(P0)**
+- [x] **6.5** Inference API: `generate({required String prompt, int maxTokens, List<int> stopSequences, int contextSize})` returning string or stream. **(P0)**
+- [x] **6.6** Apply spec **context limits** (512–1024 tokens) and **max new tokens** (~120); use stop at first complete JSON `}` where applicable. **(P0)**
+- [x] **6.7** **Threading:** run inference on background isolate / native thread; never block UI isolate. **(P0)**
+- [x] **6.8** **Memory:** reuse context across calls; avoid reload per task; expose `dispose` for shutdown. **(P1)**
+- [x] **6.9** Device profile flag: `lowRam` selects E2B + smaller context; `standard` uses E4B. **(P1)**
 
 **Acceptance:** On demo hardware, a test prompt returns stable output in a few seconds; app remains responsive.
 
@@ -308,7 +308,7 @@ Defer: dialogue game, web dashboard, voice commands, cloud sync.
 
 | Decision | Options | Choice | Date |
 |----------|---------|--------|------|
-| FFI vs subprocess | dart:ffi / CLI / platform channel | | |
+| FFI vs subprocess | dart:ffi / CLI / platform channel | Subprocess `llama-cli` first (stub when paths unset); FFI later | 2026-04-17 |
 | State management | Riverpod / Bloc / Provider | | |
 | Drift vs raw sqflite | | | |
 | Desktop target for judges | macOS / Windows / neither | | |
