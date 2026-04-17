@@ -1,0 +1,30 @@
+# Flutter / Dart
+**/build/
+**/.dart_tool/
+**/*.iml
+**/.flutter-plugins-dependencies
+**/pubspec.lock.bak
+
+# Native / llama.cpp
+native/build/
+**/*.gguf
+cmake-build-*/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local / secrets
+.env
+.env.*
+*.jks
+*.keystore
+
+# Coverage
+coverage/
