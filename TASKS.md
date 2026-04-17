@@ -53,7 +53,7 @@ writeup.md
 - [x] **1.1** **Branding:** assets in [branding/](branding/) — [logo.svg](branding/logo.svg), [logo.png](branding/logo.png), [cover.png](branding/cover.png) (1200×630 via [scripts/generate_cover.py](scripts/generate_cover.py)); mirror PNGs in `learner_app/assets/branding/`. Document in [design.md §5.1](design.md). App: `IkamvaLogo`, `IkamvaAppBarTitle`, `IkamvaCoverBanner`. **(P0)**
 - [x] **1.2** Create Flutter project `learner_app` (iOS, Android, desktop as needed for demo). **(P0)**
 - [x] **1.3** Implement `ThemeData` + `ThemeExtension<IkamvaColors>` (or equivalent) using tokens from [design.md §5.2](design.md). **(P0)**
-- [ ] **1.4** Add bundled fonts: display (Nunito or Quicksand) + body (Source Sans 3 or Noto Sans); declare in `pubspec.yaml`. **(P1)** — *interim: `google_fonts` in code; bundle assets for strict offline.*
+- [x] **1.4** Add bundled fonts: display (Nunito or Quicksand) + body (Source Sans 3 or Noto Sans); declare in `pubspec.yaml`. **(P1)** — *Bundled variable OFL fonts from [google/fonts](https://github.com/google/fonts); no runtime font fetch.*
 - [x] **1.5** Build **app router** (e.g. `go_router` or `Navigator2.0`): splash → welcome → home → game shell → session summary → settings. **(P0)** — *no separate splash route; redirect handles first launch.*
 - [x] **1.6** Implement **responsive layout** scaffold: single-column primary content, min touch target 48dp; safe area padding. **(P0)**
 - [x] **1.7** Add **settings persistence** (`shared_preferences` or SQLite single row): TTS on/off, hint language preference, reduce motion (read from `MediaQuery.disableAnimations` / platform flag). **(P1)** — *reduce motion is user toggle only for now.*

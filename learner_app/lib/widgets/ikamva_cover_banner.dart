@@ -27,7 +27,7 @@ class IkamvaCoverBanner extends StatelessWidget {
         child: ClipRRect(
           borderRadius: radius,
           child: Image.asset(
-            AppAssets.coverPng,
+            AppAssets.logoPng,
             fit: BoxFit.cover,
             filterQuality: FilterQuality.medium,
             semanticLabel: 'Ikamva Lam — cover',
