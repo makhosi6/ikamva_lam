@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../db/seed.dart';
+import '../state/game_pause_store.dart';
 import '../theme/ikamva_colors.dart';
 import '../widgets/constrained_content.dart';
 import '../widgets/ikamva_app_bar_title.dart';
 
-class HomeHubScreen extends StatelessWidget {
+class HomeHubScreen extends StatefulWidget {
   const HomeHubScreen({super.key});
+
+  @override
+  State<HomeHubScreen> createState() => _HomeHubScreenState();
+}
+
+class _HomeHubScreenState extends State<HomeHubScreen> {
+  late final Future<GamePauseSnapshot?> _pauseFuture = GamePauseStore.load();
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +88,20 @@ class HomeHubScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              FutureBuilder<GamePauseSnapshot?>(
+                future: _pauseFuture,
+                builder: (context, snap) {
+                  final pause = snap.data;
+                  final canResume =
+                      pause != null && pause.questId == kSeedQuestId;
+                  if (!canResume) return const SizedBox.shrink();
+                  return OutlinedButton(
+                    onPressed: () => context.push('/game?resume=1'),
+                    child: const Text('Resume sample session'),
+                  );
+                },
               ),
               const SizedBox(height: 16),
               OutlinedButton(

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ikamva_lam/data/quest_repository.dart';
+import 'package:ikamva_lam/data/session_repository.dart';
 import 'package:ikamva_lam/db/database_connection.dart';
 import 'package:ikamva_lam/db/seed.dart';
 import 'package:ikamva_lam/game/session_controller.dart';
@@ -73,6 +74,31 @@ void main() {
       );
 
       await ctrl.endSession();
+      await db.close();
+    });
+
+    test('resumeOpenQuestSession restores reserved slots', () async {
+      final db = openMemoryDatabase();
+      await ensureDevSeed(db);
+      final quest = (await QuestRepository(db).getById(kSeedQuestId))!;
+
+      final first = SessionController(db);
+      final session = await first.startForQuest(quest);
+      first.acquireTaskSlot();
+      first.acquireTaskSlot();
+      expect(first.reservedTaskSlotCount, 2);
+
+      final second = SessionController(db);
+      final loaded = await SessionRepository(db).getById(session.id);
+      await second.resumeOpenQuestSession(
+        session: loaded!,
+        quest: quest,
+        tasksAlreadyReserved: 2,
+      );
+      expect(second.reservedTaskSlotCount, 2);
+      expect(second.activeSessionId, session.id);
+
+      await second.endSession();
       await db.close();
     });
 

@@ -34,11 +34,17 @@ GoRouter createAppRouter(SettingsStore settings) {
       ),
       GoRoute(
         path: '/game',
-        builder: (context, state) => const GameShellScreen(),
+        builder: (context, state) {
+          final resume = state.uri.queryParameters['resume'] == '1';
+          return GameShellScreen(resume: resume);
+        },
       ),
       GoRoute(
         path: '/session-summary',
-        builder: (context, state) => const SessionSummaryScreen(),
+        builder: (context, state) {
+          final id = state.extra as String?;
+          return SessionSummaryScreen(sessionId: id);
+        },
       ),
       GoRoute(
         path: '/settings',

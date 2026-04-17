@@ -14,9 +14,13 @@ void main() {
 
       final coord = GameCoordinator(db);
       final tasks = await coord.loadTasksForQuest(quest!);
-      expect(tasks, hasLength(1));
-      expect(tasks.single.id, kSeedTaskId);
-      expect(tasks.single.topic, quest.topic);
+      expect(tasks, hasLength(3));
+      expect(tasks.map((t) => t.id).toList(), [
+        kSeedTaskId,
+        kSeedTaskId2,
+        kSeedTaskId3,
+      ]);
+      expect(tasks.first.topic, quest.topic);
       await db.close();
     });
 

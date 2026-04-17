@@ -1,6 +1,6 @@
 # Ikamva Lam
 
-**Release:** `v0.0.1` (learner app `0.0.1+1` in [`learner_app/pubspec.yaml`](learner_app/pubspec.yaml)).
+**Release:** `v0.1.0` (learner app `0.1.0+2` in [`learner_app/pubspec.yaml`](learner_app/pubspec.yaml)).
 
 <img src="branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
 

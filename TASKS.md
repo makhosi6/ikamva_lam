@@ -100,10 +100,10 @@ All AI output must be **validated** before showing to learners (fail closed → 
 
 - [x] **4.1** **GameCoordinator** service: given `Quest` or practice config, yields a stream/list of `TaskRecord` (initially from DB seed only). **(P0)**
 - [x] **4.2** **SessionController**: start/end session, attach `sessionId` to attempts, enforce time limit OR task count from quest. **(P0)**
-- [ ] **4.3** **RuleBasedEvaluator** per task type: cloze compares normalized string equality or canonical answer id; reorder compares permutation; match compares pairs; dialogue compares selection. **(P0)**
-- [ ] **4.4** **Retry policy**: max retries per task (e.g. 2); track `hintSteps` and `usedHint`. **(P0)**
-- [ ] **4.5** Wire **progress UI** in game shell: “Task 3 of 10”, linear progress bar, pause (saves session state). **(P0)**
-- [ ] **4.6** Post-attempt **local analytics hook**: emit event to analytics service (stub) with skill id + correctness + hint usage. **(P1)**
+- [x] **4.3** **RuleBasedEvaluator** per task type: cloze compares normalized string equality or canonical answer id; reorder compares permutation; match compares pairs; dialogue compares selection. **(P0)**
+- [x] **4.4** **Retry policy**: max retries per task (e.g. 2); track `hintSteps` and `usedHint`. **(P0)**
+- [x] **4.5** Wire **progress UI** in game shell: “Task 3 of 10”, linear progress bar, pause (saves session state). **(P0)**
+- [x] **4.6** Post-attempt **local analytics hook**: emit event to analytics service (stub) with skill id + correctness + hint usage. **(P1)**
 
 **Acceptance:** Full session playable with **static** cloze tasks from DB; session summary shows accuracy consistent with attempts.
 
@@ -136,6 +136,7 @@ Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 - [ ] **6.7** **Threading:** run inference on background isolate / native thread; never block UI isolate. **(P0)**
 - [ ] **6.8** **Memory:** reuse context across calls; avoid reload per task; expose `dispose` for shutdown. **(P1)**
 - [ ] **6.9** Device profile flag: `lowRam` selects E2B + smaller context; `standard` uses E4B. **(P1)**
+- and increment version of the project to 0.1.0
 
 **Acceptance:** On demo hardware, a test prompt returns stable output in a few seconds; app remains responsive.
 

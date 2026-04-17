@@ -44,6 +44,9 @@ class SessionController {
 
   String? get activeSessionId => _active?.id;
 
+  /// How many task slots [acquireTaskSlot] has committed (for pause / resume).
+  int get reservedTaskSlotCount => _tasksConsumed;
+
   int? get _effectiveMaxTasks =>
       _limitQuest?.maxTasks ?? _practiceMaxTasks;
 
@@ -87,6 +90,29 @@ class SessionController {
     _practiceTimeLimitSec = null;
     _tasksConsumed = 0;
     return _active!;
+  }
+
+  /// Attaches to an existing open session row (e.g. after app pause / resume).
+  ///
+  /// [tasksAlreadyReserved] must match [reservedTaskSlotCount] from when
+  /// state was persisted.
+  Future<void> resumeOpenQuestSession({
+    required Session session,
+    required Quest quest,
+    required int tasksAlreadyReserved,
+  }) async {
+    _assertIdle();
+    if (session.endedAt != null) {
+      throw StateError('Cannot resume a session that already ended');
+    }
+    if (session.questId != quest.id) {
+      throw StateError('Quest id does not match session');
+    }
+    _active = session;
+    _limitQuest = quest;
+    _practiceMaxTasks = null;
+    _practiceTimeLimitSec = null;
+    _tasksConsumed = tasksAlreadyReserved;
   }
 
   /// Practice mode: optional [maxTasks] / [timeLimitSec] mirror quest caps.

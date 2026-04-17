@@ -9,12 +9,26 @@ import 'app_database.dart';
 const String kSeedLearnerId = 'seed-learner-1';
 const String kSeedQuestId = 'seed-quest-1';
 const String kSeedTaskId = 'seed-task-cloze-1';
+const String kSeedTaskId2 = 'seed-task-cloze-2';
+const String kSeedTaskId3 = 'seed-task-cloze-3';
 
 /// Sample cloze payload (Phase 3 will add typed models + validation).
 const String kSeedClozePayloadJson = '{'
     '"sentence":"I like to ___ fruit.",'
     '"answer":"eat",'
     '"options":["eat","eats","eating","ate"]'
+    '}';
+
+const String kSeedCloze2PayloadJson = '{'
+    '"sentence":"We drink ___ in the morning.",'
+    '"answer":"water",'
+    '"options":["water","milk","tea","juice"]'
+    '}';
+
+const String kSeedCloze3PayloadJson = '{'
+    '"sentence":"This is a small ___ .",'
+    '"answer":"apple",'
+    '"options":["apple","banana","bread","plate"]'
     '}';
 
 /// Inserts seed profile, quest, and one cached task when the DB has no learners.
@@ -61,6 +75,32 @@ Future<void> ensureDevSeed(IkamvaDatabase db) async {
         payloadJson: kSeedClozePayloadJson,
         source: TaskSource.cached.storageValue,
         createdAt: now,
+      ),
+    );
+    b.insert(
+      db.taskRecords,
+      TaskRecordsCompanion.insert(
+        id: kSeedTaskId2,
+        taskType: TaskType.cloze.storageValue,
+        skillId: SkillId.vocabulary.storageValue,
+        difficulty: 1,
+        topic: 'food',
+        payloadJson: kSeedCloze2PayloadJson,
+        source: TaskSource.cached.storageValue,
+        createdAt: now.add(const Duration(milliseconds: 1)),
+      ),
+    );
+    b.insert(
+      db.taskRecords,
+      TaskRecordsCompanion.insert(
+        id: kSeedTaskId3,
+        taskType: TaskType.cloze.storageValue,
+        skillId: SkillId.vocabulary.storageValue,
+        difficulty: 1,
+        topic: 'food',
+        payloadJson: kSeedCloze3PayloadJson,
+        source: TaskSource.cached.storageValue,
+        createdAt: now.add(const Duration(milliseconds: 2)),
       ),
     );
   });
