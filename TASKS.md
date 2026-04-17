@@ -136,7 +136,7 @@ Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 - [x] **6.7** **Threading:** run inference on background isolate / native thread; never block UI isolate. **(P0)**
 - [x] **6.8** **Memory:** reuse context across calls; avoid reload per task; expose `dispose` for shutdown. **(P1)**
 - [x] **6.9** Device profile flag: `lowRam` selects E2B + smaller context; `standard` uses E4B. **(P1)**
-- [ ] **6.10** **Standalone CLI harness** to exercise **llama.cpp / `llama-cli` outside the Flutter app** (e.g. shell script under `native/scripts/` or a tiny Dart/Go CLI): reads `IKAMVA_LLAMA_CLI` + `IKAMVA_GGUF` (or flags), runs one or more fixed prompts (JSON-only smoke), prints stdout and wall time, exits non-zero on OOM/parse failure — usable from CI and local terminals without `flutter run`. Document in `native/README.md`. **(P1)**
+- [x] **6.10** **Standalone CLI harness** to exercise **llama.cpp / `llama-cli` outside the Flutter app** (e.g. shell script under `native/scripts/` or a tiny Dart/Go CLI): reads `IKAMVA_LLAMA_CLI` + `IKAMVA_GGUF` (or flags), runs one or more fixed prompts (JSON-only smoke), prints stdout and wall time, exits non-zero on OOM/parse failure — usable from CI and local terminals without `flutter run`. Document in `native/README.md`. **(P1)**
 
 **Acceptance:** On demo hardware, a test prompt returns stable output in a few seconds; app remains responsive. Optional: **6.10** passes against the same binary + GGUF the app uses.
 

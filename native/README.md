@@ -24,6 +24,24 @@ chmod +x native/scripts/build_llama_cli.sh
 
 Output: **`native/build/bin/llama-cli`** (or `main` renamed — the script copies to `llama-cli`).
 
+## Standalone smoke harness (TASKS §6.10)
+
+Test **`llama-cli` + GGUF without Flutter** (same flags as `ProcessLlmEngine` / `runLlamaCliSync`):
+
+```bash
+chmod +x native/scripts/llama_cli_smoke.sh
+export IKAMVA_GGUF=/absolute/path/to/your/model.gguf
+# optional if binary is not at repo native/build/bin/llama-cli:
+# export IKAMVA_LLAMA_CLI=/path/to/llama-cli
+./native/scripts/llama_cli_smoke.sh
+# stricter: require first balanced {...} to parse as JSON:
+./native/scripts/llama_cli_smoke.sh --expect-json
+```
+
+Optional env: **`IKAMVA_MAX_NEW`** (default `120`), **`IKAMVA_CTX`** (default `768`), **`IKAMVA_PROMPT`** (override default JSON-only smoke string).
+
+Exit codes: **`2`** missing binary/GGUF, **`3`** JSON check failed (`--expect-json`), otherwise **`llama-cli`’s exit code**.
+
 ## Gemma 4 GGUF (TASKS §6.3)
 
 - **Quant:** `Q4_K_M` for demo machines; **`Q2_K` / E2B-class** for low-RAM profiles (toggle in app Settings).
