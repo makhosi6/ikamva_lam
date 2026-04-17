@@ -1,0 +1,15 @@
+TASK: generate_teacher_insight
+Aggregated learner error statistics (JSON):
+{{AGGREGATED_STATS_JSON}}
+
+OUTPUT JSON ONLY with no markdown fences and no trailing commentary.
+If you cannot comply, output exactly: {}
+
+Schema (spec §6.2):
+{
+  "issue": "short label for the main issue",
+  "pattern": "what the data suggests learners confuse",
+  "recommendation": "one concrete teaching action"
+}
+
+Do not include learner names or raw attempt text—summaries only.

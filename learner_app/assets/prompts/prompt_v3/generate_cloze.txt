@@ -1,0 +1,17 @@
+TASK: generate_cloze
+LEVEL: {{LEVEL}}
+TOPIC: {{TOPIC}}
+SKILL: {{SKILL}}
+DIFFICULTY_STEP: {{DIFFICULTY_STEP}}
+
+OUTPUT JSON ONLY with no markdown fences and no trailing commentary.
+If you cannot comply, output exactly: {}
+
+Schema (use ___ as the single blank in sentence):
+{
+  "sentence": "string with ___ for blank",
+  "answer": "string",
+  "options": ["string", "string", "string"]
+}
+
+Options must be exactly three strings including the correct answer; no duplicates.

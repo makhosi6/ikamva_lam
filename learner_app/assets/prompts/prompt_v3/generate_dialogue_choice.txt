@@ -1,0 +1,21 @@
+TASK: generate_dialogue_choice
+LEVEL: {{LEVEL}}
+TOPIC: {{TOPIC}}
+SKILL: {{SKILL}}
+DIFFICULTY_STEP: {{DIFFICULTY_STEP}}
+
+OUTPUT JSON ONLY with no markdown fences and no trailing commentary.
+If you cannot comply, output exactly: {}
+
+Schema (use exactly one of correct_index OR correct_id):
+{
+  "context": "short dialogue or situation in English",
+  "question": "question about the context",
+  "options": [
+    {"id": "a", "text": "option A"},
+    {"id": "b", "text": "option B"}
+  ],
+  "correct_index": 0
+}
+
+Provide at least two options; ids must be unique.

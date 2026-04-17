@@ -1,0 +1,19 @@
+TASK: generate_hint_multilingual
+The learner task (JSON):
+{{TASK_JSON}}
+
+Their incorrect answer (JSON or plain text):
+{{WRONG_ANSWER}}
+
+OUTPUT JSON ONLY with no markdown fences and no trailing commentary.
+If you cannot comply, output exactly: {}
+
+Schema (subset of translation keys is allowed if the model is unsure; always include hint_en):
+{
+  "hint_en": "short pedagogical hint in English",
+  "hint_xh": "optional isiXhosa hint",
+  "hint_zu": "optional isiZulu hint",
+  "hint_af": "optional Afrikaans hint"
+}
+
+Keep hints short and encouraging; do not give the direct correct answer verbatim if the task is multiple choice—scaffold thinking instead.

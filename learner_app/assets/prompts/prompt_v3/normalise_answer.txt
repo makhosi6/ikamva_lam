@@ -1,0 +1,17 @@
+TASK: normalise_learner_answer
+The learner task (JSON for context):
+{{TASK_JSON}}
+
+The learner's raw answer (may mix English with isiXhosa, isiZulu, or Afrikaans):
+{{LEARNER_TEXT}}
+
+OUTPUT JSON ONLY with no markdown fences and no trailing commentary.
+If you cannot comply, output exactly: {}
+
+Schema:
+{
+  "canonical_en": "best single English string for rule-based scoring",
+  "notes": "optional short note for teachers, empty string if none"
+}
+
+Privacy: process on-device only; do not add personally identifying details.

@@ -145,12 +145,12 @@ Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 
 Spec §3.3 — **no open chat**; structured tasks only.
 
-- [ ] **7.1** Create `prompts/` (assets or constants): one template per `TASK: generate_*` with slots: `LEVEL`, `TOPIC`, `SKILL`, `DIFFICULTY_STEP`. **(P0)**
-- [ ] **7.2** Enforce **OUTPUT JSON ONLY** in template text; add “if you cannot comply, output `{}`” escape hatch (handle as retry). **(P0)**
-- [ ] **7.3** Implement **pedagogy rules** in prompt preamble: short sentences for A1, no complex grammar for beginners, curriculum-aligned vocabulary list injection (static file for MVP). **(P1)**
-- [ ] **7.4** Implement **hint prompt**: given task + wrong answer, return JSON with multilingual keys `hint_en`, `hint_xh`, `hint_zu`, `hint_af` (subset allowed if model weak). **(P0)**
-- [ ] **7.5** Optional **normalisation prompt** for code-switching learner answers (spec §5.2): map spoken/written mix to canonical English for evaluator — keep **privacy** (on-device). **(P2)**
-- [ ] **7.6** **Insight prompt** (teacher): input aggregated error stats → JSON `{ issue, pattern, recommendation }` per spec §6.2. **(P1)**
+- [x] **7.1** Create `prompts/` (assets or constants): one template per `TASK: generate_*` with slots: `LEVEL`, `TOPIC`, `SKILL`, `DIFFICULTY_STEP`. **(P0)**
+- [x] **7.2** Enforce **OUTPUT JSON ONLY** in template text; add “if you cannot comply, output `{}`” escape hatch (handle as retry). **(P0)**
+- [x] **7.3** Implement **pedagogy rules** in prompt preamble: short sentences for A1, no complex grammar for beginners, curriculum-aligned vocabulary list injection (static file for MVP). **(P1)**
+- [x] **7.4** Implement **hint prompt**: given task + wrong answer, return JSON with multilingual keys `hint_en`, `hint_xh`, `hint_zu`, `hint_af` (subset allowed if model weak). **(P0)**
+- [x] **7.5** Optional **normalisation prompt** for code-switching learner answers (spec §5.2): map spoken/written mix to canonical English for evaluator — keep **privacy** (on-device). **(P2)**
+- [x] **7.6** **Insight prompt** (teacher): input aggregated error stats → JSON `{ issue, pattern, recommendation }` per spec §6.2. **(P1)**
 
 **Acceptance:** Prompts versioned (`prompt_v3` in DB or file name); changing template doesn’t require code changes beyond loading new asset.
 

@@ -1,0 +1,17 @@
+TASK: generate_match
+LEVEL: {{LEVEL}}
+TOPIC: {{TOPIC}}
+SKILL: {{SKILL}}
+DIFFICULTY_STEP: {{DIFFICULTY_STEP}}
+
+OUTPUT JSON ONLY with no markdown fences and no trailing commentary.
+If you cannot comply, output exactly: {}
+
+Schema:
+{
+  "left": ["label1", "label2"],
+  "right": ["labelA", "labelB"],
+  "pairs": [[0, 0], [1, 1]]
+}
+
+left and right must have the same length (3–5 items). pairs must be a perfect bijection between indices.

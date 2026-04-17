@@ -1,0 +1,8 @@
+# Topic hint lists for curriculum-aligned wording (MVP). Format: topic|comma-separated hints
+# Topics are matched case-insensitively; unknown topics fall back to "default".
+default|Use simple, high-frequency English suitable for the learner level.
+food|Egg, bread, water, milk, apple, rice, vegetables, breakfast, lunch
+school|Desk, teacher, book, pencil, class, homework, friend, playground
+home|Door, chair, table, bed, kitchen, family, window, room
+animals|Cat, dog, bird, horse, farm, tail, walk, feed
+travel|Bus, train, road, ticket, station, map, suitcase, visit

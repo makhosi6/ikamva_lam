@@ -1,0 +1,17 @@
+TASK: generate_reorder
+LEVEL: {{LEVEL}}
+TOPIC: {{TOPIC}}
+SKILL: {{SKILL}}
+DIFFICULTY_STEP: {{DIFFICULTY_STEP}}
+
+OUTPUT JSON ONLY with no markdown fences and no trailing commentary.
+If you cannot comply, output exactly: {}
+
+Schema:
+{
+  "tokens": ["string", "string", "..."],
+  "correct_order": [0, 1, 2]
+}
+
+tokens: 3–6 short segments that can be rearranged into one grammatical English sentence.
+correct_order: permutation of indices 0..n-1 for the correct left-to-right reading order.
