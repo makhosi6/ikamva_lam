@@ -2,11 +2,6 @@
 
 <img src="branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
 
-| | |
-|:--|:--|
-| **Square logo (app / icon pipeline)** | ![Ikamva Lam logo](branding/logo.png) |
-| **Vector source** | [branding/logo.svg](branding/logo.svg) |
-
 Playful, teacher-guided English practice for primary and early secondary learners. Learner app targets **offline-first** use on tablets and low-end laptops; on-device AI is planned via **llama.cpp** and quantised **Gemma 4** (see [spec.md](spec.md)).
 
 ## Repository layout
