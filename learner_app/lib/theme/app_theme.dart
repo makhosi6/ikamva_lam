@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'ikamva_colors.dart';
-
-/// Display font (bundled variable Nunito, OFL — google/fonts).
-const String kIkamvaDisplayFontFamily = 'Nunito';
-
-/// Body / UI font (bundled variable Source Sans 3, OFL — google/fonts).
-const String kIkamvaBodyFontFamily = 'Source Sans 3';
 
 /// Primary teal-green from design.md.
 const Color _primary = Color(0xFF1B6B5C);
@@ -26,22 +21,18 @@ ThemeData buildIkamvaTheme({required Brightness brightness}) {
     onError: Colors.white,
   );
 
-  final displayTextStyle = TextStyle(
-    fontFamily: kIkamvaDisplayFontFamily,
+  final displayTextStyle = GoogleFonts.nunito(
     color: _textPrimary,
     fontWeight: FontWeight.w700,
   );
-  final bodyTextStyle = TextStyle(
-    fontFamily: kIkamvaBodyFontFamily,
+  final bodyTextStyle = GoogleFonts.sourceSans3(
     color: _textPrimary,
     height: 1.35,
-    fontWeight: FontWeight.w400,
   );
 
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
-    fontFamily: kIkamvaBodyFontFamily,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: ikamva.canvas,
     extensions: const [IkamvaColors.light],
@@ -50,8 +41,7 @@ ThemeData buildIkamvaTheme({required Brightness brightness}) {
       foregroundColor: _textPrimary,
       elevation: 0,
       centerTitle: false,
-      titleTextStyle: TextStyle(
-        fontFamily: kIkamvaDisplayFontFamily,
+      titleTextStyle: GoogleFonts.nunito(
         color: _textPrimary,
         fontSize: 22,
         fontWeight: FontWeight.w700,
@@ -67,8 +57,7 @@ ThemeData buildIkamvaTheme({required Brightness brightness}) {
         backgroundColor: _primary,
         foregroundColor: _onPrimary,
         minimumSize: const Size(double.infinity, 56),
-        textStyle: const TextStyle(
-          fontFamily: kIkamvaBodyFontFamily,
+        textStyle: GoogleFonts.sourceSans3(
           fontSize: 16,
           fontWeight: FontWeight.w700,
         ),
@@ -82,14 +71,12 @@ ThemeData buildIkamvaTheme({required Brightness brightness}) {
       headlineLarge: displayTextStyle.copyWith(fontSize: 24),
       headlineMedium: displayTextStyle.copyWith(fontSize: 22),
       headlineSmall: displayTextStyle.copyWith(fontSize: 20),
-      titleLarge: TextStyle(
-        fontFamily: kIkamvaDisplayFontFamily,
+      titleLarge: GoogleFonts.nunito(
         fontSize: 20,
         fontWeight: FontWeight.w700,
         color: _textPrimary,
       ),
-      titleMedium: TextStyle(
-        fontFamily: kIkamvaBodyFontFamily,
+      titleMedium: GoogleFonts.sourceSans3(
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: _textPrimary,
@@ -100,8 +87,7 @@ ThemeData buildIkamvaTheme({required Brightness brightness}) {
         fontSize: 16,
         color: ikamva.textSecondary,
       ),
-      labelLarge: TextStyle(
-        fontFamily: kIkamvaBodyFontFamily,
+      labelLarge: GoogleFonts.sourceSans3(
         fontSize: 16,
         fontWeight: FontWeight.w700,
         color: _primary,

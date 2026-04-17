@@ -54,6 +54,7 @@ The learner-facing UI is multimodal by design—not only taps and text—to supp
 	•	Illustrations — narrative and instructional visuals that scaffold meaning, especially for younger learners and lower literacy levels.
 	•	Voice (hints & instructions) — spoken guidance layered on reading tasks so learners hear correct pronunciation, intonation, and task framing while they read on screen; supports listening-as-you-read and reduces reliance on dense text alone.
 	•	Voice-based commands — optional hands-free / eyes-up flows (e.g. repeat, skip, “read aloud”, answer by speaking) to encourage learners to practice speaking and to stay in a speak–listen loop alongside silent reading.
+	•	Typography — **Nunito** for display and headings and **Source Sans 3** for body and UI labels, wired only through the `google_fonts` package in `learner_app/lib/theme/app_theme.dart` (`GoogleFonts.nunito`, `GoogleFonts.sourceSans3`). Do not swap in bundled `pubspec.yaml` font assets or raw `fontFamily` strings in the theme without updating [design.md §5.3](design.md) in the same change.
 
 Together, these modalities aim to: encourage learners to practice speaking aloud, listen actively while reading, and alternate between receptive (listening/reading) and productive (speaking) skills in a single session.
 

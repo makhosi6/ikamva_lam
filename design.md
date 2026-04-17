@@ -185,8 +185,10 @@ Use as Flutter `ThemeExtension` or constants. Favor **WCAG AA** contrast for tex
 
 ### 5.3 Typography
 
-- **Display / headings:** Rounded, friendly, highly legible — e.g. **Nunito** or **Quicksand** (bundle for offline).
-- **Body / tasks:** **Source Sans 3** or **Noto Sans** — strong multilingual coverage (Latin + future expansion).
+**Implementation lock (learner app):** `ThemeData` / `TextTheme` live in [`learner_app/lib/theme/app_theme.dart`](learner_app/lib/theme/app_theme.dart) and must use the [`google_fonts`](https://pub.dev/packages/google_fonts) helpers: **`GoogleFonts.nunito`** for display, app bar titles, and heading roles; **`GoogleFonts.sourceSans3`** for body text, buttons, and labels. Do not replace that with bundled `.ttf` files plus `fontFamily: '…'` in theme code unless this subsection and [spec.md §2.1](spec.md) are updated in the same change—otherwise typography drifts from what screens expect.
+
+- **Display / headings:** **Nunito** (rounded, friendly, highly legible) — applied via `GoogleFonts.nunito` in code.
+- **Body / tasks:** **Source Sans 3** — strong multilingual coverage (Latin + future expansion); applied via `GoogleFonts.sourceSans3` in code.
 - **Sizes (tablet baseline):** body 18–20sp, task sentence 22–26sp, CTA label 16sp bold minimum.
 - **Line length:** ≤ 12 words per line on cloze tasks where possible (matches spec short sentences).
 
