@@ -137,6 +137,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: settings.ttsEnabled,
                     onChanged: settings.setTtsEnabled,
                   ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Voice commands'),
+                    subtitle: const Text(
+                      'Hands-free repeat / skip (TASKS §12.3 — planned; not wired in MVP build).',
+                    ),
+                    trailing: const Icon(Icons.mic_none),
+                  ),
                   const SizedBox(height: 16),
                   Text('Hint language', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),

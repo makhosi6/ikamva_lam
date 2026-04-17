@@ -13,13 +13,14 @@ part 'app_database.g.dart';
     Attempts,
     SkillDifficultyStates,
     SyncOutboxEntries,
+    InsightCards,
   ],
 )
 class IkamvaDatabase extends _$IkamvaDatabase {
   IkamvaDatabase(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -30,6 +31,10 @@ class IkamvaDatabase extends _$IkamvaDatabase {
       if (from < 2) {
         await m.addColumn(sessions, sessions.baselineAccuracy);
         await m.createTable(skillDifficultyStates);
+      }
+      if (from < 3) {
+        await m.addColumn(taskRecords, taskRecords.contentHash);
+        await m.createTable(insightCards);
       }
     },
     beforeOpen: (OpeningDetails details) async {

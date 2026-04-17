@@ -14,6 +14,9 @@ const String kSeedTaskId3 = 'seed-task-cloze-3';
 const String kSeedTaskD2a = 'seed-task-cloze-d2-a';
 const String kSeedTaskD2b = 'seed-task-cloze-d2-b';
 const String kSeedTaskD3 = 'seed-task-cloze-d3';
+const String kSeedReorderId = 'seed-task-reorder-1';
+const String kSeedMatchId = 'seed-task-match-1';
+const String kSeedDialogueId = 'seed-task-dialogue-1';
 
 /// Sample cloze payload (Phase 3 will add typed models + validation).
 const String kSeedClozePayloadJson = '{'
@@ -50,6 +53,22 @@ const String kSeedClozeD3PayloadJson = '{'
     '"sentence":"We need ___ bread from the shop.",'
     '"answer":"more",'
     '"options":["more","many","much","most"]'
+    '}';
+
+const String kSeedReorderPayloadJson =
+    '{"tokens":["like","I","apples"],"correct_order":[1,0,2]}';
+
+const String kSeedMatchPayloadJson = '{'
+    '"left":["cat","dog","bird"],'
+    '"right":["meow","bark","tweet"],'
+    '"pairs":[[0,0],[1,1],[2,2]]'
+    '}';
+
+const String kSeedDialoguePayloadJson = '{'
+    '"context":"Sam is hungry at the table.",'
+    '"question":"What should Sam say?",'
+    '"options":[{"id":"a","text":"I want some food."},{"id":"b","text":"I want a hat."}],'
+    '"correct_index":0'
     '}';
 
 /// Inserts seed profile, quest, and one cached task when the DB has no learners.
@@ -161,6 +180,56 @@ Future<void> ensureDevSeed(IkamvaDatabase db) async {
         payloadJson: kSeedClozeD3PayloadJson,
         source: TaskSource.cached.storageValue,
         createdAt: now.add(const Duration(milliseconds: 5)),
+      ),
+    );
+  });
+}
+
+/// Adds non-cloze demo tasks for mixed-type sessions (TASKS §10.x).
+Future<void> ensureExtraSeedTaskTypes(IkamvaDatabase db) async {
+  final existing = await (db.select(db.taskRecords)
+        ..where((t) => t.id.equals(kSeedReorderId)))
+      .getSingleOrNull();
+  if (existing != null) return;
+  final now = DateTime.now().toUtc();
+  await db.batch((b) {
+    b.insert(
+      db.taskRecords,
+      TaskRecordsCompanion.insert(
+        id: kSeedReorderId,
+        taskType: TaskType.reorder.storageValue,
+        skillId: SkillId.sentenceStructure.storageValue,
+        difficulty: 1,
+        topic: 'food',
+        payloadJson: kSeedReorderPayloadJson,
+        source: TaskSource.cached.storageValue,
+        createdAt: now,
+      ),
+    );
+    b.insert(
+      db.taskRecords,
+      TaskRecordsCompanion.insert(
+        id: kSeedMatchId,
+        taskType: TaskType.match.storageValue,
+        skillId: SkillId.vocabulary.storageValue,
+        difficulty: 1,
+        topic: 'food',
+        payloadJson: kSeedMatchPayloadJson,
+        source: TaskSource.cached.storageValue,
+        createdAt: now.add(const Duration(milliseconds: 1)),
+      ),
+    );
+    b.insert(
+      db.taskRecords,
+      TaskRecordsCompanion.insert(
+        id: kSeedDialogueId,
+        taskType: TaskType.dialogueChoice.storageValue,
+        skillId: SkillId.vocabulary.storageValue,
+        difficulty: 1,
+        topic: 'food',
+        payloadJson: kSeedDialoguePayloadJson,
+        source: TaskSource.cached.storageValue,
+        createdAt: now.add(const Duration(milliseconds: 2)),
       ),
     );
   });

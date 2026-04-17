@@ -176,13 +176,13 @@ Instead of replacing teachers, it amplifies their reach.
 
 ## 🔗 Submission Links
 
-**Repository release:** `v0.0.1` (learner app version `0.0.1+1` in `learner_app/pubspec.yaml`).
+**Repository release:** learner app `0.6.0+1` (`learner_app/pubspec.yaml` and `lib/version.dart`).
 
-| Asset | URL     |
-| ----- | ------- |
-| Code  | Pending |
-| Demo  | Pending |
-| Video | Pending |
+| Asset | URL |
+| ----- | --- |
+| Code  | *(add public Git remote URL when published)* |
+| Demo  | *(add GitHub Pages / Firebase Hosting URL after deploy — see README “Deploy demo”)* |
+| Video | *(record per `DEMO.md`; agent cannot produce the final video file)* |
 
 ---
 

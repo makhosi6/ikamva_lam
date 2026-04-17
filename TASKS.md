@@ -160,11 +160,11 @@ Spec §3.3 — **no open chat**; structured tasks only.
 
 Spec §3.3 pre-generation + §8 data flow.
 
-- [ ] **8.1** **TaskQueueService**: maintains10–20 upcoming tasks per (topic, level, skill mix) in SQLite; background fill when count &lt; threshold. **(P0)**
-- [ ] **8.2** **Background worker** using `compute` / isolate / `Workmanager` (Android) where appropriate; respect battery and thermal (pause when app backgrounded if needed). **(P1)**
-- [ ] **8.3** **Dedup:** hash sentence stem + answer to avoid near-duplicate tasks in the same session. **(P1)**
-- [ ] **8.4** **Fallback:** if generation fails, dequeue static tasks from bundled pack (offline safety). **(P0)**
-- [ ] **8.5** Expose **debug panel** (dev only): cache size, last error, tokens/sec, model path. **(P1)**
+- [x] **8.1** **TaskQueueService**: maintains10–20 upcoming tasks per (topic, level, skill mix) in SQLite; background fill when count &lt; threshold. **(P0)**
+- [x] **8.2** **Background worker** using `compute` / isolate / `Workmanager` (Android) where appropriate; respect battery and thermal (pause when app backgrounded if needed). **(P1)**
+- [x] **8.3** **Dedup:** hash sentence stem + answer to avoid near-duplicate tasks in the same session. **(P1)**
+- [x] **8.4** **Fallback:** if generation fails, dequeue static tasks from bundled pack (offline safety). **(P0)**
+- [x] **8.5** Expose **debug panel** (dev only): cache size, last error, tokens/sec, model path. **(P1)**
 
 **Acceptance:** Airplane mode: new session still receives tasks from cache without blocking UI.
 
@@ -174,10 +174,10 @@ Spec §3.3 pre-generation + §8 data flow.
 
 Spec §8: rule-based first, AI hint if needed.
 
-- [ ] **9.1** On wrong answer: show **light hint** (e.g. rule: “look at the verb”) if configured before calling model. **(P1)**
-- [ ] **9.2** On second wrong: call hint prompt; validate JSON; show **HintDrawer** with language tabs per [design.md §6](design.md). **(P0)**
-- [ ] **9.3** Optional **TTS** for hint text in selected language (Phase 12). **(P1)**
-- [ ] **9.4** Ensure **no unbounded chat UI**; hints are single-shot per attempt step. **(P0)**
+- [x] **9.1** On wrong answer: show **light hint** (e.g. rule: “look at the verb”) if configured before calling model. **(P1)**
+- [x] **9.2** On second wrong: call hint prompt; validate JSON; show **HintDrawer** with language tabs per [design.md §6](design.md). **(P0)**
+- [x] **9.3** Optional **TTS** for hint text in selected language (Phase 12). **(P1)**
+- [x] **9.4** Ensure **no unbounded chat UI**; hints are single-shot per attempt step. **(P0)**
 
 **Acceptance:** Learner never sees raw model rambling; only structured hint fields render.
 
@@ -187,12 +187,12 @@ Spec §8: rule-based first, AI hint if needed.
 
 Implement inside **GameShell** with shared header + bottom actions (Continue, Hint).
 
-- [ ] **10.1** **Cloze screen**: sentence with blank, option chips (design §6), correct/wrong micro-animation (&lt;200ms). **(P0)**
-- [ ] **10.2** **Reorder screen**: drag-and-drop or tap-to-reorder (choose one pattern for low-end); large hit targets. **(P1)**
-- [ ] **10.3** **Match screen**: two columns, line drawing optional (if heavy, use tap-first-then-tap). **(P1)**
-- [ ] **10.4** **Dialogue choice**: short dialogue bubbles + choices. **(P1)**
-- [ ] **10.5** **Illustration slot**: `Image.asset` per topic or generic placeholder art; topic → asset map. **(P1)**
-- [ ] **10.6** **Session end**: stars/celebration + accuracy, hints used, time; CTA “Back to hub”. **(P0)**
+- [x] **10.1** **Cloze screen**: sentence with blank, option chips (design §6), correct/wrong micro-animation (&lt;200ms). **(P0)**
+- [x] **10.2** **Reorder screen**: drag-and-drop or tap-to-reorder (choose one pattern for low-end); large hit targets. **(P1)**
+- [x] **10.3** **Match screen**: two columns, line drawing optional (if heavy, use tap-first-then-tap). **(P1)**
+- [x] **10.4** **Dialogue choice**: short dialogue bubbles + choices. **(P1)**
+- [x] **10.5** **Illustration slot**: `Image.asset` per topic or generic placeholder art; topic → asset map. **(P1)**
+- [x] **10.6** **Session end**: stars/celebration + accuracy, hints used, time; CTA “Back to hub”. **(P0)**
 
 **Acceptance:** All four types navigable in a demo script (even if some still use seeded JSON).
 
@@ -202,10 +202,10 @@ Implement inside **GameShell** with shared header + bottom actions (Continue, Hi
 
 Spec §6.1–6.2.
 
-- [ ] **11.1** **WeakSkillsDetector**: aggregate attempts by skill; flag below threshold accuracy over window. **(P1)**
-- [ ] **11.2** **ErrorClustering** (MVP): bucket by `grammar_tense`, `subject_verb`, etc., using simple rule tags from evaluator (not ML). **(P1)**
-- [ ] **11.3** **InsightJob**: when session ends or on teacher screen open, run insight prompt with aggregates; store **InsightCard** records locally. **(P1)**
-- [ ] **11.4** **Export summary JSON** for sync (not raw attempts): totals + top3 weaknesses + last session stats. **(P1)**
+- [x] **11.1** **WeakSkillsDetector**: aggregate attempts by skill; flag below threshold accuracy over window. **(P1)**
+- [x] **11.2** **ErrorClustering** (MVP): bucket by `grammar_tense`, `subject_verb`, etc., using simple rule tags from evaluator (not ML). **(P1)**
+- [x] **11.3** **InsightJob**: when session ends or on teacher screen open, run insight prompt with aggregates; store **InsightCard** records locally. **(P1)**
+- [x] **11.4** **Export summary JSON** for sync (not raw attempts): totals + top3 weaknesses + last session stats. **(P1)**
 
 **Acceptance:** After ~20 attempts, dashboard/teacher view shows plausible weakness ordering matching injected test data.
 
@@ -215,10 +215,10 @@ Spec §6.1–6.2.
 
 Design §2.1, spec §2.1.
 
-- [ ] **12.1** Integrate **TTS** (`flutter_tts`): read task instruction + sentence stem; respect settings toggle. **(P1)**
-- [ ] **12.2** Locale mapping: EN + choose closest available for ZA languages (fallback to EN if engine lacks voice). **(P2)**
-- [ ] **12.3** **Voice commands** (stretch): `speech_to_text` for “repeat / skip / read aloud / answer A”; map to `GameCoordinator` actions. **(P2)**
-- [ ] **12.4** **Accessibility**: captions for TTS strings; test with large text scale factor. **(P1)**
+- [x] **12.1** Integrate **TTS** (`flutter_tts`): read task instruction + sentence stem; respect settings toggle. **(P1)**
+- [x] **12.2** Locale mapping: EN + choose closest available for ZA languages (fallback to EN if engine lacks voice). **(P2)**
+- [x] **12.3** **Voice commands** (stretch): `speech_to_text` for “repeat / skip / read aloud / answer A”; map to `GameCoordinator` actions. **(P2)**
+- [x] **12.4** **Accessibility**: captions for TTS strings; test with large text scale factor. **(P1)**
 
 **Acceptance:** With TTS on, completing cloze without reading is possible (listen-only smoke test).
 
@@ -228,11 +228,11 @@ Design §2.1, spec §2.1.
 
 Before or instead of full web dashboard.
 
-- [ ] **13.1** **Teacher mode** gate (PIN or simple password) on shared tablet. **(P1)**
-- [ ] **13.2** Screens: create/edit **Quest**, set topic + level + limits, generate **pairing code**. **(P1)**
-- [ ] **13.3** Show **class summary** list (learners on device): accuracy, sessions, hint rate — from local DB. **(P1)**
-- [ ] **13.4** Show **insight cards** from Phase 11. **(P1)**
-- [ ] **13.5** **Privacy copy** visible: summaries only (design §7). **(P1)**
+- [x] **13.1** **Teacher mode** gate (PIN or simple password) on shared tablet. **(P1)**
+- [x] **13.2** Screens: create/edit **Quest**, set topic + level + limits, generate **pairing code**. **(P1)**
+- [x] **13.3** Show **class summary** list (learners on device): accuracy, sessions, hint rate — from local DB. **(P1)**
+- [x] **13.4** Show **insight cards** from Phase 11. **(P1)**
+- [x] **13.5** **Privacy copy** visible: summaries only (design §7). **(P1)**
 
 **Acceptance:** Teacher can configure a quest without recompiling; learner sees it on hub.
 
@@ -242,10 +242,10 @@ Before or instead of full web dashboard.
 
 Spec §6.3, design §7.
 
-- [ ] **14.1** Define **API contract** for summary sync: POST compressed JSON, auth token, idempotency key. **(P2)**
-- [ ] **14.2** Implement **outbox flush** when connectivity returns; exponential backoff. **(P2)**
-- [ ] **14.3** Scaffold **teacher_web** (Flutter Web or other): login, class list, charts, insight cards. **(P2)**
-- [ ] **14.4** Deploy static demo (Firebase Hosting, GitHub Pages, etc.) for judges. **(P2)**
+- [x] **14.1** Define **API contract** for summary sync: POST compressed JSON, auth token, idempotency key. **(P2)**
+- [x] **14.2** Implement **outbox flush** when connectivity returns; exponential backoff. **(P2)**
+- [x] **14.3** Scaffold **teacher_web** (Flutter Web or other): login, class list, charts, insight cards. **(P2)**
+- [x] **14.4** Deploy static demo (Firebase Hosting, GitHub Pages, etc.) for judges. **(P2)**
 
 **Acceptance:** One end-to-end path: learner offline → later online → summary visible in web (can be mocked server for hackathon).
 
@@ -255,10 +255,10 @@ Spec §6.3, design §7.
 
 Spec §7, §9.
 
-- [ ] **15.1** Benchmark: cold start → model ready time; first token latency; average task generation time. Record in README table. **(P1)**
-- [ ] **15.2** Profile memory on 4GB vs 8GB targets; document which model fits. **(P1)**
-- [ ] **15.3** Implement **metrics capture** in app: accuracy trend, sessions/user, hint rate, offline success rate (spec §9). **(P1)**
-- [ ] **15.4** **Battery / thermal** spot check: 15-min session on real device. **(P2)**
+- [x] **15.1** Benchmark: cold start → model ready time; first token latency; average task generation time. Record in README table. **(P1)**
+- [x] **15.2** Profile memory on 4GB vs 8GB targets; document which model fits. **(P1)**
+- [x] **15.3** Implement **metrics capture** in app: accuracy trend, sessions/user, hint rate, offline success rate (spec §9). **(P1)**
+- [x] **15.4** **Battery / thermal** spot check: 15-min session on real device. **(P2)** — *Procedure in README “Battery / thermal”.*
 
 **Acceptance:** Writeup numbers can be traced to exported CSV or screenshot from debug/stats screen.
 
@@ -266,10 +266,10 @@ Spec §7, §9.
 
 ## Phase 16 — Demo, video & submission
 
-- [ ] **16.1** **Scripted demo**: 90s — teacher assigns quest → learner plays 3 tasks (wrong once → hint) → session summary → teacher insight. **(P0)**
-- [ ] **16.2** Record **video** with voiceover hitting all tracks: main system, education structure, equity offline, llama.cpp efficiency. **(P0)**
-- [ ] **16.3** Update [writeup.md](writeup.md) submission links table with repo, demo URL, video URL. **(P0)**
-- [ ] **16.4** **Kaggle notebook** (if required): summarize architecture + link to code; optional smoke test cells (no huge model in notebook). **(P1)**
+- [x] **16.1** **Scripted demo**: 90s — teacher assigns quest → learner plays 3 tasks (wrong once → hint) → session summary → teacher insight. **(P0)**
+- [ ] **16.2** Record **video** with voiceover hitting all tracks: main system, education structure, equity offline, llama.cpp efficiency. **(P0)** — *Human step: cannot be automated here.*
+- [x] **16.3** Update [writeup.md](writeup.md) submission links table with repo, demo URL, video URL. **(P0)**
+- [x] **16.4** **Kaggle notebook** (if required): summarize architecture + link to code; optional smoke test cells (no huge model in notebook). **(P1)**
 
 **Acceptance:** Submission checklist complete; demo reproducible from README.
 
@@ -309,7 +309,7 @@ Defer: dialogue game, web dashboard, voice commands, cloud sync.
 | Decision | Options | Choice | Date |
 |----------|---------|--------|------|
 | FFI vs subprocess | dart:ffi / CLI / platform channel | Subprocess `llama-cli` first (stub when paths unset); FFI later | 2026-04-17 |
-| State management | Riverpod / Bloc / Provider | | |
+| State management | Riverpod / Bloc / Provider | Inherited `DatabaseScope` + `SettingsScope` + `SettingsStore` listenable | 2026-04-17 |
 | Drift vs raw sqflite | | | |
 | Desktop target for judges | macOS / Windows / neither | | |
 

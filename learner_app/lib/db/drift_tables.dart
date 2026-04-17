@@ -37,6 +37,22 @@ class TaskRecords extends Table {
   TextColumn get topic => text()();
   TextColumn get payloadJson => text()();
   TextColumn get source => text()();
+  /// Dedupe key for generated/cached rows (TASKS §8.3); null for legacy seed rows.
+  TextColumn get contentHash => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Teacher-facing AI insight rows (TASKS §11.3).
+@DataClassName('InsightCard')
+class InsightCards extends Table {
+  TextColumn get id => text()();
+  TextColumn get learnerId => text()();
+  TextColumn get issue => text()();
+  TextColumn get pattern => text()();
+  TextColumn get recommendation => text()();
   DateTimeColumn get createdAt => dateTime()();
 
   @override

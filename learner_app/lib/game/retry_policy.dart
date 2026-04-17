@@ -12,6 +12,9 @@ class PerTaskRetryPolicy {
 
   int get maxSubmissionsPerTask => maxRetries + 1;
 
+  /// Submissions already completed on the current task (0 before first submit).
+  int get submissionCount => _submissionsThisTask;
+
   /// Clears counters when moving to a new task.
   void resetForNewTask() => _submissionsThisTask = 0;
 

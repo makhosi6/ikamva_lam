@@ -16,6 +16,27 @@ Playful, teacher-guided English practice for primary and early secondary learner
 | [design.md](design.md) | UX flows and visual tokens |
 | [spec.md](spec.md) | Technical specification |
 | [writeup.md](writeup.md) | Hackathon narrative |
+| [docs/api_sync_contract.md](docs/api_sync_contract.md) | Optional summary sync API (TASKS §14) |
+| [DEMO.md](DEMO.md) | 90s judging script (TASKS §16.1) |
+| [teacher_web/](teacher_web/) | Web dashboard placeholder (TASKS §14.3) |
+| [notebooks/](notebooks/) | Kaggle-friendly overview notebook (TASKS §16.4) |
+
+## Benchmarks & devices (TASKS §15.1–15.2)
+
+Fill this table on real hardware after profiling. Stub LLM timings are not representative of Gemma.
+
+| Metric | 4GB RAM (E2B target) | 8GB RAM (E4B target) |
+|--------|----------------------|------------------------|
+| Cold start → first interactive frame | TBD | TBD |
+| Model ready (llama-cli + GGUF) | TBD | TBD |
+| First-token latency (one cloze prompt) | TBD | TBD |
+| Avg. task generation (queue fill) | TBD | TBD |
+
+**Battery / thermal (TASKS §15.4):** run a continuous 15-minute practice session on a physical device; note % battery drop and subjective warmth in your writeup. No simulator substitute.
+
+## Deploy demo (TASKS §14.4)
+
+Build Flutter web or ship macOS build to judges. Example static hosting: **Firebase Hosting** or **GitHub Pages** — upload `build/web` after `flutter build web`, set SPA fallback to `index.html`, paste public URL into [writeup.md](writeup.md).
 
 ## Toolchain (pinned for the team)
 
@@ -49,6 +70,8 @@ Requires **macOS** system fonts (*Arial Rounded Bold*, *Arial*). On Linux, point
 - Place **GGUF** weights under a gitignored path (e.g. `native/models/`); do not commit large binaries.
 - Use **Q4_K_M** quantisation; prefer **Gemma 4 E2B** on ~4GB RAM and **E4B** on ~8GB where possible.
 - See [native/README.md](native/README.md) for the intended FFI stack.
+- **Stub / CI:** `IKAMVA_USE_STUB_LLM=1` skips native binaries.
+- **Optional sync:** compile with `--dart-define=IKAMVA_SYNC_URL=https://example.com/v1/summaries` to exercise outbox flush (see `docs/api_sync_contract.md`).
 
 ## License
 

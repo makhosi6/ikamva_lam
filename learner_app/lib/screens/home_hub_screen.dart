@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -108,6 +109,18 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                 onPressed: () => context.push('/session-summary'),
                 child: const Text('View sample session summary'),
               ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () => context.push('/teacher'),
+                child: const Text('Teacher mode'),
+              ),
+              if (kDebugMode) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => context.push('/dev/stats'),
+                  child: const Text('Debug stats (dev)'),
+                ),
+              ],
             ],
           ),
         ),

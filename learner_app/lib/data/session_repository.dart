@@ -19,6 +19,13 @@ class SessionRepository {
         .get();
   }
 
+  Future<List<Session>> listRecent({int limit = 30}) {
+    return (_db.select(_db.sessions)
+          ..orderBy([(s) => OrderingTerm(expression: s.startedAt, mode: OrderingMode.desc)])
+          ..limit(limit))
+        .get();
+  }
+
   Stream<List<Session>> watchAll() => _db.select(_db.sessions).watch();
 
   Future<void> insert(SessionsCompanion row) =>

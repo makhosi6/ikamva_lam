@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'data/quest_repository.dart';
 import 'db/app_database.dart';
+import 'db/seed.dart';
+import 'game/task_queue_service.dart';
 import 'llm/llm_service.dart';
 import 'router/app_router.dart';
 import 'state/database_scope.dart';
@@ -23,11 +26,32 @@ class IkamvaApp extends StatefulWidget {
   State<IkamvaApp> createState() => _IkamvaAppState();
 }
 
-class _IkamvaAppState extends State<IkamvaApp> {
+class _IkamvaAppState extends State<IkamvaApp> with WidgetsBindingObserver {
   late final GoRouter _router = createAppRouter(widget.settings);
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _topUpQueue();
+    }
+  }
+
+  Future<void> _topUpQueue() async {
+    final quest = await QuestRepository(widget.database).getById(kSeedQuestId);
+    if (quest != null) {
+      await TaskQueueService(widget.database).ensureForQuest(quest);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     LlmService.instance.dispose();
     super.dispose();
   }

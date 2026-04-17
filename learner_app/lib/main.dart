@@ -14,5 +14,6 @@ Future<void> main() async {
   await LlmService.instance.configure(settings);
   final database = IkamvaDatabase(openIkamvaDatabaseFile());
   await ensureDevSeed(database);
+  await ensureExtraSeedTaskTypes(database);
   runApp(IkamvaApp(settings: settings, database: database));
 }

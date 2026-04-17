@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../screens/debug_stats_screen.dart';
 import '../screens/game_shell_screen.dart';
 import '../screens/home_hub_screen.dart';
 import '../screens/session_summary_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/teacher/teacher_class_summary_screen.dart';
+import '../screens/teacher/teacher_gate_screen.dart';
+import '../screens/teacher/teacher_home_screen.dart';
+import '../screens/teacher/teacher_insights_screen.dart';
+import '../screens/teacher/teacher_privacy_screen.dart';
+import '../screens/teacher/teacher_quest_editor_screen.dart';
 import '../screens/welcome_screen.dart';
 import '../state/settings_store.dart';
 
@@ -49,6 +56,34 @@ GoRouter createAppRouter(SettingsStore settings) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/teacher',
+        builder: (context, state) => const TeacherGateScreen(),
+      ),
+      GoRoute(
+        path: '/teacher/home',
+        builder: (context, state) => const TeacherHomeScreen(),
+      ),
+      GoRoute(
+        path: '/teacher/quest',
+        builder: (context, state) => const TeacherQuestEditorScreen(),
+      ),
+      GoRoute(
+        path: '/teacher/class',
+        builder: (context, state) => const TeacherClassSummaryScreen(),
+      ),
+      GoRoute(
+        path: '/teacher/insights',
+        builder: (context, state) => const TeacherInsightsScreen(),
+      ),
+      GoRoute(
+        path: '/teacher/privacy',
+        builder: (context, state) => const TeacherPrivacyScreen(),
+      ),
+      GoRoute(
+        path: '/dev/stats',
+        builder: (context, state) => const DebugStatsScreen(),
       ),
     ],
   );

@@ -54,7 +54,7 @@ class SessionSummaryScreen extends StatelessWidget {
                 const SizedBox(height: 48),
                 FilledButton(
                   onPressed: () => context.go('/home'),
-                  child: const Text('Back to home'),
+                  child: const Text('Back to hub'),
                 ),
               ],
             ),
@@ -93,6 +93,18 @@ class SessionSummaryScreen extends StatelessWidget {
                     size: 64,
                     color: ik.accentSun,
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (var i = 0; i < 5; i++)
+                        Icon(
+                          i < s.starCount ? Icons.star : Icons.star_border,
+                          color: ik.accentSun,
+                          size: 32,
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Great work!',
@@ -125,7 +137,7 @@ class SessionSummaryScreen extends StatelessWidget {
                   const SizedBox(height: 48),
                   FilledButton(
                     onPressed: () => context.go('/home'),
-                    child: const Text('Back to home'),
+                    child: const Text('Back to hub'),
                   ),
                 ],
               ),
@@ -152,11 +164,13 @@ class SessionSummaryScreen extends StatelessWidget {
     final base = session.baselineAccuracy;
     final baselineLabel =
         base == null ? '—' : '${(base * 100).round()}%';
+    final stars = acc == null ? 0 : (acc * 5).round().clamp(0, 5);
     return _SessionStats(
       tasksCompleted: session.tasksCompleted,
       baselineAccuracyLabel: baselineLabel,
       accuracyLabel: accLabel,
       hintsUsedLabel: hintsLabel,
+      starCount: stars,
     );
   }
 }
@@ -167,12 +181,14 @@ class _SessionStats {
     required this.baselineAccuracyLabel,
     required this.accuracyLabel,
     required this.hintsUsedLabel,
+    required this.starCount,
   });
 
   final int tasksCompleted;
   final String baselineAccuracyLabel;
   final String accuracyLabel;
   final String hintsUsedLabel;
+  final int starCount;
 }
 
 class _StatRow extends StatelessWidget {

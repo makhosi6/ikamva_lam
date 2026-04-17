@@ -13,6 +13,15 @@ void main() {
     expect(p.canSubmit, isFalse);
   });
 
+  test('submissionCount tracks submissions', () {
+    final p = PerTaskRetryPolicy(maxRetries: 2);
+    expect(p.submissionCount, 0);
+    p.recordSubmission();
+    expect(p.submissionCount, 1);
+    p.recordSubmission();
+    expect(p.submissionCount, 2);
+  });
+
   test('resetForNewTask clears counter', () {
     final p = PerTaskRetryPolicy(maxRetries: 0);
     p.recordSubmission();

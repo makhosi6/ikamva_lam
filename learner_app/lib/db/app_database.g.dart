@@ -1042,6 +1042,17 @@ class $TaskRecordsTable extends TaskRecords
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _contentHashMeta = const VerificationMeta(
+    'contentHash',
+  );
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+    'content_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1062,6 +1073,7 @@ class $TaskRecordsTable extends TaskRecords
     topic,
     payloadJson,
     source,
+    contentHash,
     createdAt,
   ];
   @override
@@ -1132,6 +1144,15 @@ class $TaskRecordsTable extends TaskRecords
     } else if (isInserting) {
       context.missing(_sourceMeta);
     }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+        _contentHashMeta,
+        contentHash.isAcceptableOrUnknown(
+          data['content_hash']!,
+          _contentHashMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1177,6 +1198,10 @@ class $TaskRecordsTable extends TaskRecords
         DriftSqlType.string,
         data['${effectivePrefix}source'],
       )!,
+      contentHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_hash'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1198,6 +1223,9 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
   final String topic;
   final String payloadJson;
   final String source;
+
+  /// Dedupe key for generated/cached rows (TASKS §8.3); null for legacy seed rows.
+  final String? contentHash;
   final DateTime createdAt;
   const TaskRecord({
     required this.id,
@@ -1207,6 +1235,7 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
     required this.topic,
     required this.payloadJson,
     required this.source,
+    this.contentHash,
     required this.createdAt,
   });
   @override
@@ -1219,6 +1248,9 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
     map['topic'] = Variable<String>(topic);
     map['payload_json'] = Variable<String>(payloadJson);
     map['source'] = Variable<String>(source);
+    if (!nullToAbsent || contentHash != null) {
+      map['content_hash'] = Variable<String>(contentHash);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -1232,6 +1264,9 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
       topic: Value(topic),
       payloadJson: Value(payloadJson),
       source: Value(source),
+      contentHash: contentHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contentHash),
       createdAt: Value(createdAt),
     );
   }
@@ -1249,6 +1284,7 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
       topic: serializer.fromJson<String>(json['topic']),
       payloadJson: serializer.fromJson<String>(json['payloadJson']),
       source: serializer.fromJson<String>(json['source']),
+      contentHash: serializer.fromJson<String?>(json['contentHash']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -1263,6 +1299,7 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
       'topic': serializer.toJson<String>(topic),
       'payloadJson': serializer.toJson<String>(payloadJson),
       'source': serializer.toJson<String>(source),
+      'contentHash': serializer.toJson<String?>(contentHash),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -1275,6 +1312,7 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
     String? topic,
     String? payloadJson,
     String? source,
+    Value<String?> contentHash = const Value.absent(),
     DateTime? createdAt,
   }) => TaskRecord(
     id: id ?? this.id,
@@ -1284,6 +1322,7 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
     topic: topic ?? this.topic,
     payloadJson: payloadJson ?? this.payloadJson,
     source: source ?? this.source,
+    contentHash: contentHash.present ? contentHash.value : this.contentHash,
     createdAt: createdAt ?? this.createdAt,
   );
   TaskRecord copyWithCompanion(TaskRecordsCompanion data) {
@@ -1299,6 +1338,9 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
           ? data.payloadJson.value
           : this.payloadJson,
       source: data.source.present ? data.source.value : this.source,
+      contentHash: data.contentHash.present
+          ? data.contentHash.value
+          : this.contentHash,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -1313,6 +1355,7 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
           ..write('topic: $topic, ')
           ..write('payloadJson: $payloadJson, ')
           ..write('source: $source, ')
+          ..write('contentHash: $contentHash, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -1327,6 +1370,7 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
     topic,
     payloadJson,
     source,
+    contentHash,
     createdAt,
   );
   @override
@@ -1340,6 +1384,7 @@ class TaskRecord extends DataClass implements Insertable<TaskRecord> {
           other.topic == this.topic &&
           other.payloadJson == this.payloadJson &&
           other.source == this.source &&
+          other.contentHash == this.contentHash &&
           other.createdAt == this.createdAt);
 }
 
@@ -1351,6 +1396,7 @@ class TaskRecordsCompanion extends UpdateCompanion<TaskRecord> {
   final Value<String> topic;
   final Value<String> payloadJson;
   final Value<String> source;
+  final Value<String?> contentHash;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const TaskRecordsCompanion({
@@ -1361,6 +1407,7 @@ class TaskRecordsCompanion extends UpdateCompanion<TaskRecord> {
     this.topic = const Value.absent(),
     this.payloadJson = const Value.absent(),
     this.source = const Value.absent(),
+    this.contentHash = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1372,6 +1419,7 @@ class TaskRecordsCompanion extends UpdateCompanion<TaskRecord> {
     required String topic,
     required String payloadJson,
     required String source,
+    this.contentHash = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -1390,6 +1438,7 @@ class TaskRecordsCompanion extends UpdateCompanion<TaskRecord> {
     Expression<String>? topic,
     Expression<String>? payloadJson,
     Expression<String>? source,
+    Expression<String>? contentHash,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -1401,6 +1450,7 @@ class TaskRecordsCompanion extends UpdateCompanion<TaskRecord> {
       if (topic != null) 'topic': topic,
       if (payloadJson != null) 'payload_json': payloadJson,
       if (source != null) 'source': source,
+      if (contentHash != null) 'content_hash': contentHash,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1414,6 +1464,7 @@ class TaskRecordsCompanion extends UpdateCompanion<TaskRecord> {
     Value<String>? topic,
     Value<String>? payloadJson,
     Value<String>? source,
+    Value<String?>? contentHash,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -1425,6 +1476,7 @@ class TaskRecordsCompanion extends UpdateCompanion<TaskRecord> {
       topic: topic ?? this.topic,
       payloadJson: payloadJson ?? this.payloadJson,
       source: source ?? this.source,
+      contentHash: contentHash ?? this.contentHash,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -1454,6 +1506,9 @@ class TaskRecordsCompanion extends UpdateCompanion<TaskRecord> {
     if (source.present) {
       map['source'] = Variable<String>(source.value);
     }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1473,6 +1528,7 @@ class TaskRecordsCompanion extends UpdateCompanion<TaskRecord> {
           ..write('topic: $topic, ')
           ..write('payloadJson: $payloadJson, ')
           ..write('source: $source, ')
+          ..write('contentHash: $contentHash, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3364,6 +3420,419 @@ class SyncOutboxEntriesCompanion extends UpdateCompanion<SyncOutboxEntry> {
   }
 }
 
+class $InsightCardsTable extends InsightCards
+    with TableInfo<$InsightCardsTable, InsightCard> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $InsightCardsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _learnerIdMeta = const VerificationMeta(
+    'learnerId',
+  );
+  @override
+  late final GeneratedColumn<String> learnerId = GeneratedColumn<String>(
+    'learner_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _issueMeta = const VerificationMeta('issue');
+  @override
+  late final GeneratedColumn<String> issue = GeneratedColumn<String>(
+    'issue',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _patternMeta = const VerificationMeta(
+    'pattern',
+  );
+  @override
+  late final GeneratedColumn<String> pattern = GeneratedColumn<String>(
+    'pattern',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _recommendationMeta = const VerificationMeta(
+    'recommendation',
+  );
+  @override
+  late final GeneratedColumn<String> recommendation = GeneratedColumn<String>(
+    'recommendation',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    learnerId,
+    issue,
+    pattern,
+    recommendation,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'insight_cards';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<InsightCard> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('learner_id')) {
+      context.handle(
+        _learnerIdMeta,
+        learnerId.isAcceptableOrUnknown(data['learner_id']!, _learnerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_learnerIdMeta);
+    }
+    if (data.containsKey('issue')) {
+      context.handle(
+        _issueMeta,
+        issue.isAcceptableOrUnknown(data['issue']!, _issueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_issueMeta);
+    }
+    if (data.containsKey('pattern')) {
+      context.handle(
+        _patternMeta,
+        pattern.isAcceptableOrUnknown(data['pattern']!, _patternMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_patternMeta);
+    }
+    if (data.containsKey('recommendation')) {
+      context.handle(
+        _recommendationMeta,
+        recommendation.isAcceptableOrUnknown(
+          data['recommendation']!,
+          _recommendationMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_recommendationMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  InsightCard map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return InsightCard(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      learnerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}learner_id'],
+      )!,
+      issue: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}issue'],
+      )!,
+      pattern: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pattern'],
+      )!,
+      recommendation: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recommendation'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $InsightCardsTable createAlias(String alias) {
+    return $InsightCardsTable(attachedDatabase, alias);
+  }
+}
+
+class InsightCard extends DataClass implements Insertable<InsightCard> {
+  final String id;
+  final String learnerId;
+  final String issue;
+  final String pattern;
+  final String recommendation;
+  final DateTime createdAt;
+  const InsightCard({
+    required this.id,
+    required this.learnerId,
+    required this.issue,
+    required this.pattern,
+    required this.recommendation,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['learner_id'] = Variable<String>(learnerId);
+    map['issue'] = Variable<String>(issue);
+    map['pattern'] = Variable<String>(pattern);
+    map['recommendation'] = Variable<String>(recommendation);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  InsightCardsCompanion toCompanion(bool nullToAbsent) {
+    return InsightCardsCompanion(
+      id: Value(id),
+      learnerId: Value(learnerId),
+      issue: Value(issue),
+      pattern: Value(pattern),
+      recommendation: Value(recommendation),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory InsightCard.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return InsightCard(
+      id: serializer.fromJson<String>(json['id']),
+      learnerId: serializer.fromJson<String>(json['learnerId']),
+      issue: serializer.fromJson<String>(json['issue']),
+      pattern: serializer.fromJson<String>(json['pattern']),
+      recommendation: serializer.fromJson<String>(json['recommendation']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'learnerId': serializer.toJson<String>(learnerId),
+      'issue': serializer.toJson<String>(issue),
+      'pattern': serializer.toJson<String>(pattern),
+      'recommendation': serializer.toJson<String>(recommendation),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  InsightCard copyWith({
+    String? id,
+    String? learnerId,
+    String? issue,
+    String? pattern,
+    String? recommendation,
+    DateTime? createdAt,
+  }) => InsightCard(
+    id: id ?? this.id,
+    learnerId: learnerId ?? this.learnerId,
+    issue: issue ?? this.issue,
+    pattern: pattern ?? this.pattern,
+    recommendation: recommendation ?? this.recommendation,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  InsightCard copyWithCompanion(InsightCardsCompanion data) {
+    return InsightCard(
+      id: data.id.present ? data.id.value : this.id,
+      learnerId: data.learnerId.present ? data.learnerId.value : this.learnerId,
+      issue: data.issue.present ? data.issue.value : this.issue,
+      pattern: data.pattern.present ? data.pattern.value : this.pattern,
+      recommendation: data.recommendation.present
+          ? data.recommendation.value
+          : this.recommendation,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InsightCard(')
+          ..write('id: $id, ')
+          ..write('learnerId: $learnerId, ')
+          ..write('issue: $issue, ')
+          ..write('pattern: $pattern, ')
+          ..write('recommendation: $recommendation, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, learnerId, issue, pattern, recommendation, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is InsightCard &&
+          other.id == this.id &&
+          other.learnerId == this.learnerId &&
+          other.issue == this.issue &&
+          other.pattern == this.pattern &&
+          other.recommendation == this.recommendation &&
+          other.createdAt == this.createdAt);
+}
+
+class InsightCardsCompanion extends UpdateCompanion<InsightCard> {
+  final Value<String> id;
+  final Value<String> learnerId;
+  final Value<String> issue;
+  final Value<String> pattern;
+  final Value<String> recommendation;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const InsightCardsCompanion({
+    this.id = const Value.absent(),
+    this.learnerId = const Value.absent(),
+    this.issue = const Value.absent(),
+    this.pattern = const Value.absent(),
+    this.recommendation = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  InsightCardsCompanion.insert({
+    required String id,
+    required String learnerId,
+    required String issue,
+    required String pattern,
+    required String recommendation,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       learnerId = Value(learnerId),
+       issue = Value(issue),
+       pattern = Value(pattern),
+       recommendation = Value(recommendation),
+       createdAt = Value(createdAt);
+  static Insertable<InsightCard> custom({
+    Expression<String>? id,
+    Expression<String>? learnerId,
+    Expression<String>? issue,
+    Expression<String>? pattern,
+    Expression<String>? recommendation,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (learnerId != null) 'learner_id': learnerId,
+      if (issue != null) 'issue': issue,
+      if (pattern != null) 'pattern': pattern,
+      if (recommendation != null) 'recommendation': recommendation,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  InsightCardsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? learnerId,
+    Value<String>? issue,
+    Value<String>? pattern,
+    Value<String>? recommendation,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return InsightCardsCompanion(
+      id: id ?? this.id,
+      learnerId: learnerId ?? this.learnerId,
+      issue: issue ?? this.issue,
+      pattern: pattern ?? this.pattern,
+      recommendation: recommendation ?? this.recommendation,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (learnerId.present) {
+      map['learner_id'] = Variable<String>(learnerId.value);
+    }
+    if (issue.present) {
+      map['issue'] = Variable<String>(issue.value);
+    }
+    if (pattern.present) {
+      map['pattern'] = Variable<String>(pattern.value);
+    }
+    if (recommendation.present) {
+      map['recommendation'] = Variable<String>(recommendation.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InsightCardsCompanion(')
+          ..write('id: $id, ')
+          ..write('learnerId: $learnerId, ')
+          ..write('issue: $issue, ')
+          ..write('pattern: $pattern, ')
+          ..write('recommendation: $recommendation, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$IkamvaDatabase extends GeneratedDatabase {
   _$IkamvaDatabase(QueryExecutor e) : super(e);
   $IkamvaDatabaseManager get managers => $IkamvaDatabaseManager(this);
@@ -3378,6 +3847,7 @@ abstract class _$IkamvaDatabase extends GeneratedDatabase {
       $SkillDifficultyStatesTable(this);
   late final $SyncOutboxEntriesTable syncOutboxEntries =
       $SyncOutboxEntriesTable(this);
+  late final $InsightCardsTable insightCards = $InsightCardsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3390,6 +3860,7 @@ abstract class _$IkamvaDatabase extends GeneratedDatabase {
     attempts,
     skillDifficultyStates,
     syncOutboxEntries,
+    insightCards,
   ];
 }
 
@@ -3888,6 +4359,7 @@ typedef $$TaskRecordsTableCreateCompanionBuilder =
       required String topic,
       required String payloadJson,
       required String source,
+      Value<String?> contentHash,
       required DateTime createdAt,
       Value<int> rowid,
     });
@@ -3900,6 +4372,7 @@ typedef $$TaskRecordsTableUpdateCompanionBuilder =
       Value<String> topic,
       Value<String> payloadJson,
       Value<String> source,
+      Value<String?> contentHash,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -3945,6 +4418,11 @@ class $$TaskRecordsTableFilterComposer
 
   ColumnFilters<String> get source => $composableBuilder(
     column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3998,6 +4476,11 @@ class $$TaskRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -4037,6 +4520,11 @@ class $$TaskRecordsTableAnnotationComposer
 
   GeneratedColumn<String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -4080,6 +4568,7 @@ class $$TaskRecordsTableTableManager
                 Value<String> topic = const Value.absent(),
                 Value<String> payloadJson = const Value.absent(),
                 Value<String> source = const Value.absent(),
+                Value<String?> contentHash = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TaskRecordsCompanion(
@@ -4090,6 +4579,7 @@ class $$TaskRecordsTableTableManager
                 topic: topic,
                 payloadJson: payloadJson,
                 source: source,
+                contentHash: contentHash,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -4102,6 +4592,7 @@ class $$TaskRecordsTableTableManager
                 required String topic,
                 required String payloadJson,
                 required String source,
+                Value<String?> contentHash = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => TaskRecordsCompanion.insert(
@@ -4112,6 +4603,7 @@ class $$TaskRecordsTableTableManager
                 topic: topic,
                 payloadJson: payloadJson,
                 source: source,
+                contentHash: contentHash,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -5126,6 +5618,227 @@ typedef $$SyncOutboxEntriesTableProcessedTableManager =
       SyncOutboxEntry,
       PrefetchHooks Function()
     >;
+typedef $$InsightCardsTableCreateCompanionBuilder =
+    InsightCardsCompanion Function({
+      required String id,
+      required String learnerId,
+      required String issue,
+      required String pattern,
+      required String recommendation,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$InsightCardsTableUpdateCompanionBuilder =
+    InsightCardsCompanion Function({
+      Value<String> id,
+      Value<String> learnerId,
+      Value<String> issue,
+      Value<String> pattern,
+      Value<String> recommendation,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$InsightCardsTableFilterComposer
+    extends Composer<_$IkamvaDatabase, $InsightCardsTable> {
+  $$InsightCardsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get learnerId => $composableBuilder(
+    column: $table.learnerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get issue => $composableBuilder(
+    column: $table.issue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pattern => $composableBuilder(
+    column: $table.pattern,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recommendation => $composableBuilder(
+    column: $table.recommendation,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$InsightCardsTableOrderingComposer
+    extends Composer<_$IkamvaDatabase, $InsightCardsTable> {
+  $$InsightCardsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get learnerId => $composableBuilder(
+    column: $table.learnerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get issue => $composableBuilder(
+    column: $table.issue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pattern => $composableBuilder(
+    column: $table.pattern,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recommendation => $composableBuilder(
+    column: $table.recommendation,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$InsightCardsTableAnnotationComposer
+    extends Composer<_$IkamvaDatabase, $InsightCardsTable> {
+  $$InsightCardsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get learnerId =>
+      $composableBuilder(column: $table.learnerId, builder: (column) => column);
+
+  GeneratedColumn<String> get issue =>
+      $composableBuilder(column: $table.issue, builder: (column) => column);
+
+  GeneratedColumn<String> get pattern =>
+      $composableBuilder(column: $table.pattern, builder: (column) => column);
+
+  GeneratedColumn<String> get recommendation => $composableBuilder(
+    column: $table.recommendation,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$InsightCardsTableTableManager
+    extends
+        RootTableManager<
+          _$IkamvaDatabase,
+          $InsightCardsTable,
+          InsightCard,
+          $$InsightCardsTableFilterComposer,
+          $$InsightCardsTableOrderingComposer,
+          $$InsightCardsTableAnnotationComposer,
+          $$InsightCardsTableCreateCompanionBuilder,
+          $$InsightCardsTableUpdateCompanionBuilder,
+          (
+            InsightCard,
+            BaseReferences<_$IkamvaDatabase, $InsightCardsTable, InsightCard>,
+          ),
+          InsightCard,
+          PrefetchHooks Function()
+        > {
+  $$InsightCardsTableTableManager(_$IkamvaDatabase db, $InsightCardsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$InsightCardsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$InsightCardsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$InsightCardsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> learnerId = const Value.absent(),
+                Value<String> issue = const Value.absent(),
+                Value<String> pattern = const Value.absent(),
+                Value<String> recommendation = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => InsightCardsCompanion(
+                id: id,
+                learnerId: learnerId,
+                issue: issue,
+                pattern: pattern,
+                recommendation: recommendation,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String learnerId,
+                required String issue,
+                required String pattern,
+                required String recommendation,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => InsightCardsCompanion.insert(
+                id: id,
+                learnerId: learnerId,
+                issue: issue,
+                pattern: pattern,
+                recommendation: recommendation,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$InsightCardsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$IkamvaDatabase,
+      $InsightCardsTable,
+      InsightCard,
+      $$InsightCardsTableFilterComposer,
+      $$InsightCardsTableOrderingComposer,
+      $$InsightCardsTableAnnotationComposer,
+      $$InsightCardsTableCreateCompanionBuilder,
+      $$InsightCardsTableUpdateCompanionBuilder,
+      (
+        InsightCard,
+        BaseReferences<_$IkamvaDatabase, $InsightCardsTable, InsightCard>,
+      ),
+      InsightCard,
+      PrefetchHooks Function()
+    >;
 
 class $IkamvaDatabaseManager {
   final _$IkamvaDatabase _db;
@@ -5144,4 +5857,6 @@ class $IkamvaDatabaseManager {
       $$SkillDifficultyStatesTableTableManager(_db, _db.skillDifficultyStates);
   $$SyncOutboxEntriesTableTableManager get syncOutboxEntries =>
       $$SyncOutboxEntriesTableTableManager(_db, _db.syncOutboxEntries);
+  $$InsightCardsTableTableManager get insightCards =>
+      $$InsightCardsTableTableManager(_db, _db.insightCards);
 }
