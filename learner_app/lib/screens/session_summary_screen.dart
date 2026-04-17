@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../theme/ikamva_colors.dart';
 import '../widgets/constrained_content.dart';
+import '../widgets/ikamva_app_bar_title.dart';
 
 class SessionSummaryScreen extends StatelessWidget {
   const SessionSummaryScreen({super.key});
@@ -13,7 +14,7 @@ class SessionSummaryScreen extends StatelessWidget {
     final ik = context.ikamvaColors;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Session done'),
+        title: const IkamvaAppBarTitle(title: 'Session done'),
       ),
       body: SafeArea(
         child: ConstrainedContent(

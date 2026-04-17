@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../theme/ikamva_colors.dart';
 import '../widgets/constrained_content.dart';
+import '../widgets/ikamva_app_bar_title.dart';
 
 class HomeHubScreen extends StatelessWidget {
   const HomeHubScreen({super.key});
@@ -13,7 +14,7 @@ class HomeHubScreen extends StatelessWidget {
     final ik = context.ikamvaColors;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your quests'),
+        title: const IkamvaAppBarTitle(title: 'Your quests'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),

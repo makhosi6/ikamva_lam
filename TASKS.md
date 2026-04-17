@@ -1,5 +1,9 @@
 # Ikamva Lam — Build Task List
 
+<img src="branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
+
+![Ikamva Lam logo](branding/logo.png)
+
 Work against this file in order within each phase unless a task notes a dependency. Check boxes as you complete work. **Definition of done** for a task: code merged locally, builds on target platform(s), and any listed acceptance criteria pass.
 
 **Reference docs:** [spec.md](spec.md), [writeup.md](writeup.md), [design.md](design.md).
@@ -19,6 +23,7 @@ Work against this file in order within each phase unless a task notes a dependen
 **Suggested repo layout (adjust if you prefer monorepo):**
 
 ```text
+/branding/             # logo.svg, logo.png, cover.png, launcher_icon.png
 /learner_app/          # Flutter
 /teacher_web/          # optional: Flutter web, or React/Vite
 /native/               # llama.cpp build scripts + CMake
@@ -45,15 +50,16 @@ writeup.md
 
 ## Phase 1 — Flutter app shell & design system
 
-- [x] **1.1** Create Flutter project `learner_app` (iOS, Android, desktop as needed for demo). **(P0)**
-- [x] **1.2** Implement `ThemeData` + `ThemeExtension<IkamvaColors>` (or equivalent) using tokens from [design.md §5.2](design.md). **(P0)**
-- [ ] **1.3** Add bundled fonts: display (Nunito or Quicksand) + body (Source Sans 3 or Noto Sans); declare in `pubspec.yaml`. **(P1)** — *interim: `google_fonts` in code; bundle assets for strict offline.*
-- [x] **1.4** Build **app router** (e.g. `go_router` or `Navigator2.0`): splash → welcome → home → game shell → session summary → settings. **(P0)** — *no separate splash route; redirect handles first launch.*
-- [x] **1.5** Implement **responsive layout** scaffold: single-column primary content, min touch target 48dp; safe area padding. **(P0)**
-- [x] **1.6** Add **settings persistence** (`shared_preferences` or SQLite single row): TTS on/off, hint language preference, reduce motion (read from `MediaQuery.disableAnimations` / platform flag). **(P1)** — *reduce motion is user toggle only for now.*
-- [x] **1.7** Placeholder screens matching [design.md screen inventory](design.md): Welcome, Hub, Game shell, Session end, Settings — with copy from writeup tone. **(P0)**
+- [x] **1.1** **Branding:** assets in [branding/](branding/) — [logo.svg](branding/logo.svg), [logo.png](branding/logo.png), [cover.png](branding/cover.png) (1200×630 via [scripts/generate_cover.py](scripts/generate_cover.py)); mirror PNGs in `learner_app/assets/branding/`. Document in [design.md §5.1](design.md). App: `IkamvaLogo`, `IkamvaAppBarTitle`, `IkamvaCoverBanner`. **(P0)**
+- [x] **1.2** Create Flutter project `learner_app` (iOS, Android, desktop as needed for demo). **(P0)**
+- [x] **1.3** Implement `ThemeData` + `ThemeExtension<IkamvaColors>` (or equivalent) using tokens from [design.md §5.2](design.md). **(P0)**
+- [ ] **1.4** Add bundled fonts: display (Nunito or Quicksand) + body (Source Sans 3 or Noto Sans); declare in `pubspec.yaml`. **(P1)** — *interim: `google_fonts` in code; bundle assets for strict offline.*
+- [x] **1.5** Build **app router** (e.g. `go_router` or `Navigator2.0`): splash → welcome → home → game shell → session summary → settings. **(P0)** — *no separate splash route; redirect handles first launch.*
+- [x] **1.6** Implement **responsive layout** scaffold: single-column primary content, min touch target 48dp; safe area padding. **(P0)**
+- [x] **1.7** Add **settings persistence** (`shared_preferences` or SQLite single row): TTS on/off, hint language preference, reduce motion (read from `MediaQuery.disableAnimations` / platform flag). **(P1)** — *reduce motion is user toggle only for now.*
+- [x] **1.8** Placeholder screens matching [design.md screen inventory](design.md): Welcome, Hub, Game shell, Session end, Settings — with copy from writeup tone. **(P0)**
 
-**Acceptance:** Cold start navigates through all placeholder routes without errors; theme readable on tablet.
+**Acceptance:** Cold start navigates through all placeholder routes without errors; theme readable on tablet; **cover + logo on Welcome; logo on primary AppBars**.
 
 ---
 

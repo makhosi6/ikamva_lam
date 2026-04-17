@@ -1,5 +1,9 @@
 # Ikamva Lam — User Flows & Visual Design
 
+<img src="branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
+
+![Ikamva Lam logo](branding/logo.png) · [SVG source](branding/logo.svg)
+
 This document translates [spec.md](spec.md) and [writeup.md](writeup.md) into concrete user journeys and a visual language suitable for Flutter on tablets and low-end laptops.
 
 ---
@@ -155,6 +159,7 @@ Design goals from the spec: **motion without melting low-end GPUs**, **illustrat
 ### 5.1 Brand idea
 
 - **Name:** Ikamva Lam — *my future* → upward growth, dawn light, young people moving forward.
+- **Logo (raster):** [branding/logo.png](branding/logo.png) — export for apps and docs. **Cover / social:** [branding/cover.png](branding/cover.png) — 1200×630: left panel + logo, right panel with title and lowercase tagline (see [scripts/generate_cover.py](scripts/generate_cover.py)). **Vector source:** [branding/logo.svg](branding/logo.svg) — square canvas (`#F6F1E7`), sun disc (`#E8A23E`), horizon arc and open book (`#1B6B5C`), accent dot (`#3A7CA5`).
 - **Tone:** Warm, classroom-safe, playful but not infantile (primary through early secondary).
 - **Avoid:** Generic “AI purple”, cluttered chat metaphors, tiny body text.
 

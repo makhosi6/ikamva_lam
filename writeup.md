@@ -1,5 +1,9 @@
 # Ikamva Lam (“My Future”)
 
+<img src="branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
+
+![Ikamva Lam logo](branding/logo.png) · *Vector: [branding/logo.svg](branding/logo.svg)*
+
 Playful English practice for primary and secondary learners—teacher-guided and powered by on-device Gemma 4
 
 ---

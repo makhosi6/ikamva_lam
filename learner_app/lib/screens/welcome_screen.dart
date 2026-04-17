@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../theme/ikamva_colors.dart';
 import '../state/settings_scope.dart';
 import '../widgets/constrained_content.dart';
+import '../widgets/ikamva_logo.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -18,6 +18,10 @@ class WelcomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 24),
+              const Center(
+                child: IkamvaLogo(height: 88),
+              ),
+              const SizedBox(height: 16),
               Text(
                 'Ikamva Lam',
                 style: theme.textTheme.displaySmall,
@@ -31,26 +35,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
-              AspectRatio(
-                aspectRatio: 4 / 3,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: context.ikamvaColors.accentSun.withValues(
-                      alpha: 0.25,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.wb_sunny_outlined,
-                      size: 72,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
               Text(
                 'You will read, listen, and speak in short games. Your teacher guides what you practise.',
                 style: theme.textTheme.bodyMedium,

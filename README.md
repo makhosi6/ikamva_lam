@@ -1,11 +1,20 @@
 # Ikamva Lam
 
+<img src="branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
+
+| | |
+|:--|:--|
+| **Square logo (app / icon pipeline)** | ![Ikamva Lam logo](branding/logo.png) |
+| **Vector source** | [branding/logo.svg](branding/logo.svg) |
+
 Playful, teacher-guided English practice for primary and early secondary learners. Learner app targets **offline-first** use on tablets and low-end laptops; on-device AI is planned via **llama.cpp** and quantised **Gemma 4** (see [spec.md](spec.md)).
 
 ## Repository layout
 
 | Path | Purpose |
 |------|---------|
+| [branding/](branding/) | Logo & cover PNGs (raster), SVG source, future brand assets |
+| [scripts/](scripts/) | e.g. `generate_cover.py` — cover layout (logo + copy) |
 | [learner_app/](learner_app/) | Flutter learner client |
 | [native/](native/) | Planned llama.cpp build notes and FFI bridge |
 | [TASKS.md](TASKS.md) | Detailed build checklist |
@@ -29,6 +38,16 @@ flutter run
 ```
 
 Target a tablet or resize the window to verify large touch targets and typography.
+
+## Cover image (1200×630)
+
+The welcome screen and docs use `branding/cover.png`: **logo** from `logo.png` on the **left** (same `#F6F1E7` as the logo canvas, ~one-third width), **title + tagline** on the **right** (cream panel, tight margins). Regenerate after logo changes:
+
+```bash
+python3 scripts/generate_cover.py
+```
+
+Requires **macOS** system fonts (*Arial Rounded Bold*, *Arial*). On Linux, point the script at equivalent `.ttf` paths or install those faces.
 
 ## Models (llama.cpp + Gemma)
 

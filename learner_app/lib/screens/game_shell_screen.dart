@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../theme/ikamva_colors.dart';
 import '../widgets/constrained_content.dart';
+import '../widgets/ikamva_app_bar_title.dart';
 
 class GameShellScreen extends StatelessWidget {
   const GameShellScreen({super.key});
@@ -17,7 +18,7 @@ class GameShellScreen extends StatelessWidget {
           icon: const Icon(Icons.close),
           onPressed: () => context.go('/home'),
         ),
-        title: const Text('Practice'),
+        title: const IkamvaAppBarTitle(title: 'Practice', logoHeight: 30),
         actions: [
           TextButton(
             onPressed: () {},

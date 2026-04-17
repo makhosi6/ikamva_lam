@@ -1,6 +1,10 @@
 
 Ikamva Lam — Advanced Technical Spec
 
+<img src="branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
+
+![Ikamva Lam logo](branding/logo.png) · *Vector: [branding/logo.svg](branding/logo.svg)*
+
 ⸻
 
 🎯 1. Design Goals (Aligned to Tracks)

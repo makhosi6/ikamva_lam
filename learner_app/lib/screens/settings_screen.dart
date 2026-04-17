@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../state/settings_scope.dart';
 import '../widgets/constrained_content.dart';
+import '../widgets/ikamva_app_bar_title.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -20,7 +21,7 @@ class SettingsScreen extends StatelessWidget {
     final settings = SettingsScope.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const IkamvaAppBarTitle(title: 'Settings'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {

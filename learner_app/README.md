@@ -1,16 +1,13 @@
-# ikamva_lam
+# Ikamva Lam
 
-A new Flutter project.
+<img src="../branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
 
-## Getting Started
+Ikamva Lam is a lightweight learning app that helps learners build English confidence through short, engaging micro-games. It is designed for primary and early secondary learners, especially in environments where:
 
-This project is a starting point for a Flutter application.
+- English is not the home language
+- Access to books and devices is limited
+- Internet connectivity is unreliable
 
-A few resources to get you started if this is your first Flutter project:
+The system keeps teachers in control, while AI runs locally on-device to support learners with hints, feedback, and structured practice. The learner app is deliberately multimodal—animations, illustrations, and voice—so learners can listen while they read, practice speaking aloud, and use optional voice commands without everything depending on dense on-screen text alone.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+One-line pitch: Ikamva Lam builds English confidence through guided play, with teacher oversight, a rich multimodal learner interface, and fully offline AI support.
