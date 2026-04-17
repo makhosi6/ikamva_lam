@@ -10,7 +10,6 @@ import 'package:ikamva_lam/db/app_database.dart';
 import 'package:ikamva_lam/db/database_connection.dart';
 import 'package:ikamva_lam/db/seed.dart';
 import 'package:ikamva_lam/domain/skill_id.dart';
-import 'package:ikamva_lam/domain/task_source.dart';
 import 'package:ikamva_lam/domain/task_type.dart';
 import 'package:uuid/uuid.dart';
 

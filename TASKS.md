@@ -85,7 +85,7 @@ Use **SQLite** (`drift` / `sqflite` / `sqlite3` + FFI). Prefer typed queries and
 
 All AI output must be **validated** before showing to learners (fail closed → regenerate or use next cached item).
 
-- [ ] **3.1** Define Dart classes / `freezed` / `json_serializable` for **Cloze**: `sentence`, `answer`, `options` (3–4 strings), optional `hint_en`, `hint_xh`, `hint_zu`, `hint_af`. **(P0)**
+- [x] **3.1** Define Dart classes / `freezed` / `json_serializable` for **Cloze**: `sentence`, `answer`, `options` (3–4 strings), optional `hint_en`, `hint_xh`, `hint_zu`, `hint_af`. **(P0)**
 - [ ] **3.2** Define payload for **Reorder**: ordered list of tokens or short phrases; correct permutation reference. **(P1)**
 - [ ] **3.3** Define payload for **Match**: `left[]`, `right[]`, `pairs` map or list. **(P1)**
 - [ ] **3.4** Define payload for **Dialogue choice**: short context, `question`, `options`, `correctIndex` or `correctId`. **(P1)**
