@@ -99,7 +99,7 @@ All AI output must be **validated** before showing to learners (fail closed → 
 ## Phase 4 — Game engine orchestration (no AI yet)
 
 - [x] **4.1** **GameCoordinator** service: given `Quest` or practice config, yields a stream/list of `TaskRecord` (initially from DB seed only). **(P0)**
-- [ ] **4.2** **SessionController**: start/end session, attach `sessionId` to attempts, enforce time limit OR task count from quest. **(P0)**
+- [x] **4.2** **SessionController**: start/end session, attach `sessionId` to attempts, enforce time limit OR task count from quest. **(P0)**
 - [ ] **4.3** **RuleBasedEvaluator** per task type: cloze compares normalized string equality or canonical answer id; reorder compares permutation; match compares pairs; dialogue compares selection. **(P0)**
 - [ ] **4.4** **Retry policy**: max retries per task (e.g. 2); track `hintSteps` and `usedHint`. **(P0)**
 - [ ] **4.5** Wire **progress UI** in game shell: “Task 3 of 10”, linear progress bar, pause (saves session state). **(P0)**
