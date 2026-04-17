@@ -1,5 +1,7 @@
 # Ikamva Lam
 
+**Version:** `0.0.1+1` (see [`pubspec.yaml`](pubspec.yaml) `version:`).
+
 <img src="../branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
 
 Ikamva Lam is a lightweight learning app that helps learners build English confidence through short, engaging micro-games. It is designed for primary and early secondary learners, especially in environments where:

@@ -258,4 +258,4 @@ Use as Flutter `ThemeExtension` or constants. Favor **WCAG AA** contrast for tex
 
 ---
 
-*Document version: 1.0 — aligned with spec.md & writeup.md.*
+*Document version: 1.0 — aligned with spec.md & writeup.md. Learner app release **0.0.1** (`learner_app/pubspec.yaml`).*
