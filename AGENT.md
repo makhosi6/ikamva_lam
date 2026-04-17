@@ -2,6 +2,8 @@
 - With every task completion, make a **git commit** with:
   - **Short message** (first line): imperative, scoped when helpful, e.g. `feat(learner): …` or `fix(db): …`.
   - **Longer description** (commit body): what changed, why it matters, and notable files or risks. Prefer multiple `-m` flags so the body is separate from the subject.
+- When necessary, increment the version of the project in `./learner_app/pubspec.yaml` and `./learner_app/lib/version.dart` and create a new tag with the version number (as per semantic versioning rules)
+
 
 Example:
 
