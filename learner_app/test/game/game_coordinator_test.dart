@@ -14,13 +14,34 @@ void main() {
 
       final coord = GameCoordinator(db);
       final tasks = await coord.loadTasksForQuest(quest!);
-      expect(tasks, hasLength(3));
+      expect(tasks, hasLength(6));
       expect(tasks.map((t) => t.id).toList(), [
         kSeedTaskId,
         kSeedTaskId2,
         kSeedTaskId3,
+        kSeedTaskD2a,
+        kSeedTaskD2b,
+        kSeedTaskD3,
       ]);
       expect(tasks.first.topic, quest.topic);
+      await db.close();
+    });
+
+    test('loadTasksForQuest respects maxDifficultyInclusive', () async {
+      final db = openMemoryDatabase();
+      await ensureDevSeed(db);
+      final quest = (await QuestRepository(db).getById(kSeedQuestId))!;
+      final coord = GameCoordinator(db);
+      final easy = await coord.loadTasksForQuest(
+        quest,
+        maxDifficultyInclusive: 1,
+      );
+      expect(easy, hasLength(3));
+      final mid = await coord.loadTasksForQuest(
+        quest,
+        maxDifficultyInclusive: 2,
+      );
+      expect(mid, hasLength(5));
       await db.close();
     });
 

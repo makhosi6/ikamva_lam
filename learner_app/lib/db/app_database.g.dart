@@ -1561,6 +1561,17 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _baselineAccuracyMeta = const VerificationMeta(
+    'baselineAccuracy',
+  );
+  @override
+  late final GeneratedColumn<double> baselineAccuracy = GeneratedColumn<double>(
+    'baseline_accuracy',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1570,6 +1581,7 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     tasksCompleted,
     accuracy,
     hintRate,
+    baselineAccuracy,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1629,6 +1641,15 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         hintRate.isAcceptableOrUnknown(data['hint_rate']!, _hintRateMeta),
       );
     }
+    if (data.containsKey('baseline_accuracy')) {
+      context.handle(
+        _baselineAccuracyMeta,
+        baselineAccuracy.isAcceptableOrUnknown(
+          data['baseline_accuracy']!,
+          _baselineAccuracyMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1666,6 +1687,10 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.double,
         data['${effectivePrefix}hint_rate'],
       ),
+      baselineAccuracy: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}baseline_accuracy'],
+      ),
     );
   }
 
@@ -1683,6 +1708,9 @@ class Session extends DataClass implements Insertable<Session> {
   final int tasksCompleted;
   final double? accuracy;
   final double? hintRate;
+
+  /// Rolling accuracy (last ~10 attempts) before this session started (TASKS §5.5).
+  final double? baselineAccuracy;
   const Session({
     required this.id,
     this.questId,
@@ -1691,6 +1719,7 @@ class Session extends DataClass implements Insertable<Session> {
     required this.tasksCompleted,
     this.accuracy,
     this.hintRate,
+    this.baselineAccuracy,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1709,6 +1738,9 @@ class Session extends DataClass implements Insertable<Session> {
     }
     if (!nullToAbsent || hintRate != null) {
       map['hint_rate'] = Variable<double>(hintRate);
+    }
+    if (!nullToAbsent || baselineAccuracy != null) {
+      map['baseline_accuracy'] = Variable<double>(baselineAccuracy);
     }
     return map;
   }
@@ -1730,6 +1762,9 @@ class Session extends DataClass implements Insertable<Session> {
       hintRate: hintRate == null && nullToAbsent
           ? const Value.absent()
           : Value(hintRate),
+      baselineAccuracy: baselineAccuracy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(baselineAccuracy),
     );
   }
 
@@ -1746,6 +1781,7 @@ class Session extends DataClass implements Insertable<Session> {
       tasksCompleted: serializer.fromJson<int>(json['tasksCompleted']),
       accuracy: serializer.fromJson<double?>(json['accuracy']),
       hintRate: serializer.fromJson<double?>(json['hintRate']),
+      baselineAccuracy: serializer.fromJson<double?>(json['baselineAccuracy']),
     );
   }
   @override
@@ -1759,6 +1795,7 @@ class Session extends DataClass implements Insertable<Session> {
       'tasksCompleted': serializer.toJson<int>(tasksCompleted),
       'accuracy': serializer.toJson<double?>(accuracy),
       'hintRate': serializer.toJson<double?>(hintRate),
+      'baselineAccuracy': serializer.toJson<double?>(baselineAccuracy),
     };
   }
 
@@ -1770,6 +1807,7 @@ class Session extends DataClass implements Insertable<Session> {
     int? tasksCompleted,
     Value<double?> accuracy = const Value.absent(),
     Value<double?> hintRate = const Value.absent(),
+    Value<double?> baselineAccuracy = const Value.absent(),
   }) => Session(
     id: id ?? this.id,
     questId: questId.present ? questId.value : this.questId,
@@ -1778,6 +1816,9 @@ class Session extends DataClass implements Insertable<Session> {
     tasksCompleted: tasksCompleted ?? this.tasksCompleted,
     accuracy: accuracy.present ? accuracy.value : this.accuracy,
     hintRate: hintRate.present ? hintRate.value : this.hintRate,
+    baselineAccuracy: baselineAccuracy.present
+        ? baselineAccuracy.value
+        : this.baselineAccuracy,
   );
   Session copyWithCompanion(SessionsCompanion data) {
     return Session(
@@ -1790,6 +1831,9 @@ class Session extends DataClass implements Insertable<Session> {
           : this.tasksCompleted,
       accuracy: data.accuracy.present ? data.accuracy.value : this.accuracy,
       hintRate: data.hintRate.present ? data.hintRate.value : this.hintRate,
+      baselineAccuracy: data.baselineAccuracy.present
+          ? data.baselineAccuracy.value
+          : this.baselineAccuracy,
     );
   }
 
@@ -1802,7 +1846,8 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('endedAt: $endedAt, ')
           ..write('tasksCompleted: $tasksCompleted, ')
           ..write('accuracy: $accuracy, ')
-          ..write('hintRate: $hintRate')
+          ..write('hintRate: $hintRate, ')
+          ..write('baselineAccuracy: $baselineAccuracy')
           ..write(')'))
         .toString();
   }
@@ -1816,6 +1861,7 @@ class Session extends DataClass implements Insertable<Session> {
     tasksCompleted,
     accuracy,
     hintRate,
+    baselineAccuracy,
   );
   @override
   bool operator ==(Object other) =>
@@ -1827,7 +1873,8 @@ class Session extends DataClass implements Insertable<Session> {
           other.endedAt == this.endedAt &&
           other.tasksCompleted == this.tasksCompleted &&
           other.accuracy == this.accuracy &&
-          other.hintRate == this.hintRate);
+          other.hintRate == this.hintRate &&
+          other.baselineAccuracy == this.baselineAccuracy);
 }
 
 class SessionsCompanion extends UpdateCompanion<Session> {
@@ -1838,6 +1885,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<int> tasksCompleted;
   final Value<double?> accuracy;
   final Value<double?> hintRate;
+  final Value<double?> baselineAccuracy;
   final Value<int> rowid;
   const SessionsCompanion({
     this.id = const Value.absent(),
@@ -1847,6 +1895,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.tasksCompleted = const Value.absent(),
     this.accuracy = const Value.absent(),
     this.hintRate = const Value.absent(),
+    this.baselineAccuracy = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsCompanion.insert({
@@ -1857,6 +1906,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.tasksCompleted = const Value.absent(),
     this.accuracy = const Value.absent(),
     this.hintRate = const Value.absent(),
+    this.baselineAccuracy = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        startedAt = Value(startedAt);
@@ -1868,6 +1918,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<int>? tasksCompleted,
     Expression<double>? accuracy,
     Expression<double>? hintRate,
+    Expression<double>? baselineAccuracy,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1878,6 +1929,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (tasksCompleted != null) 'tasks_completed': tasksCompleted,
       if (accuracy != null) 'accuracy': accuracy,
       if (hintRate != null) 'hint_rate': hintRate,
+      if (baselineAccuracy != null) 'baseline_accuracy': baselineAccuracy,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1890,6 +1942,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<int>? tasksCompleted,
     Value<double?>? accuracy,
     Value<double?>? hintRate,
+    Value<double?>? baselineAccuracy,
     Value<int>? rowid,
   }) {
     return SessionsCompanion(
@@ -1900,6 +1953,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       tasksCompleted: tasksCompleted ?? this.tasksCompleted,
       accuracy: accuracy ?? this.accuracy,
       hintRate: hintRate ?? this.hintRate,
+      baselineAccuracy: baselineAccuracy ?? this.baselineAccuracy,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1928,6 +1982,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     if (hintRate.present) {
       map['hint_rate'] = Variable<double>(hintRate.value);
     }
+    if (baselineAccuracy.present) {
+      map['baseline_accuracy'] = Variable<double>(baselineAccuracy.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1944,6 +2001,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('tasksCompleted: $tasksCompleted, ')
           ..write('accuracy: $accuracy, ')
           ..write('hintRate: $hintRate, ')
+          ..write('baselineAccuracy: $baselineAccuracy, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2518,6 +2576,423 @@ class AttemptsCompanion extends UpdateCompanion<Attempt> {
   }
 }
 
+class $SkillDifficultyStatesTable extends SkillDifficultyStates
+    with TableInfo<$SkillDifficultyStatesTable, SkillDifficultyState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SkillDifficultyStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _learnerIdMeta = const VerificationMeta(
+    'learnerId',
+  );
+  @override
+  late final GeneratedColumn<String> learnerId = GeneratedColumn<String>(
+    'learner_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _skillIdMeta = const VerificationMeta(
+    'skillId',
+  );
+  @override
+  late final GeneratedColumn<String> skillId = GeneratedColumn<String>(
+    'skill_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _questIdMeta = const VerificationMeta(
+    'questId',
+  );
+  @override
+  late final GeneratedColumn<String> questId = GeneratedColumn<String>(
+    'quest_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _stepMeta = const VerificationMeta('step');
+  @override
+  late final GeneratedColumn<int> step = GeneratedColumn<int>(
+    'step',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _hintFirstModeMeta = const VerificationMeta(
+    'hintFirstMode',
+  );
+  @override
+  late final GeneratedColumn<bool> hintFirstMode = GeneratedColumn<bool>(
+    'hint_first_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("hint_first_mode" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    learnerId,
+    skillId,
+    questId,
+    step,
+    hintFirstMode,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'skill_difficulty_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SkillDifficultyState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('learner_id')) {
+      context.handle(
+        _learnerIdMeta,
+        learnerId.isAcceptableOrUnknown(data['learner_id']!, _learnerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_learnerIdMeta);
+    }
+    if (data.containsKey('skill_id')) {
+      context.handle(
+        _skillIdMeta,
+        skillId.isAcceptableOrUnknown(data['skill_id']!, _skillIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_skillIdMeta);
+    }
+    if (data.containsKey('quest_id')) {
+      context.handle(
+        _questIdMeta,
+        questId.isAcceptableOrUnknown(data['quest_id']!, _questIdMeta),
+      );
+    }
+    if (data.containsKey('step')) {
+      context.handle(
+        _stepMeta,
+        step.isAcceptableOrUnknown(data['step']!, _stepMeta),
+      );
+    }
+    if (data.containsKey('hint_first_mode')) {
+      context.handle(
+        _hintFirstModeMeta,
+        hintFirstMode.isAcceptableOrUnknown(
+          data['hint_first_mode']!,
+          _hintFirstModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {learnerId, skillId, questId};
+  @override
+  SkillDifficultyState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SkillDifficultyState(
+      learnerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}learner_id'],
+      )!,
+      skillId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}skill_id'],
+      )!,
+      questId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}quest_id'],
+      )!,
+      step: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}step'],
+      )!,
+      hintFirstMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}hint_first_mode'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SkillDifficultyStatesTable createAlias(String alias) {
+    return $SkillDifficultyStatesTable(attachedDatabase, alias);
+  }
+}
+
+class SkillDifficultyState extends DataClass
+    implements Insertable<SkillDifficultyState> {
+  final String learnerId;
+  final String skillId;
+  final String questId;
+  final int step;
+  final bool hintFirstMode;
+  final DateTime updatedAt;
+  const SkillDifficultyState({
+    required this.learnerId,
+    required this.skillId,
+    required this.questId,
+    required this.step,
+    required this.hintFirstMode,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['learner_id'] = Variable<String>(learnerId);
+    map['skill_id'] = Variable<String>(skillId);
+    map['quest_id'] = Variable<String>(questId);
+    map['step'] = Variable<int>(step);
+    map['hint_first_mode'] = Variable<bool>(hintFirstMode);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SkillDifficultyStatesCompanion toCompanion(bool nullToAbsent) {
+    return SkillDifficultyStatesCompanion(
+      learnerId: Value(learnerId),
+      skillId: Value(skillId),
+      questId: Value(questId),
+      step: Value(step),
+      hintFirstMode: Value(hintFirstMode),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SkillDifficultyState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SkillDifficultyState(
+      learnerId: serializer.fromJson<String>(json['learnerId']),
+      skillId: serializer.fromJson<String>(json['skillId']),
+      questId: serializer.fromJson<String>(json['questId']),
+      step: serializer.fromJson<int>(json['step']),
+      hintFirstMode: serializer.fromJson<bool>(json['hintFirstMode']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'learnerId': serializer.toJson<String>(learnerId),
+      'skillId': serializer.toJson<String>(skillId),
+      'questId': serializer.toJson<String>(questId),
+      'step': serializer.toJson<int>(step),
+      'hintFirstMode': serializer.toJson<bool>(hintFirstMode),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SkillDifficultyState copyWith({
+    String? learnerId,
+    String? skillId,
+    String? questId,
+    int? step,
+    bool? hintFirstMode,
+    DateTime? updatedAt,
+  }) => SkillDifficultyState(
+    learnerId: learnerId ?? this.learnerId,
+    skillId: skillId ?? this.skillId,
+    questId: questId ?? this.questId,
+    step: step ?? this.step,
+    hintFirstMode: hintFirstMode ?? this.hintFirstMode,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SkillDifficultyState copyWithCompanion(SkillDifficultyStatesCompanion data) {
+    return SkillDifficultyState(
+      learnerId: data.learnerId.present ? data.learnerId.value : this.learnerId,
+      skillId: data.skillId.present ? data.skillId.value : this.skillId,
+      questId: data.questId.present ? data.questId.value : this.questId,
+      step: data.step.present ? data.step.value : this.step,
+      hintFirstMode: data.hintFirstMode.present
+          ? data.hintFirstMode.value
+          : this.hintFirstMode,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SkillDifficultyState(')
+          ..write('learnerId: $learnerId, ')
+          ..write('skillId: $skillId, ')
+          ..write('questId: $questId, ')
+          ..write('step: $step, ')
+          ..write('hintFirstMode: $hintFirstMode, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(learnerId, skillId, questId, step, hintFirstMode, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SkillDifficultyState &&
+          other.learnerId == this.learnerId &&
+          other.skillId == this.skillId &&
+          other.questId == this.questId &&
+          other.step == this.step &&
+          other.hintFirstMode == this.hintFirstMode &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SkillDifficultyStatesCompanion
+    extends UpdateCompanion<SkillDifficultyState> {
+  final Value<String> learnerId;
+  final Value<String> skillId;
+  final Value<String> questId;
+  final Value<int> step;
+  final Value<bool> hintFirstMode;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SkillDifficultyStatesCompanion({
+    this.learnerId = const Value.absent(),
+    this.skillId = const Value.absent(),
+    this.questId = const Value.absent(),
+    this.step = const Value.absent(),
+    this.hintFirstMode = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SkillDifficultyStatesCompanion.insert({
+    required String learnerId,
+    required String skillId,
+    this.questId = const Value.absent(),
+    this.step = const Value.absent(),
+    this.hintFirstMode = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : learnerId = Value(learnerId),
+       skillId = Value(skillId),
+       updatedAt = Value(updatedAt);
+  static Insertable<SkillDifficultyState> custom({
+    Expression<String>? learnerId,
+    Expression<String>? skillId,
+    Expression<String>? questId,
+    Expression<int>? step,
+    Expression<bool>? hintFirstMode,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (learnerId != null) 'learner_id': learnerId,
+      if (skillId != null) 'skill_id': skillId,
+      if (questId != null) 'quest_id': questId,
+      if (step != null) 'step': step,
+      if (hintFirstMode != null) 'hint_first_mode': hintFirstMode,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SkillDifficultyStatesCompanion copyWith({
+    Value<String>? learnerId,
+    Value<String>? skillId,
+    Value<String>? questId,
+    Value<int>? step,
+    Value<bool>? hintFirstMode,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SkillDifficultyStatesCompanion(
+      learnerId: learnerId ?? this.learnerId,
+      skillId: skillId ?? this.skillId,
+      questId: questId ?? this.questId,
+      step: step ?? this.step,
+      hintFirstMode: hintFirstMode ?? this.hintFirstMode,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (learnerId.present) {
+      map['learner_id'] = Variable<String>(learnerId.value);
+    }
+    if (skillId.present) {
+      map['skill_id'] = Variable<String>(skillId.value);
+    }
+    if (questId.present) {
+      map['quest_id'] = Variable<String>(questId.value);
+    }
+    if (step.present) {
+      map['step'] = Variable<int>(step.value);
+    }
+    if (hintFirstMode.present) {
+      map['hint_first_mode'] = Variable<bool>(hintFirstMode.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SkillDifficultyStatesCompanion(')
+          ..write('learnerId: $learnerId, ')
+          ..write('skillId: $skillId, ')
+          ..write('questId: $questId, ')
+          ..write('step: $step, ')
+          ..write('hintFirstMode: $hintFirstMode, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncOutboxEntriesTable extends SyncOutboxEntries
     with TableInfo<$SyncOutboxEntriesTable, SyncOutboxEntry> {
   @override
@@ -2899,6 +3374,8 @@ abstract class _$IkamvaDatabase extends GeneratedDatabase {
   late final $TaskRecordsTable taskRecords = $TaskRecordsTable(this);
   late final $SessionsTable sessions = $SessionsTable(this);
   late final $AttemptsTable attempts = $AttemptsTable(this);
+  late final $SkillDifficultyStatesTable skillDifficultyStates =
+      $SkillDifficultyStatesTable(this);
   late final $SyncOutboxEntriesTable syncOutboxEntries =
       $SyncOutboxEntriesTable(this);
   @override
@@ -2911,6 +3388,7 @@ abstract class _$IkamvaDatabase extends GeneratedDatabase {
     taskRecords,
     sessions,
     attempts,
+    skillDifficultyStates,
     syncOutboxEntries,
   ];
 }
@@ -3671,6 +4149,7 @@ typedef $$SessionsTableCreateCompanionBuilder =
       Value<int> tasksCompleted,
       Value<double?> accuracy,
       Value<double?> hintRate,
+      Value<double?> baselineAccuracy,
       Value<int> rowid,
     });
 typedef $$SessionsTableUpdateCompanionBuilder =
@@ -3682,6 +4161,7 @@ typedef $$SessionsTableUpdateCompanionBuilder =
       Value<int> tasksCompleted,
       Value<double?> accuracy,
       Value<double?> hintRate,
+      Value<double?> baselineAccuracy,
       Value<int> rowid,
     });
 
@@ -3726,6 +4206,11 @@ class $$SessionsTableFilterComposer
 
   ColumnFilters<double> get hintRate => $composableBuilder(
     column: $table.hintRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get baselineAccuracy => $composableBuilder(
+    column: $table.baselineAccuracy,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3773,6 +4258,11 @@ class $$SessionsTableOrderingComposer
     column: $table.hintRate,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get baselineAccuracy => $composableBuilder(
+    column: $table.baselineAccuracy,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SessionsTableAnnotationComposer
@@ -3806,6 +4296,11 @@ class $$SessionsTableAnnotationComposer
 
   GeneratedColumn<double> get hintRate =>
       $composableBuilder(column: $table.hintRate, builder: (column) => column);
+
+  GeneratedColumn<double> get baselineAccuracy => $composableBuilder(
+    column: $table.baselineAccuracy,
+    builder: (column) => column,
+  );
 }
 
 class $$SessionsTableTableManager
@@ -3843,6 +4338,7 @@ class $$SessionsTableTableManager
                 Value<int> tasksCompleted = const Value.absent(),
                 Value<double?> accuracy = const Value.absent(),
                 Value<double?> hintRate = const Value.absent(),
+                Value<double?> baselineAccuracy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion(
                 id: id,
@@ -3852,6 +4348,7 @@ class $$SessionsTableTableManager
                 tasksCompleted: tasksCompleted,
                 accuracy: accuracy,
                 hintRate: hintRate,
+                baselineAccuracy: baselineAccuracy,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3863,6 +4360,7 @@ class $$SessionsTableTableManager
                 Value<int> tasksCompleted = const Value.absent(),
                 Value<double?> accuracy = const Value.absent(),
                 Value<double?> hintRate = const Value.absent(),
+                Value<double?> baselineAccuracy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion.insert(
                 id: id,
@@ -3872,6 +4370,7 @@ class $$SessionsTableTableManager
                 tasksCompleted: tasksCompleted,
                 accuracy: accuracy,
                 hintRate: hintRate,
+                baselineAccuracy: baselineAccuracy,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4168,6 +4667,246 @@ typedef $$AttemptsTableProcessedTableManager =
       Attempt,
       PrefetchHooks Function()
     >;
+typedef $$SkillDifficultyStatesTableCreateCompanionBuilder =
+    SkillDifficultyStatesCompanion Function({
+      required String learnerId,
+      required String skillId,
+      Value<String> questId,
+      Value<int> step,
+      Value<bool> hintFirstMode,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SkillDifficultyStatesTableUpdateCompanionBuilder =
+    SkillDifficultyStatesCompanion Function({
+      Value<String> learnerId,
+      Value<String> skillId,
+      Value<String> questId,
+      Value<int> step,
+      Value<bool> hintFirstMode,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$SkillDifficultyStatesTableFilterComposer
+    extends Composer<_$IkamvaDatabase, $SkillDifficultyStatesTable> {
+  $$SkillDifficultyStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get learnerId => $composableBuilder(
+    column: $table.learnerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get skillId => $composableBuilder(
+    column: $table.skillId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get questId => $composableBuilder(
+    column: $table.questId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hintFirstMode => $composableBuilder(
+    column: $table.hintFirstMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SkillDifficultyStatesTableOrderingComposer
+    extends Composer<_$IkamvaDatabase, $SkillDifficultyStatesTable> {
+  $$SkillDifficultyStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get learnerId => $composableBuilder(
+    column: $table.learnerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get skillId => $composableBuilder(
+    column: $table.skillId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get questId => $composableBuilder(
+    column: $table.questId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hintFirstMode => $composableBuilder(
+    column: $table.hintFirstMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SkillDifficultyStatesTableAnnotationComposer
+    extends Composer<_$IkamvaDatabase, $SkillDifficultyStatesTable> {
+  $$SkillDifficultyStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get learnerId =>
+      $composableBuilder(column: $table.learnerId, builder: (column) => column);
+
+  GeneratedColumn<String> get skillId =>
+      $composableBuilder(column: $table.skillId, builder: (column) => column);
+
+  GeneratedColumn<String> get questId =>
+      $composableBuilder(column: $table.questId, builder: (column) => column);
+
+  GeneratedColumn<int> get step =>
+      $composableBuilder(column: $table.step, builder: (column) => column);
+
+  GeneratedColumn<bool> get hintFirstMode => $composableBuilder(
+    column: $table.hintFirstMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SkillDifficultyStatesTableTableManager
+    extends
+        RootTableManager<
+          _$IkamvaDatabase,
+          $SkillDifficultyStatesTable,
+          SkillDifficultyState,
+          $$SkillDifficultyStatesTableFilterComposer,
+          $$SkillDifficultyStatesTableOrderingComposer,
+          $$SkillDifficultyStatesTableAnnotationComposer,
+          $$SkillDifficultyStatesTableCreateCompanionBuilder,
+          $$SkillDifficultyStatesTableUpdateCompanionBuilder,
+          (
+            SkillDifficultyState,
+            BaseReferences<
+              _$IkamvaDatabase,
+              $SkillDifficultyStatesTable,
+              SkillDifficultyState
+            >,
+          ),
+          SkillDifficultyState,
+          PrefetchHooks Function()
+        > {
+  $$SkillDifficultyStatesTableTableManager(
+    _$IkamvaDatabase db,
+    $SkillDifficultyStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SkillDifficultyStatesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SkillDifficultyStatesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SkillDifficultyStatesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> learnerId = const Value.absent(),
+                Value<String> skillId = const Value.absent(),
+                Value<String> questId = const Value.absent(),
+                Value<int> step = const Value.absent(),
+                Value<bool> hintFirstMode = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SkillDifficultyStatesCompanion(
+                learnerId: learnerId,
+                skillId: skillId,
+                questId: questId,
+                step: step,
+                hintFirstMode: hintFirstMode,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String learnerId,
+                required String skillId,
+                Value<String> questId = const Value.absent(),
+                Value<int> step = const Value.absent(),
+                Value<bool> hintFirstMode = const Value.absent(),
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SkillDifficultyStatesCompanion.insert(
+                learnerId: learnerId,
+                skillId: skillId,
+                questId: questId,
+                step: step,
+                hintFirstMode: hintFirstMode,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SkillDifficultyStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$IkamvaDatabase,
+      $SkillDifficultyStatesTable,
+      SkillDifficultyState,
+      $$SkillDifficultyStatesTableFilterComposer,
+      $$SkillDifficultyStatesTableOrderingComposer,
+      $$SkillDifficultyStatesTableAnnotationComposer,
+      $$SkillDifficultyStatesTableCreateCompanionBuilder,
+      $$SkillDifficultyStatesTableUpdateCompanionBuilder,
+      (
+        SkillDifficultyState,
+        BaseReferences<
+          _$IkamvaDatabase,
+          $SkillDifficultyStatesTable,
+          SkillDifficultyState
+        >,
+      ),
+      SkillDifficultyState,
+      PrefetchHooks Function()
+    >;
 typedef $$SyncOutboxEntriesTableCreateCompanionBuilder =
     SyncOutboxEntriesCompanion Function({
       required String id,
@@ -4401,6 +5140,8 @@ class $IkamvaDatabaseManager {
       $$SessionsTableTableManager(_db, _db.sessions);
   $$AttemptsTableTableManager get attempts =>
       $$AttemptsTableTableManager(_db, _db.attempts);
+  $$SkillDifficultyStatesTableTableManager get skillDifficultyStates =>
+      $$SkillDifficultyStatesTableTableManager(_db, _db.skillDifficultyStates);
   $$SyncOutboxEntriesTableTableManager get syncOutboxEntries =>
       $$SyncOutboxEntriesTableTableManager(_db, _db.syncOutboxEntries);
 }

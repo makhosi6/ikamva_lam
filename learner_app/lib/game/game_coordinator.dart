@@ -9,25 +9,48 @@ export 'practice_task_config.dart';
 ///
 /// Tasks are matched to a [Quest] by **topic** (there is no `questId` on
 /// [TaskRecords] yet). Caps results with [Quest.maxTasks] when set.
+///
+/// Optional [maxDifficultyInclusive] filters `task.difficulty` for adaptive
+/// play (TASKS §5).
 class GameCoordinator {
   GameCoordinator(this._db);
 
   final IkamvaDatabase _db;
 
   /// Tasks for the quest’s topic, oldest-first, capped by [Quest.maxTasks].
-  Future<List<TaskRecord>> loadTasksForQuest(Quest quest) async {
+  Future<List<TaskRecord>> loadTasksForQuest(
+    Quest quest, {
+    int? maxDifficultyInclusive,
+  }) async {
     final rows = await (_db.select(_db.taskRecords)
-          ..where((t) => t.topic.equals(quest.topic))
+          ..where(
+            (t) => _topicDifficultySkillPredicate(
+              t,
+              quest.topic,
+              maxDifficultyInclusive,
+              null,
+            ),
+          )
           ..orderBy([(t) => OrderingTerm(expression: t.createdAt)]))
         .get();
     return _cap(_filterSkill(rows, null), quest.maxTasks);
   }
 
   /// Reactive task list for the quest’s topic (same ordering and caps).
-  Stream<List<TaskRecord>> watchTasksForQuest(Quest quest) {
+  Stream<List<TaskRecord>> watchTasksForQuest(
+    Quest quest, {
+    int? maxDifficultyInclusive,
+  }) {
     final cap = quest.maxTasks;
     return (_db.select(_db.taskRecords)
-          ..where((t) => t.topic.equals(quest.topic))
+          ..where(
+            (t) => _topicDifficultySkillPredicate(
+              t,
+              quest.topic,
+              maxDifficultyInclusive,
+              null,
+            ),
+          )
           ..orderBy([(t) => OrderingTerm(expression: t.createdAt)]))
         .watch()
         .map((rows) => _cap(_filterSkill(rows, null), cap));
@@ -38,11 +61,25 @@ class GameCoordinator {
     final List<TaskRecord> rows;
     if (config.topic != null) {
       rows = await (_db.select(_db.taskRecords)
-            ..where((t) => t.topic.equals(config.topic!))
+            ..where(
+              (t) => _topicDifficultySkillPredicate(
+                t,
+                config.topic!,
+                config.maxDifficultyInclusive,
+                config.skillId,
+              ),
+            )
             ..orderBy([(t) => OrderingTerm(expression: t.createdAt)]))
           .get();
     } else {
       rows = await (_db.select(_db.taskRecords)
+            ..where(
+              (t) => _difficultySkillPredicate(
+                t,
+                config.maxDifficultyInclusive,
+                config.skillId,
+              ),
+            )
             ..orderBy([(t) => OrderingTerm(expression: t.createdAt)]))
           .get();
     }
@@ -52,17 +89,57 @@ class GameCoordinator {
   Stream<List<TaskRecord>> watchTasksForPractice(PracticeTaskConfig config) {
     final cap = config.maxTasks;
     final skill = config.skillId;
+    final maxD = config.maxDifficultyInclusive;
     if (config.topic != null) {
       return (_db.select(_db.taskRecords)
-            ..where((t) => t.topic.equals(config.topic!))
+            ..where(
+              (t) => _topicDifficultySkillPredicate(
+                t,
+                config.topic!,
+                maxD,
+                skill,
+              ),
+            )
             ..orderBy([(t) => OrderingTerm(expression: t.createdAt)]))
           .watch()
           .map((rows) => _cap(_filterSkill(rows, skill), cap));
     }
     return (_db.select(_db.taskRecords)
+          ..where((t) => _difficultySkillPredicate(t, maxD, skill))
           ..orderBy([(t) => OrderingTerm(expression: t.createdAt)]))
         .watch()
         .map((rows) => _cap(_filterSkill(rows, skill), cap));
+  }
+
+  Expression<bool> _topicDifficultySkillPredicate(
+    $TaskRecordsTable t,
+    String topic,
+    int? maxDifficultyInclusive,
+    String? skillId,
+  ) {
+    Expression<bool> e = t.topic.equals(topic);
+    if (maxDifficultyInclusive != null) {
+      e = e & t.difficulty.isSmallerOrEqualValue(maxDifficultyInclusive);
+    }
+    if (skillId != null && skillId.isNotEmpty) {
+      e = e & t.skillId.equals(skillId);
+    }
+    return e;
+  }
+
+  Expression<bool> _difficultySkillPredicate(
+    $TaskRecordsTable t,
+    int? maxDifficultyInclusive,
+    String? skillId,
+  ) {
+    Expression<bool> e = const Constant(true);
+    if (maxDifficultyInclusive != null) {
+      e = e & t.difficulty.isSmallerOrEqualValue(maxDifficultyInclusive);
+    }
+    if (skillId != null && skillId.isNotEmpty) {
+      e = e & t.skillId.equals(skillId);
+    }
+    return e;
   }
 
   List<TaskRecord> _filterSkill(List<TaskRecord> rows, String? skillId) {

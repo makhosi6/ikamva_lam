@@ -52,9 +52,28 @@ class Sessions extends Table {
   IntColumn get tasksCompleted => integer().withDefault(const Constant(0))();
   RealColumn get accuracy => real().nullable()();
   RealColumn get hintRate => real().nullable()();
+  /// Rolling accuracy (last ~10 attempts) before this session started (TASKS §5.5).
+  RealColumn get baselineAccuracy => real().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Per-learner, per-skill difficulty step persisted across restarts (TASKS §5.4).
+///
+/// [questId] empty string means practice / not tied to a specific quest row.
+@DataClassName('SkillDifficultyState')
+class SkillDifficultyStates extends Table {
+  TextColumn get learnerId => text()();
+  TextColumn get skillId => text()();
+  TextColumn get questId => text().withDefault(const Constant(''))();
+  IntColumn get step => integer().withDefault(const Constant(1))();
+  BoolColumn get hintFirstMode =>
+      boolean().withDefault(const Constant(false))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {learnerId, skillId, questId};
 }
 
 @DataClassName('Attempt')

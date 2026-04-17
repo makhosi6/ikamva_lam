@@ -4,6 +4,7 @@ class PracticeTaskConfig {
     this.topic,
     this.skillId,
     this.maxTasks = 20,
+    this.maxDifficultyInclusive,
   });
 
   /// When null, all cached/generated tasks are considered (still capped by [maxTasks]).
@@ -14,4 +15,7 @@ class PracticeTaskConfig {
 
   /// Hard cap on how many tasks to return per load/watch emission.
   final int maxTasks;
+
+  /// When non-null, only tasks with `difficulty` ≤ this value (adaptive cap).
+  final int? maxDifficultyInclusive;
 }

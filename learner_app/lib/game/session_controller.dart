@@ -89,6 +89,7 @@ class SessionController {
     _practiceMaxTasks = null;
     _practiceTimeLimitSec = null;
     _tasksConsumed = 0;
+    await _persistBaselineAccuracy();
     return _active!;
   }
 
@@ -133,7 +134,22 @@ class SessionController {
     _practiceMaxTasks = maxTasks;
     _practiceTimeLimitSec = timeLimitSec;
     _tasksConsumed = 0;
+    await _persistBaselineAccuracy();
     return _active!;
+  }
+
+  Future<void> _persistBaselineAccuracy() async {
+    final s = _active;
+    if (s == null) return;
+    final baseline = await _attempts.rollingAccuracyOverallBefore(
+      beforeExclusive: s.startedAt,
+    );
+    if (baseline == null) return;
+    await _sessions.update(
+      s.id,
+      SessionsCompanion(baselineAccuracy: Value(baseline)),
+    );
+    _active = await _sessions.getById(s.id);
   }
 
   bool _exceedsTaskCap(int countAfterThisSlot) {

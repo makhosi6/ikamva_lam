@@ -107,7 +107,11 @@ class SessionSummaryScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 32),
                   _StatRow(
-                    label: 'Accuracy',
+                    label: 'Rolling accuracy before session',
+                    value: s.baselineAccuracyLabel,
+                  ),
+                  _StatRow(
+                    label: 'Accuracy this session',
                     value: s.accuracyLabel,
                   ),
                   _StatRow(
@@ -145,8 +149,12 @@ class SessionSummaryScreen extends StatelessWidget {
     final hintsLabel = attempts.isEmpty
         ? '—'
         : '$hintAttempts / ${attempts.length}';
+    final base = session.baselineAccuracy;
+    final baselineLabel =
+        base == null ? '—' : '${(base * 100).round()}%';
     return _SessionStats(
       tasksCompleted: session.tasksCompleted,
+      baselineAccuracyLabel: baselineLabel,
       accuracyLabel: accLabel,
       hintsUsedLabel: hintsLabel,
     );
@@ -156,11 +164,13 @@ class SessionSummaryScreen extends StatelessWidget {
 class _SessionStats {
   _SessionStats({
     required this.tasksCompleted,
+    required this.baselineAccuracyLabel,
     required this.accuracyLabel,
     required this.hintsUsedLabel,
   });
 
   final int tasksCompleted;
+  final String baselineAccuracyLabel;
   final String accuracyLabel;
   final String hintsUsedLabel;
 }

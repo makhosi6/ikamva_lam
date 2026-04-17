@@ -4,11 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../analytics/ikamva_analytics.dart';
+import '../data/attempt_repository.dart';
+import '../data/difficulty_state_repository.dart';
 import '../data/quest_repository.dart';
 import '../data/session_repository.dart';
 import '../db/app_database.dart';
 import '../db/seed.dart';
+import '../domain/skill_id.dart';
 import '../domain/tasks/cloze_payload.dart';
+import '../game/adaptive_difficulty_engine.dart';
 import '../game/game_coordinator.dart';
 import '../game/retry_policy.dart';
 import '../game/rule_based_evaluator.dart';
@@ -33,15 +37,21 @@ class GameShellScreen extends StatefulWidget {
 class _GameShellScreenState extends State<GameShellScreen> {
   static const _evaluator = RuleBasedEvaluator();
   static const _analytics = IkamvaAnalytics();
+  static const _difficultyEngine = AdaptiveDifficultyEngine();
 
   late IkamvaDatabase _db;
   late SessionController _session;
   late GameCoordinator _coordinator;
+  late AttemptRepository _attemptRepo;
+  late DifficultyStateRepository _difficultyRepo;
   late PerTaskRetryPolicy _retry;
 
   Quest? _quest;
   List<TaskRecord> _tasks = [];
   int _taskIndex = 0;
+
+  int _difficultyStep = 1;
+  bool _dbHintFirst = false;
 
   bool _loading = true;
   String? _error;
@@ -57,10 +67,87 @@ class _GameShellScreenState extends State<GameShellScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
   }
 
+  Future<void> _loadAdaptiveStateAndTasks() async {
+    final quest = _quest!;
+    final row = await _difficultyRepo.getRow(
+      kSeedLearnerId,
+      SkillId.vocabulary.storageValue,
+      quest.id,
+    );
+    _difficultyStep = row?.step ?? 1;
+    _dbHintFirst = row?.hintFirstMode ?? false;
+    final list = await _coordinator.loadTasksForQuest(
+      quest,
+      maxDifficultyInclusive: _difficultyStep,
+    );
+    if (!mounted) return;
+    setState(() {
+      _tasks = list;
+      if (_tasks.isNotEmpty && _taskIndex >= _tasks.length) {
+        _taskIndex = _tasks.length - 1;
+      }
+    });
+  }
+
+  Future<void> _afterAttemptAdapt(TaskRecord task) async {
+    final quest = _quest!;
+    final roll = await _attemptRepo.rollingAccuracyForSkill(task.skillId);
+    final row = await _difficultyRepo.getRow(
+      kSeedLearnerId,
+      task.skillId,
+      quest.id,
+    );
+    final step = row?.step ?? 1;
+    final hint = row?.hintFirstMode ?? false;
+    final adj = _difficultyEngine.recommend(
+      rollingAccuracy: roll,
+      currentStep: step,
+      maxStep: quest.maxDifficultyStep,
+      hintFirstActive: hint,
+    );
+    final next = _difficultyEngine.apply(
+      adjustment: adj,
+      currentStep: step,
+      hintFirstMode: hint,
+      maxStep: quest.maxDifficultyStep,
+    );
+    await _difficultyRepo.upsert(
+      learnerId: kSeedLearnerId,
+      skillId: task.skillId,
+      questKey: quest.id,
+      step: next.step,
+      hintFirstMode: next.hintFirstMode,
+    );
+    final prevStep = _difficultyStep;
+    _difficultyStep = next.step;
+    _dbHintFirst = next.hintFirstMode;
+    if (next.step != prevStep) {
+      await _loadAdaptiveStateAndTasks();
+    } else if (mounted) {
+      setState(() {});
+    }
+    if (!mounted || adj == DifficultyAdjustment.hold) return;
+    if (adj == DifficultyAdjustment.harder) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nice streak — slightly harder tasks unlocked.')),
+      );
+    } else if (adj == DifficultyAdjustment.easier) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Taking it a bit easier for now.')),
+      );
+    } else if (adj == DifficultyAdjustment.enableHintFirst) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Try the hint before checking your answer.')),
+      );
+    }
+  }
+
   Future<void> _bootstrap() async {
     _db = DatabaseScope.of(context);
     _session = SessionController(_db);
     _coordinator = GameCoordinator(_db);
+    _attemptRepo = AttemptRepository(_db);
+    _difficultyRepo = DifficultyStateRepository(_db);
 
     final quest = await QuestRepository(_db).getById(kSeedQuestId);
     if (!mounted) return;
@@ -84,7 +171,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
               quest: quest,
               tasksAlreadyReserved: snap.reservedTaskSlots,
             );
-            _tasks = await _coordinator.loadTasksForQuest(quest);
+            await _loadAdaptiveStateAndTasks();
             if (_tasks.isEmpty) {
               setState(() {
                 _loading = false;
@@ -95,6 +182,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
             _taskIndex = snap.taskIndex.clamp(0, _tasks.length - 1);
             _retry.resetForNewTask();
             _resetTaskUi();
+            _maybeHintFirstNudge();
             await GamePauseStore.clear();
             setState(() => _loading = false);
             return;
@@ -108,7 +196,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
     await GamePauseStore.clear();
     try {
       await _session.startForQuest(quest);
-      _tasks = await _coordinator.loadTasksForQuest(quest);
+      await _loadAdaptiveStateAndTasks();
       if (_tasks.isEmpty) {
         setState(() {
           _loading = false;
@@ -119,6 +207,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
       _session.acquireTaskSlot();
       _retry.resetForNewTask();
       _resetTaskUi();
+      _maybeHintFirstNudge();
     } on SessionLimitExceeded catch (e) {
       setState(() {
         _loading = false;
@@ -129,6 +218,18 @@ class _GameShellScreenState extends State<GameShellScreen> {
 
     if (!mounted) return;
     setState(() => _loading = false);
+  }
+
+  void _maybeHintFirstNudge() {
+    if (!_dbHintFirst || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Hint-first mode: skim the hint before you choose an answer.'),
+        ),
+      );
+    });
   }
 
   void _resetTaskUi() {
@@ -173,6 +274,8 @@ class _GameShellScreenState extends State<GameShellScreen> {
       await _finishSession();
       return;
     }
+
+    await _afterAttemptAdapt(task);
 
     _analytics.recordAttemptOutcome(
       taskId: task.id,
@@ -220,6 +323,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
       await _finishSession();
       return;
     }
+    _maybeHintFirstNudge();
     if (mounted) setState(() {});
   }
 
@@ -368,7 +472,8 @@ class _GameShellScreenState extends State<GameShellScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Task ${_taskIndex + 1} of $total · ${_skillLabel(_tasks[_taskIndex].skillId)}',
+                'Task ${_taskIndex + 1} of $total · ${_skillLabel(_tasks[_taskIndex].skillId)} · '
+                'Difficulty up to step $_difficultyStep / ${quest.maxDifficultyStep}',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 24),
@@ -409,6 +514,4 @@ class _GameShellScreenState extends State<GameShellScreen> {
       ),
     );
   }
-
 }
-

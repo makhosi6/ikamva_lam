@@ -113,11 +113,11 @@ All AI output must be **validated** before showing to learners (fail closed → 
 
 Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 
-- [ ] **5.1** Define **DifficultyState** per skill or global session: integer step bounded by quest `maxDifficultyStep`. **(P0)**
-- [ ] **5.2** Implement rolling window (last `N` attempts, e.g. 10) accuracy calculator per active skill. **(P0)**
-- [ ] **5.3** Implement state machine: increase step, decrease step, enable “hint-first” mode, or repeat same strand — **within teacher caps**. **(P0)**
-- [ ] **5.4** Persist difficulty state to SQLite so restarts don’t reset unfairly. **(P1)**
-- [ ] **5.5** Telemetry fields for judging: expose accuracy before/after in session summary (spec §9). **(P1)**
+- [x] **5.1** Define **DifficultyState** per skill or global session: integer step bounded by quest `maxDifficultyStep`. **(P0)**
+- [x] **5.2** Implement rolling window (last `N` attempts, e.g. 10) accuracy calculator per active skill. **(P0)**
+- [x] **5.3** Implement state machine: increase step, decrease step, enable “hint-first” mode, or repeat same strand — **within teacher caps**. **(P0)**
+- [x] **5.4** Persist difficulty state to SQLite so restarts don’t reset unfairly. **(P1)**
+- [x] **5.5** Telemetry fields for judging: expose accuracy before/after in session summary (spec §9). **(P1)**
 
 **Acceptance:** Simulated attempts in a unit test drive difficulty up/down predictably.
 
@@ -136,7 +136,6 @@ Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 - [ ] **6.7** **Threading:** run inference on background isolate / native thread; never block UI isolate. **(P0)**
 - [ ] **6.8** **Memory:** reuse context across calls; avoid reload per task; expose `dispose` for shutdown. **(P1)**
 - [ ] **6.9** Device profile flag: `lowRam` selects E2B + smaller context; `standard` uses E4B. **(P1)**
-- and increment version of the project to 0.1.0
 
 **Acceptance:** On demo hardware, a test prompt returns stable output in a few seconds; app remains responsive.
 
