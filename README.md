@@ -57,4 +57,6 @@ Requires **macOS** system fonts (*Arial Rounded Bold*, *Arial*). On Linux, point
 
 ## License
 
-See [LICENSE](LICENSE).
+This repository is licensed under [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/). See [LICENSE](LICENSE). That matches the Gemma 4 Good Hackathon winner license type; third-party dependencies (for example Flutter packages) remain under their own licenses.
+
+Use Gemma model weights only in line with [Google’s Gemma terms of use](https://ai.google.dev/gemma/terms) (separate from the Kaggle rules file).
