@@ -176,6 +176,8 @@ Instead of replacing teachers, it amplifies their reach.
 
 ## 🔗 Submission Links
 
+**Repository release:** `v0.0.1` (learner app version `0.0.1+1` in `learner_app/pubspec.yaml`).
+
 | Asset | URL     |
 | ----- | ------- |
 | Code  | Pending |
