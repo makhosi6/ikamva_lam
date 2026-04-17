@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'app.dart';
+import 'db/app_database.dart';
+import 'db/database_connection.dart';
+import 'db/seed.dart';
 import 'state/settings_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = SettingsStore();
   await settings.load();
-  runApp(IkamvaApp(settings: settings));
+  final database = IkamvaDatabase(openIkamvaDatabaseFile());
+  await ensureDevSeed(database);
+  runApp(IkamvaApp(settings: settings, database: database));
 }

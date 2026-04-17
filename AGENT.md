@@ -1,0 +1,2 @@
+- with every task completion, the agent should update the task completion status on the ./TASKS.md file.
+- with every task completion make a git commit with a short message and a longer/ more detailed depcription.

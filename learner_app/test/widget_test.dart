@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:ikamva_lam/app.dart';
+import 'package:ikamva_lam/db/database_connection.dart';
 import 'package:ikamva_lam/state/settings_store.dart';
 
 void main() {
@@ -11,7 +12,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final settings = SettingsStore();
     await settings.load();
-    await tester.pumpWidget(IkamvaApp(settings: settings));
+    await tester.pumpWidget(
+      IkamvaApp(settings: settings, database: openMemoryDatabase()),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Ikamva Lam'), findsOneWidget);

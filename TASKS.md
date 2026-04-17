@@ -67,15 +67,15 @@ writeup.md
 
 Use **SQLite** (`drift` / `sqflite` / `sqlite3` + FFI). Prefer typed queries and migrations.
 
-- [ ] **2.1** Define **LearnerProfile**: `id`, `displayName`, `homeLanguageCode` (nullable), `pairedTeacherCode` (nullable), `createdAt`. **(P0)**
-- [ ] **2.2** Define **Quest** (teacher assignment manifest mirrored locally): `id`, `topic`, `level` (e.g. A1), `maxDifficultyStep`, `sessionTimeLimitSec` OR `maxTasks`, `startsAt`, `endsAt`, `isActive`. **(P0)**
-- [ ] **2.3** Define **Skill** enum/table: `vocabulary`, `sentence_structure`, `grammar_tense`, `grammar_plural`, `grammar_articles` (align with spec §4.1; adjust names in one place only). **(P0)**
-- [ ] **2.4** Define **TaskRecord** (generated content instance): `id`, `taskType` (cloze, reorder, match, dialogue_choice), `skillId`, `difficulty`, `topic`, `payloadJson` (structured blob), `source` (cached, generated), `createdAt`. **(P0)**
-- [ ] **2.5** Define **Attempt**: `id`, `taskId`, `sessionId`, `learnerAnswerJson`, `correct`, `usedHint`, `hintSteps`, `latencyMs`, `timestamp`. **(P0)**
-- [ ] **2.6** Define **Session**: `id`, `questId` (nullable for practice mode), `startedAt`, `endedAt`, `tasksCompleted`, `accuracy`, `hintRate`. **(P0)**
-- [ ] **2.7** Define **SyncOutbox**: `id`, `payloadJson` (summary only), `entityType`, `retryCount`, `lastError`. **(P1)**
-- [ ] **2.8** Implement **DB migrations** v1…vn; ship a **seed** dev profile + sample quest for UI work without AI. **(P0)**
-- [ ] **2.9** Repository layer: CRUD for profiles, quests, tasks, attempts, sessions — **no UI in repositories**. **(P0)**
+- [x] **2.1** Define **LearnerProfile**: `id`, `displayName`, `homeLanguageCode` (nullable), `pairedTeacherCode` (nullable), `createdAt`. **(P0)**
+- [x] **2.2** Define **Quest** (teacher assignment manifest mirrored locally): `id`, `topic`, `level` (e.g. A1), `maxDifficultyStep`, `sessionTimeLimitSec` OR `maxTasks`, `startsAt`, `endsAt`, `isActive`. **(P0)**
+- [x] **2.3** Define **Skill** enum/table: `vocabulary`, `sentence_structure`, `grammar_tense`, `grammar_plural`, `grammar_articles` (align with spec §4.1; adjust names in one place only). **(P0)**
+- [x] **2.4** Define **TaskRecord** (generated content instance): `id`, `taskType` (cloze, reorder, match, dialogue_choice), `skillId`, `difficulty`, `topic`, `payloadJson` (structured blob), `source` (cached, generated), `createdAt`. **(P0)**
+- [x] **2.5** Define **Attempt**: `id`, `taskId`, `sessionId`, `learnerAnswerJson`, `correct`, `usedHint`, `hintSteps`, `latencyMs`, `timestamp`. **(P0)**
+- [x] **2.6** Define **Session**: `id`, `questId` (nullable for practice mode), `startedAt`, `endedAt`, `tasksCompleted`, `accuracy`, `hintRate`. **(P0)**
+- [x] **2.7** Define **SyncOutbox**: `id`, `payloadJson` (summary only), `entityType`, `retryCount`, `lastError`. **(P1)**
+- [x] **2.8** Implement **DB migrations** v1…vn; ship a **seed** dev profile + sample quest for UI work without AI. **(P0)**
+- [x] **2.9** Repository layer: CRUD for profiles, quests, tasks, attempts, sessions — **no UI in repositories**. **(P0)**
 
 **Acceptance:** App launches, loads seed data, repositories unit-testable (at least one `flutter test` per repository or drift test).
 
