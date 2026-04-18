@@ -55,6 +55,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   drift_dev: ^2.32.1
   build_runner: ^2.13.1
+  flutter_native_splash: ^2.4.7
 flutter_launcher_icons:
   android: true
   ios: true
@@ -65,6 +66,15 @@ flutter_launcher_icons:
   adaptive_icon_background: "#FFF6F1E7"
   adaptive_icon_foreground: assets/branding/logo.png
   remove_alpha_ios: true
+
+# Native launch screen (Android 12+, iOS, etc.); run after changes:
+#   dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#F6F1E7"
+  image: assets/branding/logo.png
+  android_12:
+    color: "#F6F1E7"
+    image: assets/branding/logo.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -152,21 +152,11 @@ class _GameShellScreenState extends State<GameShellScreen> {
     }
     if (!mounted || adj == DifficultyAdjustment.hold) return;
     if (adj == DifficultyAdjustment.harder) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nice streak — slightly harder tasks unlocked.'),
-        ),
-      );
+      _showGameSnackBar('Nice streak — slightly harder tasks unlocked.');
     } else if (adj == DifficultyAdjustment.easier) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Taking it a bit easier for now.')),
-      );
+      _showGameSnackBar('Taking it a bit easier for now.');
     } else if (adj == DifficultyAdjustment.enableHintFirst) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Try the hint before checking your answer.'),
-        ),
-      );
+      _showGameSnackBar('Try the hint before checking your answer.');
     }
   }
 
@@ -286,14 +276,25 @@ class _GameShellScreenState extends State<GameShellScreen> {
     if (!_dbHintFirst || !mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Hint-first mode: skim the hint before you choose an answer.',
-          ),
-        ),
+      _showGameSnackBar(
+        'Hint-first mode: skim the hint before you choose an answer.',
       );
     });
+  }
+
+  /// Floating snackbar above the bottom **Check answer** bar + system inset.
+  void _showGameSnackBar(String message, {Duration? duration}) {
+    if (!mounted) return;
+    final bottom =
+        MediaQuery.paddingOf(context).bottom + 76;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.fromLTRB(16, 0, 16, bottom),
+        duration: duration ?? const Duration(seconds: 4),
+        content: Text(message),
+      ),
+    );
   }
 
   void _resetTaskUi() {
@@ -408,9 +409,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
       );
     } on SessionLimitExceeded {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Time limit reached.')),
-      );
+      _showGameSnackBar('Time limit reached.');
       await _finishSession();
       return;
     }
@@ -443,18 +442,12 @@ class _GameShellScreenState extends State<GameShellScreen> {
     if (_retry.canSubmit) {
       if (!result.correct && attemptNo == 1) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${ruleHintForFirstWrong(task.skillId)} Try another answer.',
-            ),
-          ),
+        _showGameSnackBar(
+          '${ruleHintForFirstWrong(task.skillId)} Try another answer.',
         );
       } else if (!result.correct && attemptNo > 1) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Not quite — try again.')),
-        );
+        _showGameSnackBar('Not quite — try again.');
       }
       setState(() {
         _selectedChoice = null;
@@ -463,27 +456,24 @@ class _GameShellScreenState extends State<GameShellScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Moving on — review this one later.')),
-    );
+    _showGameSnackBar('Moving on — review this one later.');
     await _goNextTask();
   }
 
   Future<void> _goNextTask() async {
-    _taskIndex++;
-    _retry.resetForNewTask();
-    _resetTaskUi();
-    if (_taskIndex >= _tasks.length) {
+    final next = _taskIndex + 1;
+    if (next >= _tasks.length) {
       await _finishSession();
       return;
     }
+    _taskIndex = next;
+    _retry.resetForNewTask();
+    _resetTaskUi();
     try {
       _session.acquireTaskSlot();
     } on SessionLimitExceeded {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Session limit reached.')),
-      );
+      _showGameSnackBar('Session limit reached.');
       await _finishSession();
       return;
     }
@@ -614,7 +604,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
       _usedHintThisTask = true;
       _hintSteps++;
     });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    _showGameSnackBar(text);
     if (SettingsScope.of(context).ttsEnabled) {
       unawaited(TtsService.instance.speak(text));
     }
@@ -665,12 +655,74 @@ class _GameShellScreenState extends State<GameShellScreen> {
     );
   }
 
+  int? _matchLeftIndexForRight(int rightIndex) {
+    for (var i = 0; i < _matchRightForLeft.length; i++) {
+      if (_matchRightForLeft[i] == rightIndex) return i;
+    }
+    return null;
+  }
+
   Widget _buildMatchBody(ThemeData theme) {
     final p = _matchPayload!;
+    final scheme = theme.colorScheme;
+    final ik = theme.extension<IkamvaColors>() ?? IkamvaColors.light;
+    final n = p.left.length;
+
+    Widget pairBadge(int oneBased, Color accent, Color onAccent) {
+      return Container(
+        width: 28,
+        height: 28,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: accent,
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          '$oneBased',
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: onAccent,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
+    }
+
+    ButtonStyle matchButtonStyle({
+      required bool selected,
+      required bool paired,
+      required Color? pairAccent,
+      required Color? pairSurfaceTint,
+    }) {
+      final borderColor = selected
+          ? scheme.primary
+          : (paired && pairAccent != null ? pairAccent : scheme.outlineVariant);
+      final width = selected || paired ? 2.5 : 1.0;
+      return FilledButton.styleFrom(
+        backgroundColor: selected
+            ? scheme.primaryContainer
+            : (paired && pairSurfaceTint != null
+                ? Color.alphaBlend(
+                    pairSurfaceTint,
+                    scheme.surfaceContainerHighest,
+                  )
+                : null),
+        side: BorderSide(color: borderColor, width: width),
+        elevation: selected ? 1.5 : 0,
+        shadowColor: selected ? scheme.primary.withValues(alpha: 0.35) : null,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('Match pairs', style: theme.textTheme.headlineSmall),
+        const SizedBox(height: 6),
+        Text(
+          _matchPickLeft == null
+              ? 'Tap a word on the left, then tap its match on the right.'
+              : 'Now tap the matching word on the right.',
+          style: theme.textTheme.bodyMedium?.copyWith(color: ik.textSecondary),
+        ),
         const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,23 +733,63 @@ class _GameShellScreenState extends State<GameShellScreen> {
                 children: [
                   Text('Left', style: theme.textTheme.labelLarge),
                   for (var i = 0; i < p.left.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: FilledButton.tonal(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _matchPickLeft == i
-                              ? theme.colorScheme.primaryContainer
-                              : null,
-                        ),
-                        onPressed: () => setState(() => _matchPickLeft = i),
-                        child: Text(
-                          p.left[i],
-                          textAlign: TextAlign.center,
-                          softWrap: true,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final pairedRight = _matchRightForLeft[i];
+                        final paired = pairedRight != null;
+                        final accent = ikamvaMatchPairAccent(context, i, n);
+                        final surfaceTint =
+                            ikamvaMatchPairSurfaceTint(context, i, n);
+                        final onAccent =
+                            ThemeData.estimateBrightnessForColor(accent) ==
+                                    Brightness.dark
+                                ? Colors.white
+                                : Colors.black87;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: FilledButton.tonal(
+                            style: matchButtonStyle(
+                              selected: _matchPickLeft == i,
+                              paired: paired,
+                              pairAccent: paired ? accent : null,
+                              pairSurfaceTint: paired ? surfaceTint : null,
+                            ),
+                            onPressed: () => setState(() => _matchPickLeft = i),
+                            child: Row(
+                              children: [
+                                if (paired) ...[
+                                  pairBadge(i + 1, accent, onAccent),
+                                  const SizedBox(width: 10),
+                                ] else if (_matchPickLeft == i) ...[
+                                  Icon(
+                                    Icons.touch_app_rounded,
+                                    size: 22,
+                                    color: scheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    p.left[i],
+                                    textAlign: TextAlign.center,
+                                    softWrap: true,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (paired) ...[
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    Icons.link_rounded,
+                                    size: 20,
+                                    color: accent,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),
@@ -709,29 +801,82 @@ class _GameShellScreenState extends State<GameShellScreen> {
                 children: [
                   Text('Right', style: theme.textTheme.labelLarge),
                   for (var j = 0; j < p.right.length; j++)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: FilledButton.tonal(
-                        onPressed: () {
-                          if (_matchPickLeft == null) return;
-                          setState(() {
-                            for (var i = 0; i < _matchRightForLeft.length; i++) {
-                              if (_matchRightForLeft[i] == j) {
-                                _matchRightForLeft[i] = null;
+                    Builder(
+                      builder: (context) {
+                        final leftIdx = _matchLeftIndexForRight(j);
+                        final paired = leftIdx != null;
+                        final accent = paired
+                            ? ikamvaMatchPairAccent(context, leftIdx, n)
+                            : null;
+                        final surfaceTint = paired
+                            ? ikamvaMatchPairSurfaceTint(context, leftIdx, n)
+                            : null;
+                        final onAccent = accent != null &&
+                                ThemeData.estimateBrightnessForColor(
+                                      accent,
+                                    ) ==
+                                    Brightness.dark
+                            ? Colors.white
+                            : Colors.black87;
+                        final pickLeft = _matchPickLeft;
+                        final canLink = pickLeft != null;
+                        VoidCallback? onRightPressed;
+                        if (canLink) {
+                          onRightPressed = () {
+                            setState(() {
+                              for (var i = 0;
+                                  i < _matchRightForLeft.length;
+                                  i++) {
+                                if (_matchRightForLeft[i] == j) {
+                                  _matchRightForLeft[i] = null;
+                                }
                               }
-                            }
-                            _matchRightForLeft[_matchPickLeft!] = j;
-                            _matchPickLeft = null;
-                          });
-                        },
-                        child: Text(
-                          p.right[j],
-                          textAlign: TextAlign.center,
-                          softWrap: true,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+                              _matchRightForLeft[pickLeft] = j;
+                              _matchPickLeft = null;
+                            });
+                          };
+                        } else if (paired) {
+                          // Stay visually "on" for completed pairs; no-op until a left is chosen.
+                          onRightPressed = () {};
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: FilledButton.tonal(
+                            style: matchButtonStyle(
+                              selected: false,
+                              paired: paired,
+                              pairAccent: accent,
+                              pairSurfaceTint: surfaceTint,
+                            ),
+                            onPressed: onRightPressed,
+                            child: Row(
+                              children: [
+                                if (paired) ...[
+                                  pairBadge(leftIdx + 1, accent!, onAccent),
+                                  const SizedBox(width: 10),
+                                ] else if (canLink) ...[
+                                  Icon(
+                                    Icons.add_link_rounded,
+                                    size: 22,
+                                    color: scheme.tertiary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    p.right[j],
+                                    textAlign: TextAlign.center,
+                                    softWrap: true,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),
@@ -916,5 +1061,17 @@ class _GameShellScreenState extends State<GameShellScreen> {
       ),
     );
   }
+}
+
+/// Distinct accent per match row (left index) for borders and badges.
+Color ikamvaMatchPairAccent(BuildContext context, int leftIndex, int n) {
+  final scheme = Theme.of(context).colorScheme;
+  if (n <= 0) return scheme.primary;
+  final h = (leftIndex * 137.5080469) % 360.0;
+  return HSVColor.fromAHSV(1, h, 0.55, 0.45).toColor();
+}
+
+Color ikamvaMatchPairSurfaceTint(BuildContext context, int leftIndex, int n) {
+  return ikamvaMatchPairAccent(context, leftIndex, n).withValues(alpha: 0.2);
 }
 

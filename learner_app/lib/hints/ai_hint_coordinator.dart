@@ -29,9 +29,14 @@ class AiHintCoordinator {
     final parsed = AiMultilingualHint.tryParse(raw);
     if (!context.mounted) return;
     if (parsed == null) {
+      final bottom = MediaQuery.paddingOf(context).bottom + 76;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not load an AI hint right now. Try again later.'),
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(16, 0, 16, bottom),
+          content: const Text(
+            'Could not load an AI hint right now. Try again later.',
+          ),
         ),
       );
       return;

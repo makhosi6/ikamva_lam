@@ -12,17 +12,18 @@ import '../screens/teacher/teacher_home_screen.dart';
 import '../screens/teacher/teacher_insights_screen.dart';
 import '../screens/teacher/teacher_privacy_screen.dart';
 import '../screens/teacher/teacher_quest_editor_screen.dart';
+import '../screens/splash_screen.dart';
 import '../screens/welcome_screen.dart';
 import '../state/settings_store.dart';
 
 GoRouter createAppRouter(SettingsStore settings) {
   return GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/splash',
     refreshListenable: settings,
     redirect: (BuildContext context, GoRouterState state) {
       final done = settings.onboardingComplete;
       final loc = state.matchedLocation;
-      if (!done && loc != '/welcome') {
+      if (!done && loc != '/welcome' && loc != '/splash') {
         return '/welcome';
       }
       if (done && loc == '/welcome') {
@@ -31,6 +32,10 @@ GoRouter createAppRouter(SettingsStore settings) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),

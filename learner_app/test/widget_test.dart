@@ -16,6 +16,8 @@ void main() {
       IkamvaApp(settings: settings, database: openMemoryDatabase()),
     );
     await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
 
     expect(find.text('Ikamva Lam'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
