@@ -316,157 +316,180 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                         ),
                       ),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: 4),
-                            Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, rowConstraints) {
-                                  // Reserve ~24px for page dots below the row.
-                                  final rowBudget =
-                                      rowConstraints.maxHeight - 24;
-                                  final perPage =
-                                      rowBudget >= _carouselMinHeightForTwoUp
-                                      ? 2
-                                      : 1;
-                                  _syncCarouselTopicsPerPageIfNeeded(perPage);
-                                  final pages = _pageCount(
-                                    offers.length,
-                                    perPage,
-                                  );
-                                  final safePages = pages > 0 ? pages : 1;
-                                  final safeIndex = _pageIndex.clamp(
-                                    0,
-                                    safePages - 1,
-                                  );
-
-                                  return Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Expanded(
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: [
-                                            _CarouselSideChevron(
-                                              icon: Icons.chevron_left_rounded,
-                                              enabled: safeIndex > 0,
-                                              label: perPage == 2
-                                                  ? 'Previous pair'
-                                                  : 'Previous topic',
-                                              onTap: () {
-                                                _pageController.previousPage(
-                                                  duration: const Duration(
-                                                    milliseconds: 280,
-                                                  ),
-                                                  curve: Curves.easeOutCubic,
-                                                );
-                                              },
-                                            ),
-                                            Expanded(
-                                              child: PageView.builder(
-                                                controller: _pageController,
-                                                itemCount: pages,
-                                                onPageChanged: (i) {
-                                                  setState(
-                                                    () => _pageIndex = i,
-                                                  );
-                                                },
-                                                itemBuilder: (context, pageIdx) {
-                                                  final children = <Widget>[];
-                                                  for (
-                                                    var slot = 0;
-                                                    slot < perPage;
-                                                    slot++
-                                                  ) {
-                                                    final idx =
-                                                        pageIdx * perPage +
-                                                        slot;
-                                                    if (idx >= offers.length) {
-                                                      children.add(
-                                                        const Expanded(
-                                                          child:
-                                                              SizedBox.shrink(),
-                                                        ),
-                                                      );
-                                                    } else {
-                                                      children.add(
-                                                        Expanded(
-                                                          child: Padding(
-                                                            padding:
-                                                                const EdgeInsets.only(
-                                                                  left: 2,
-                                                                  right: 2,
-                                                                ),
-                                                            child: _topicCard(
-                                                              theme: theme,
-                                                              ik: ik,
-                                                              offer:
-                                                                  offers[idx],
-                                                              doneToday: done
-                                                                  .contains(
-                                                                    offers[idx]
-                                                                        .topic,
-                                                                  ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      );
-                                                    }
-                                                    if (slot < perPage - 1) {
-                                                      children.add(
-                                                        const SizedBox(
-                                                          height: 8,
-                                                        ),
-                                                      );
-                                                    }
-                                                  }
-                                                  return Column(
-                                                    children: children,
-                                                  );
-                                                },
-                                              ),
-                                            ),
-                                            _CarouselSideChevron(
-                                              icon: Icons.chevron_right_rounded,
-                                              enabled:
-                                                  safeIndex < safePages - 1,
-                                              label: perPage == 2
-                                                  ? 'Next pair'
-                                                  : 'Next topic',
-                                              onTap: () {
-                                                _pageController.nextPage(
-                                                  duration: const Duration(
-                                                    milliseconds: 280,
-                                                  ),
-                                                  curve: Curves.easeOutCubic,
-                                                );
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          top: 4,
-                                          bottom: 4,
-                                        ),
-                                        child: _PageDots(
-                                          count: pages,
-                                          index: safeIndex,
-                                          color: theme.colorScheme.primary,
-                                          inactive: theme.colorScheme.outline
-                                              .withValues(alpha: 0.35),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: _hubMaxContentWidth,
                             ),
-                          ],
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const SizedBox(height: 4),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, rowConstraints) {
+                                      // Reserve ~24px for page dots below the row.
+                                      final rowBudget =
+                                          rowConstraints.maxHeight - 24;
+                                      final perPage =
+                                          rowBudget >=
+                                              _carouselMinHeightForTwoUp
+                                          ? 2
+                                          : 1;
+                                      _syncCarouselTopicsPerPageIfNeeded(
+                                        perPage,
+                                      );
+                                      final pages = _pageCount(
+                                        offers.length,
+                                        perPage,
+                                      );
+                                      final safePages = pages > 0 ? pages : 1;
+                                      final safeIndex = _pageIndex.clamp(
+                                        0,
+                                        safePages - 1,
+                                      );
+
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Expanded(
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                _CarouselSideChevron(
+                                                  icon: Icons
+                                                      .chevron_left_rounded,
+                                                  enabled: safeIndex > 0,
+                                                  label: perPage == 2
+                                                      ? 'Previous pair'
+                                                      : 'Previous topic',
+                                                  onTap: () {
+                                                    _pageController
+                                                        .previousPage(
+                                                          duration:
+                                                              const Duration(
+                                                                milliseconds:
+                                                                    280,
+                                                              ),
+                                                          curve: Curves
+                                                              .easeOutCubic,
+                                                        );
+                                                  },
+                                                ),
+                                                Expanded(
+                                                  child: PageView.builder(
+                                                    controller: _pageController,
+                                                    itemCount: pages,
+                                                    onPageChanged: (i) {
+                                                      setState(
+                                                        () => _pageIndex = i,
+                                                      );
+                                                    },
+                                                    itemBuilder: (context, pageIdx) {
+                                                      final children =
+                                                          <Widget>[];
+                                                      for (
+                                                        var slot = 0;
+                                                        slot < perPage;
+                                                        slot++
+                                                      ) {
+                                                        final idx =
+                                                            pageIdx * perPage +
+                                                            slot;
+                                                        if (idx >=
+                                                            offers.length) {
+                                                          children.add(
+                                                            const Expanded(
+                                                              child:
+                                                                  SizedBox.shrink(),
+                                                            ),
+                                                          );
+                                                        } else {
+                                                          children.add(
+                                                            Expanded(
+                                                              child: Padding(
+                                                                padding:
+                                                                    const EdgeInsets.only(
+                                                                      left: 2,
+                                                                      right: 2,
+                                                                    ),
+                                                                child: _topicCard(
+                                                                  theme: theme,
+                                                                  ik: ik,
+                                                                  offer:
+                                                                      offers[idx],
+                                                                  doneToday: done
+                                                                      .contains(
+                                                                        offers[idx]
+                                                                            .topic,
+                                                                      ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          );
+                                                        }
+                                                        if (slot <
+                                                            perPage - 1) {
+                                                          children.add(
+                                                            const SizedBox(
+                                                              height: 8,
+                                                            ),
+                                                          );
+                                                        }
+                                                      }
+                                                      return Column(
+                                                        children: children,
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                                _CarouselSideChevron(
+                                                  icon: Icons
+                                                      .chevron_right_rounded,
+                                                  enabled:
+                                                      safeIndex < safePages - 1,
+                                                  label: perPage == 2
+                                                      ? 'Next pair'
+                                                      : 'Next topic',
+                                                  onTap: () {
+                                                    _pageController.nextPage(
+                                                      duration: const Duration(
+                                                        milliseconds: 280,
+                                                      ),
+                                                      curve:
+                                                          Curves.easeOutCubic,
+                                                    );
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 4,
+                                              bottom: 4,
+                                            ),
+                                            child: _PageDots(
+                                              count: pages,
+                                              index: safeIndex,
+                                              color: theme.colorScheme.primary,
+                                              inactive: theme
+                                                  .colorScheme
+                                                  .outline
+                                                  .withValues(alpha: 0.35),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ],
