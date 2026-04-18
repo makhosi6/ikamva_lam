@@ -16,9 +16,41 @@ import '../screens/splash_screen.dart';
 import '../screens/welcome_screen.dart';
 import '../state/settings_store.dart';
 
+/// Drops any visible [SnackBar] when the stack changes so messages from the
+/// previous route do not linger (e.g. game hints on the home hub).
+class _ClearSnackBarsOnNavigate extends NavigatorObserver {
+  void _clearSnackBars(Route<dynamic>? route) {
+    final nav = route?.navigator;
+    final ctx = nav?.context;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.maybeOf(ctx)?.clearSnackBars();
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _clearSnackBars(route);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _clearSnackBars(previousRoute ?? route);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _clearSnackBars(previousRoute ?? route);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    _clearSnackBars(newRoute);
+  }
+}
+
 GoRouter createAppRouter(SettingsStore settings) {
   return GoRouter(
     initialLocation: '/splash',
+    observers: [_ClearSnackBarsOnNavigate()],
     refreshListenable: settings,
     redirect: (BuildContext context, GoRouterState state) {
       final done = settings.onboardingComplete;
