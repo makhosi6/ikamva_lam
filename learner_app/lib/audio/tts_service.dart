@@ -20,14 +20,12 @@ class TtsService {
   static const _kokoroModelAsset = 'assets/kokoro/kokoro-v1.0.int8.onnx';
   static const _kokoroVoicesAsset = 'assets/kokoro/voices_bundle.json';
 
-  static const _kokoroVoicePreference = [
-    'af_bella'
-  ];
+  static const _kokoroVoicePreference = ['af_bella'];
 
   Kokoro? _kokoro;
   bool _kokoroUsable = false;
   bool _kokoroInitDone = false;
-  String _kokoroVoiceId = 'af_bella';
+  String? _kokoroVoiceId;
 
   FlutterTts? _flutterTts;
   bool _flutterReady = false;
@@ -58,7 +56,7 @@ class TtsService {
 
     try {
       final engine = Kokoro(
-        const         KokoroConfig(
+        const KokoroConfig(
           modelPath: _kokoroModelAsset,
           voicesPath: _kokoroVoicesAsset,
           // Int8 *weights* model still outputs float audio; flutter_onnxruntime
@@ -222,16 +220,22 @@ class TtsService {
   }
 
   String _resolveKokoroVoiceId(Kokoro k) {
-    if (_kokoroVoiceId != null) return _kokoroVoiceId!;
-    for (final id in _kokoroVoicePreference) {
-      if (k.availableVoices.containsKey(id)) {
-        _kokoroVoiceId = id;
-        return id;
+    try {
+      if (_kokoroVoiceId != null) return _kokoroVoiceId!;
+      for (final id in _kokoroVoicePreference) {
+        if (k.availableVoices.containsKey(id)) {
+          _kokoroVoiceId = id;
+          return id;
+        }
       }
+      final keys = k.getVoices();
+      _kokoroVoiceId = keys.isNotEmpty ? keys.first : 'af_bella';
+      return _kokoroVoiceId!;
+    } catch (e, st) {
+      debugPrint('TtsService: Kokoro voice id resolution failed ($e)');
+      debugPrint('$st');
+      return 'af_bella';
     }
-    final keys = k.getVoices();
-    _kokoroVoiceId = keys.isNotEmpty ? keys.first : 'af_bella';
-    return _kokoroVoiceId!;
   }
 
   /// Splits long lesson strings so phoneme/token limits stay within Kokoro.
@@ -263,20 +267,13 @@ class TtsService {
     final voiceId = _resolveKokoroVoiceId(k);
     final chunks = _chunkForKokoro(text);
     if (chunks.length == 1) {
-      return k.createTTS(
-        text: chunks.single,
-        voice: voiceId,
-      );
+      return k.createTTS(text: chunks.single, voice: voiceId);
     }
 
     final buffers = <List<num>>[];
     var phonemes = '';
     for (final c in chunks) {
-      final r = await k.createTTS(
-        text: c,
-        voice: voiceId,
-    
-      );
+      final r = await k.createTTS(text: c, voice: voiceId);
       buffers.add(r.audio);
       phonemes += r.phonemes;
     }
@@ -308,8 +305,10 @@ class TtsService {
       return;
     }
 
-    final stepMs =
-        (playback.inMilliseconds / matches.length).round().clamp(48, 900);
+    final stepMs = (playback.inMilliseconds / matches.length).round().clamp(
+      48,
+      900,
+    );
     var i = 0;
     _wordProgressTimer = Timer.periodic(Duration(milliseconds: stepMs), (_) {
       if (_stopRequested || i >= matches.length) {
