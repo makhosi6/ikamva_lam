@@ -21,17 +21,13 @@ class TtsService {
   static const _kokoroVoicesAsset = 'assets/kokoro/voices_bundle.json';
 
   static const _kokoroVoicePreference = [
-    'af_bella',
-    'af_heart',
-    'af_sarah',
-    'bf_emma',
-    'bm_fable',
+    'af_bella'
   ];
 
   Kokoro? _kokoro;
   bool _kokoroUsable = false;
   bool _kokoroInitDone = false;
-  String? _kokoroVoiceId;
+  String _kokoroVoiceId = 'af_bella';
 
   FlutterTts? _flutterTts;
   bool _flutterReady = false;
@@ -62,10 +58,12 @@ class TtsService {
 
     try {
       final engine = Kokoro(
-        const KokoroConfig(
+        const         KokoroConfig(
           modelPath: _kokoroModelAsset,
           voicesPath: _kokoroVoicesAsset,
-          isInt8: true,
+          // Int8 *weights* model still outputs float audio; flutter_onnxruntime
+          // returns doubles, so output parsing must use the float branch.
+          isInt8: false,
         ),
       );
       await engine.initialize();
@@ -268,9 +266,6 @@ class TtsService {
       return k.createTTS(
         text: chunks.single,
         voice: voiceId,
-        lang: 'en-us',
-        isPhonemes: false,
-        speed: 0.95,
       );
     }
 
@@ -280,9 +275,7 @@ class TtsService {
       final r = await k.createTTS(
         text: c,
         voice: voiceId,
-        lang: 'en-us',
-        isPhonemes: false,
-        speed: 0.95,
+    
       );
       buffers.add(r.audio);
       phonemes += r.phonemes;

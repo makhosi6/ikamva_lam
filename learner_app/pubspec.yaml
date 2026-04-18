@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.8.0+1
+version: 0.9.0+1
 
 environment:
   sdk: ^3.10.1
@@ -94,3 +94,11 @@ flutter:
     - assets/prompts/prompt_v3/
     - assets/kokoro/kokoro-v1.0.int8.onnx
     - assets/kokoro/voices_bundle.json
+    # kokoro_tts_flutter loads these via rootBundle at assets/… (host app paths)
+    - assets/tokenizer_vocab.json
+    - assets/lexicon.json
+    # malsami Lexicon.initialize uses assets/us_*.json (not packages/malsami/…)
+    - assets/us_gold.json
+    - assets/us_silver.json
+    - assets/gb_gold.json
+    - assets/gb_silver.json
