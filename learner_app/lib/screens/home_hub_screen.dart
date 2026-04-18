@@ -137,10 +137,22 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                                   color: ik.accentSun.withValues(alpha: 0.35),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Text(
-                                  offer.label,
-                                  style: theme.textTheme.labelLarge,
-                                  overflow: TextOverflow.ellipsis,
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      offer.label,
+                                      style: theme.textTheme.labelLarge,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (doneToday)
+                                      Icon(
+                                        Icons.check_circle,
+                                        size: 18,
+                                        color: ik.success,
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -148,24 +160,6 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                             Text('A1', style: theme.textTheme.bodySmall),
                           ],
                         ),
-                        if (doneToday) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(Icons.check_circle, size: 18, color: ik.success),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  'Done today',
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: ik.success,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
                       ],
                     ),
                     Column(
@@ -235,16 +229,18 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                       Text(
                         'Swipe sideways for more themes. Fresh picks each day.',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.82),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.82,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'Resets after midnight (your device time).',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.65),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.65,
+                          ),
                         ),
                       ),
                     ],
@@ -279,8 +275,9 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                   final payload = snap.data!;
                   final offers = payload.offers;
                   final done = payload.done;
-                  final practised =
-                      offers.where((o) => done.contains(o.topic)).length;
+                  final practised = offers
+                      .where((o) => done.contains(o.topic))
+                      .length;
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -293,8 +290,9 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.08),
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.08,
+                            ),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -330,15 +328,14 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                                       rowConstraints.maxHeight - 24;
                                   final perPage =
                                       rowBudget >= _carouselMinHeightForTwoUp
-                                          ? 2
-                                          : 1;
-                                  _syncCarouselTopicsPerPageIfNeeded(
+                                      ? 2
+                                      : 1;
+                                  _syncCarouselTopicsPerPageIfNeeded(perPage);
+                                  final pages = _pageCount(
+                                    offers.length,
                                     perPage,
                                   );
-                                  final pages =
-                                      _pageCount(offers.length, perPage);
-                                  final safePages =
-                                      pages > 0 ? pages : 1;
+                                  final safePages = pages > 0 ? pages : 1;
                                   final safeIndex = _pageIndex.clamp(
                                     0,
                                     safePages - 1,
@@ -354,15 +351,13 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                                               CrossAxisAlignment.stretch,
                                           children: [
                                             _CarouselSideChevron(
-                                              icon: Icons
-                                                  .chevron_left_rounded,
+                                              icon: Icons.chevron_left_rounded,
                                               enabled: safeIndex > 0,
                                               label: perPage == 2
                                                   ? 'Previous pair'
                                                   : 'Previous topic',
                                               onTap: () {
-                                                _pageController
-                                                    .previousPage(
+                                                _pageController.previousPage(
                                                   duration: const Duration(
                                                     milliseconds: 280,
                                                   ),
@@ -379,22 +374,21 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                                                     () => _pageIndex = i,
                                                   );
                                                 },
-                                                itemBuilder:
-                                                    (context, pageIdx) {
-                                                  final children =
-                                                      <Widget>[];
-                                                  for (var slot = 0;
-                                                      slot < perPage;
-                                                      slot++) {
+                                                itemBuilder: (context, pageIdx) {
+                                                  final children = <Widget>[];
+                                                  for (
+                                                    var slot = 0;
+                                                    slot < perPage;
+                                                    slot++
+                                                  ) {
                                                     final idx =
                                                         pageIdx * perPage +
-                                                            slot;
-                                                    if (idx >=
-                                                        offers.length) {
+                                                        slot;
+                                                    if (idx >= offers.length) {
                                                       children.add(
                                                         const Expanded(
-                                                          child: SizedBox
-                                                              .shrink(),
+                                                          child:
+                                                              SizedBox.shrink(),
                                                         ),
                                                       );
                                                     } else {
@@ -402,29 +396,26 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                                                         Expanded(
                                                           child: Padding(
                                                             padding:
-                                                                const EdgeInsets
-                                                                    .only(
-                                                              left: 2,
-                                                              right: 2,
-                                                            ),
-                                                            child:
-                                                                _topicCard(
+                                                                const EdgeInsets.only(
+                                                                  left: 2,
+                                                                  right: 2,
+                                                                ),
+                                                            child: _topicCard(
                                                               theme: theme,
                                                               ik: ik,
-                                                              offer: offers[
-                                                                  idx],
+                                                              offer:
+                                                                  offers[idx],
                                                               doneToday: done
                                                                   .contains(
-                                                                offers[idx]
-                                                                    .topic,
-                                                              ),
+                                                                    offers[idx]
+                                                                        .topic,
+                                                                  ),
                                                             ),
                                                           ),
                                                         ),
                                                       );
                                                     }
-                                                    if (slot <
-                                                        perPage - 1) {
+                                                    if (slot < perPage - 1) {
                                                       children.add(
                                                         const SizedBox(
                                                           height: 8,
@@ -439,10 +430,9 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                                               ),
                                             ),
                                             _CarouselSideChevron(
-                                              icon: Icons
-                                                  .chevron_right_rounded,
-                                              enabled: safeIndex <
-                                                  safePages - 1,
+                                              icon: Icons.chevron_right_rounded,
+                                              enabled:
+                                                  safeIndex < safePages - 1,
                                               label: perPage == 2
                                                   ? 'Next pair'
                                                   : 'Next topic',
@@ -466,10 +456,8 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                                         child: _PageDots(
                                           count: pages,
                                           index: safeIndex,
-                                          color:
-                                              theme.colorScheme.primary,
-                                          inactive: theme
-                                              .colorScheme.outline
+                                          color: theme.colorScheme.primary,
+                                          inactive: theme.colorScheme.outline
                                               .withValues(alpha: 0.35),
                                         ),
                                       ),
