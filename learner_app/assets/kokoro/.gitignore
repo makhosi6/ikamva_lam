@@ -1,4 +1,3 @@
-kokoro-v1.0.int8.onnx
+# Intermediate outputs from tool/fetch_kokoro_models.sh — not shipped in the app.
 voices-v1.0.bin
 voices.json
-voices_*.json

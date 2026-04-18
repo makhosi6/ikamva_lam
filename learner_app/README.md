@@ -14,12 +14,12 @@ The system keeps the **Teacher/Parent** (school or home) in control, while AI ru
 
 One-line pitch: Ikamva Lam builds English confidence through guided play, with Teacher/Parent oversight, a rich multimodal learner interface, and fully offline AI support.
 
-## Kokoro read-aloud (development)
+## Kokoro read-aloud
 
-The learner app bundles a small **Kokoro** voice file (`assets/kokoro/voices_bundle.json`). The **int8 ONNX model** is large and gitignored; before `flutter test`, `flutter run`, or release builds, download it once with your shell in `learner_app/`:
+On-device neural TTS uses **Kokoro** assets committed under `assets/kokoro/`: `kokoro-v1.0.int8.onnx` and `voices_bundle.json`. No download step is required for `flutter test`, `flutter run`, or CI.
+
+To refresh those files from upstream (e.g. after changing the bundled voice), from `learner_app/`:
 
 ```bash
 bash tool/fetch_kokoro_models.sh
 ```
-
-CI runs the same script before analyze, test, and APK/iOS builds.
