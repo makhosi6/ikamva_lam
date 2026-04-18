@@ -15,7 +15,8 @@ class TeacherHomeScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: ConstrainedContent(
-          child: ListView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ListTile(
                 title: const Text('Create / edit quest'),

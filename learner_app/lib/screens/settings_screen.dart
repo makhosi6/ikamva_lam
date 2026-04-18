@@ -121,7 +121,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: AnimatedBuilder(
             animation: settings,
             builder: (context, _) {
-              return ListView(
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
                     'Listening & hints',

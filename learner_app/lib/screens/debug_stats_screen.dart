@@ -34,7 +34,8 @@ class DebugStatsScreen extends StatelessWidget {
             future: MetricsStore.load(),
             builder: (context, snap) {
               final m = snap.data ?? {};
-              return ListView(
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   ListTile(
                     title: const Text('Last queue fill error'),

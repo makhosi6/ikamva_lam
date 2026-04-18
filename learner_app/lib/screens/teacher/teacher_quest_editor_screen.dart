@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -74,7 +74,8 @@ class _TeacherQuestEditorScreenState extends State<TeacherQuestEditorScreen> {
       ),
       body: SafeArea(
         child: ConstrainedContent(
-          child: ListView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextField(controller: _topic, decoration: const InputDecoration(labelText: 'Topic')),
               TextField(controller: _level, decoration: const InputDecoration(labelText: 'Level (A1, A2…)')),
