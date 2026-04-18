@@ -32,6 +32,8 @@ jobs:
         working-directory: learner_app
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -41,12 +43,36 @@ jobs:
       - name: Zip iOS app bundle
         if: startsWith(github.ref, 'refs/tags/v')
         run: zip -r build/ios/Runner-ios-release-nocodesign.zip build/ios/iphoneos/Runner.app
+      - name: Name release assets with tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/app-release-${{ github.ref_name }}.apk"
+          cp build/ios/Runner-ios-release-nocodesign.zip "build/ios/Runner-ios-release-nocodesign-${{ github.ref_name }}.zip"
+      - name: Write release notes from commits
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: ${{ github.workspace }}
+        run: |
+          NOTES="${{ github.workspace }}/release-notes.md"
+          CURRENT="${{ github.ref_name }}"
+          {
+            echo "## Commits"
+            echo ""
+            PREV=$(git tag -l 'v*' --sort=-v:refname | awk -v cur="$CURRENT" 'found { print; exit } $0==cur { found=1 }')
+            if [ -n "$PREV" ]; then
+              git log "${PREV}..${CURRENT}" --pretty=format:'- %s (%h)'
+            else
+              git log -100 "${CURRENT}" --pretty=format:'- %s (%h)'
+            fi
+            echo ""
+          } > "$NOTES"
       - name: Upload APK and iOS bundle to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          body_path: ${{ github.workspace }}/release-notes.md
+          generate_release_notes: true
           files: |
-            learner_app/build/app/outputs/flutter-apk/app-release.apk
-            learner_app/build/ios/Runner-ios-release-nocodesign.zip
+            learner_app/build/app/outputs/flutter-apk/app-release-${{ github.ref_name }}.apk
+            learner_app/build/ios/Runner-ios-release-nocodesign-${{ github.ref_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
