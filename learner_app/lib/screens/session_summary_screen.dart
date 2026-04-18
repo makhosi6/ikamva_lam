@@ -203,10 +203,22 @@ class _StatRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: theme.textTheme.titleMedium),
-          Text(value, style: theme.textTheme.bodyLarge),
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              style: theme.textTheme.bodyLarge,
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     );

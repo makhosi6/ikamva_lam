@@ -50,18 +50,21 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: ik.accentSun.withValues(alpha: 0.35),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Topic: Food',
-                              style: theme.textTheme.labelLarge,
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: ik.accentSun.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Topic: Food',
+                                style: theme.textTheme.labelLarge,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),

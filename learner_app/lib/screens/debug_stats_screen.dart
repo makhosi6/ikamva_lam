@@ -39,17 +39,24 @@ class DebugStatsScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     title: const Text('Last queue fill error'),
-                    subtitle: Text(TaskQueueService.lastFillError ?? '—'),
+                    subtitle: Text(
+                      TaskQueueService.lastFillError ?? '—',
+                      softWrap: true,
+                    ),
                   ),
                   ListTile(
                     title: const Text('Metrics snapshot'),
-                    subtitle: Text('$m'),
+                    subtitle: Text(
+                      '$m',
+                      softWrap: true,
+                    ),
                   ),
                   ListTile(
                     title: const Text('Model / GGUF env'),
                     subtitle: Text(
                       'IKAMVA_USE_STUB_LLM=${Platform.environment['IKAMVA_USE_STUB_LLM'] ?? 'unset'}\n'
                       'IKAMVA_GGUF=${Platform.environment['IKAMVA_GGUF'] ?? 'unset'}',
+                      softWrap: true,
                     ),
                   ),
                   FilledButton(

@@ -12,6 +12,7 @@ class TeacherInsightsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final db = DatabaseScope.of(context);
     return Scaffold(
       appBar: AppBar(
@@ -31,15 +32,35 @@ class TeacherInsightsScreen extends StatelessWidget {
               );
             }
             return ConstrainedContent(
+              scrollable: false,
               child: ListView.builder(
                 itemCount: cards.length,
                 itemBuilder: (context, i) {
                   final c = cards[i];
                   return Card(
-                    child: ListTile(
-                      title: Text(c.issue),
-                      subtitle: Text('${c.pattern}\n${c.recommendation}'),
-                      isThreeLine: true,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            c.issue,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            c.pattern,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            c.recommendation,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },

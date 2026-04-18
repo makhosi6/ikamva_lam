@@ -28,6 +28,7 @@ class TeacherClassSummaryScreen extends StatelessWidget {
               return const Center(child: Text('No sessions yet.'));
             }
             return ConstrainedContent(
+              scrollable: false,
               child: ListView.builder(
                 itemCount: rows.length,
                 itemBuilder: (context, i) {

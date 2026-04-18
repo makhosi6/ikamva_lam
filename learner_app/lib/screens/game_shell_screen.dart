@@ -653,6 +653,9 @@ class _GameShellScreenState extends State<GameShellScreen> {
                   child: Text(
                     p.tokens[_reorderOrder[pos]],
                     style: theme.textTheme.titleMedium,
+                    softWrap: true,
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -687,7 +690,13 @@ class _GameShellScreenState extends State<GameShellScreen> {
                               : null,
                         ),
                         onPressed: () => setState(() => _matchPickLeft = i),
-                        child: Text(p.left[i]),
+                        child: Text(
+                          p.left[i],
+                          textAlign: TextAlign.center,
+                          softWrap: true,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                 ],
@@ -715,7 +724,13 @@ class _GameShellScreenState extends State<GameShellScreen> {
                             _matchPickLeft = null;
                           });
                         },
-                        child: Text(p.right[j]),
+                        child: Text(
+                          p.right[j],
+                          textAlign: TextAlign.center,
+                          softWrap: true,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                 ],
@@ -861,6 +876,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
       ),
       body: SafeArea(
         child: ConstrainedContent(
+          scrollable: false,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

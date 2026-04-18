@@ -81,7 +81,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Sample output'),
-          content: SingleChildScrollView(child: Text(pretty)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: SelectableText(
+                pretty,
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
