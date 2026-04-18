@@ -48,7 +48,13 @@ GoRouter createAppRouter(SettingsStore settings) {
         path: '/game',
         builder: (context, state) {
           final resume = state.uri.queryParameters['resume'] == '1';
-          return GameShellScreen(resume: resume);
+          final topic = state.uri.queryParameters['topic'];
+          final day = state.uri.queryParameters['day'];
+          return GameShellScreen(
+            resume: resume,
+            hubTopic: topic,
+            hubDayKey: day,
+          );
         },
       ),
       GoRoute(

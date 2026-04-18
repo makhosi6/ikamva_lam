@@ -28,6 +28,7 @@ import '../game/rule_hint_catalog.dart';
 import '../game/session_controller.dart';
 import '../game/task_queue_service.dart';
 import '../hints/ai_hint_coordinator.dart';
+import '../hub/daily_quest_ids.dart';
 import '../state/database_scope.dart';
 import '../state/game_pause_store.dart';
 import '../state/settings_scope.dart';
@@ -37,9 +38,18 @@ import '../widgets/ikamva_app_bar_title.dart';
 import '../widgets/topic_illustration.dart';
 
 class GameShellScreen extends StatefulWidget {
-  const GameShellScreen({super.key, this.resume = false});
+  const GameShellScreen({
+    super.key,
+    this.resume = false,
+    this.hubTopic,
+    this.hubDayKey,
+  });
 
   final bool resume;
+
+  /// Hub "Today's topics" — paired with [hubDayKey] (`yyyy-MM-dd`, local).
+  final String? hubTopic;
+  final String? hubDayKey;
 
   @override
   State<GameShellScreen> createState() => _GameShellScreenState();
@@ -77,6 +87,11 @@ class _GameShellScreenState extends State<GameShellScreen> {
   int? _dialogueIndex;
   DialogueChoicePayload? _dialoguePayload;
 
+  /// Vocabulary cloze: TTS word range in [cloze.sentence] (when the engine reports it).
+  bool _ttsSpeaking = false;
+  int? _ttsRangeStart;
+  int? _ttsRangeEnd;
+
   int _hintSteps = 0;
   bool _usedHintThisTask = false;
 
@@ -85,6 +100,12 @@ class _GameShellScreenState extends State<GameShellScreen> {
     super.initState();
     _retry = PerTaskRetryPolicy();
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  @override
+  void dispose() {
+    unawaited(TtsService.instance.stop());
+    super.dispose();
   }
 
   Future<void> _loadAdaptiveStateAndTasks() async {
@@ -160,6 +181,32 @@ class _GameShellScreenState extends State<GameShellScreen> {
     }
   }
 
+  Quest _syntheticQuestFromTemplate(
+    Quest template,
+    String id,
+    String topic,
+  ) {
+    final t = DailyQuestIds.normalizeTopicToken(topic);
+    return Quest(
+      id: id,
+      topic: t,
+      level: template.level,
+      maxDifficultyStep: template.maxDifficultyStep,
+      sessionTimeLimitSec: template.sessionTimeLimitSec,
+      maxTasks: template.maxTasks,
+      startsAt: template.startsAt,
+      endsAt: template.endsAt,
+      isActive: template.isActive,
+    );
+  }
+
+  Quest? _questFromPause(Quest template, String questId) {
+    if (questId == kSeedQuestId) return template;
+    final parsed = DailyQuestIds.tryParse(questId);
+    if (parsed == null) return null;
+    return _syntheticQuestFromTemplate(template, questId, parsed.$2);
+  }
+
   Future<void> _bootstrap() async {
     _db = DatabaseScope.of(context);
     _session = SessionController(_db);
@@ -167,53 +214,81 @@ class _GameShellScreenState extends State<GameShellScreen> {
     _attemptRepo = AttemptRepository(_db);
     _difficultyRepo = DifficultyStateRepository(_db);
 
-    final quest = await QuestRepository(_db).getById(kSeedQuestId);
+    final template = await QuestRepository(_db).getById(kSeedQuestId);
     if (!mounted) return;
-    if (quest == null) {
+    if (template == null) {
       setState(() {
         _loading = false;
         _error = 'No sample quest in database.';
       });
       return;
     }
-    _quest = quest;
-    await TaskQueueService(_db).ensureForQuest(quest);
+
+    final dayKey = DailyQuestIds.normalizeDayKey(widget.hubDayKey);
+    final topicParam = widget.hubTopic != null && widget.hubTopic!.trim().isNotEmpty
+        ? DailyQuestIds.normalizeTopicToken(widget.hubTopic!)
+        : null;
+    final hubOk = dayKey != null && topicParam != null;
 
     if (widget.resume) {
       final snap = await GamePauseStore.load();
-      if (snap != null && snap.questId == quest.id) {
-        final existing = await SessionRepository(_db).getById(snap.sessionId);
-        if (existing != null && existing.endedAt == null) {
-          try {
-            await _session.resumeOpenQuestSession(
-              session: existing,
-              quest: quest,
-              tasksAlreadyReserved: snap.reservedTaskSlots,
-            );
-            await _loadAdaptiveStateAndTasks();
-            if (_tasks.isEmpty) {
-              setState(() {
-                _loading = false;
-                _error = 'No tasks for this quest.';
-              });
+      if (snap != null) {
+        final resolved = _questFromPause(template, snap.questId);
+        if (resolved != null) {
+          final existing = await SessionRepository(_db).getById(snap.sessionId);
+          if (existing != null &&
+              existing.endedAt == null &&
+              snap.questId == resolved.id) {
+            try {
+              _quest = resolved;
+              await TaskQueueService(_db).ensureForQuest(resolved);
+              await _session.resumeOpenQuestSession(
+                session: existing,
+                quest: resolved,
+                tasksAlreadyReserved: snap.reservedTaskSlots,
+              );
+              await _loadAdaptiveStateAndTasks();
+              if (_tasks.isEmpty) {
+                setState(() {
+                  _loading = false;
+                  _error = 'No tasks for this quest.';
+                });
+                return;
+              }
+              _taskIndex = snap.taskIndex.clamp(0, _tasks.length - 1);
+              _retry.resetForNewTask();
+              _resetTaskUi();
+              _maybeHintFirstNudge();
+              await GamePauseStore.clear();
+              setState(() => _loading = false);
+              _scheduleTtsStem();
               return;
+            } on Object {
+              await GamePauseStore.clear();
             }
-            _taskIndex = snap.taskIndex.clamp(0, _tasks.length - 1);
-            _retry.resetForNewTask();
-            _resetTaskUi();
-            _maybeHintFirstNudge();
-            await GamePauseStore.clear();
-            setState(() => _loading = false);
-            _scheduleTtsStem();
-            return;
-          } on Object {
-            await GamePauseStore.clear();
           }
+        } else {
+          await GamePauseStore.clear();
         }
       }
     }
 
     await GamePauseStore.clear();
+
+    final Quest quest;
+    if (!widget.resume && hubOk) {
+      quest = _syntheticQuestFromTemplate(
+        template,
+        DailyQuestIds.make(dayKey, topicParam),
+        topicParam,
+      );
+    } else {
+      quest = template;
+    }
+
+    _quest = quest;
+    await TaskQueueService(_db).ensureForQuest(quest);
+
     try {
       await _session.startForQuest(quest);
       await _loadAdaptiveStateAndTasks();
@@ -266,9 +341,40 @@ class _GameShellScreenState extends State<GameShellScreen> {
         default:
           break;
       }
-      if (line != null && line.isNotEmpty) {
-        await TtsService.instance.speak(line);
+      if (line == null || line.isEmpty) return;
+
+      final vocabCloze = type == TaskType.cloze &&
+          SkillId.tryParse(t.skillId) == SkillId.vocabulary;
+
+      if (vocabCloze) {
+        if (!mounted) return;
+        setState(() {
+          _ttsSpeaking = true;
+          _ttsRangeStart = null;
+          _ttsRangeEnd = null;
+        });
+        await TtsService.instance.speak(
+          line,
+          onProgress: (start, end) {
+            if (!mounted) return;
+            setState(() {
+              _ttsRangeStart = start;
+              _ttsRangeEnd = end;
+            });
+          },
+          onComplete: () {
+            if (!mounted) return;
+            setState(() {
+              _ttsSpeaking = false;
+              _ttsRangeStart = null;
+              _ttsRangeEnd = null;
+            });
+          },
+        );
+        return;
       }
+
+      await TtsService.instance.speak(line);
     });
   }
 
@@ -298,6 +404,10 @@ class _GameShellScreenState extends State<GameShellScreen> {
   }
 
   void _resetTaskUi() {
+    unawaited(TtsService.instance.stop());
+    _ttsSpeaking = false;
+    _ttsRangeStart = null;
+    _ttsRangeEnd = null;
     _selectedChoice = null;
     _reorderOrder = [];
     _reorderPayload = null;
@@ -912,7 +1022,14 @@ class _GameShellScreenState extends State<GameShellScreen> {
     );
   }
 
-  Widget _buildClozeBody(ThemeData theme, ClozePayload cloze) {
+  Widget _buildClozeBody(BuildContext context, ClozePayload cloze) {
+    final theme = Theme.of(context);
+    final ik = context.ikamvaColors;
+    final vocab = SkillId.tryParse(_tasks[_taskIndex].skillId) ==
+        SkillId.vocabulary;
+    if (vocab) {
+      return _buildVocabularyClozeBody(context, theme, ik, cloze);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -941,10 +1058,108 @@ class _GameShellScreenState extends State<GameShellScreen> {
     );
   }
 
+  Widget _buildVocabularyClozeBody(
+    BuildContext context,
+    ThemeData theme,
+    IkamvaColors ik,
+    ClozePayload cloze,
+  ) {
+    final scheme = theme.colorScheme;
+    final chipsHint = Text(
+      'Tap the word that fills the gap',
+      style: theme.textTheme.labelLarge?.copyWith(
+        color: scheme.onSurface.withValues(alpha: 0.68),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Fill the gap',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (_ttsSpeaking) ...[
+              const SizedBox(width: 10),
+              Icon(
+                Icons.graphic_eq_rounded,
+                size: 22,
+                color: scheme.primary.withValues(alpha: 0.85),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 18),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+          decoration: BoxDecoration(
+            color: ik.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _ttsSpeaking
+                  ? ik.accentSun.withValues(alpha: 0.9)
+                  : scheme.outline.withValues(alpha: 0.22),
+              width: _ttsSpeaking ? 2.5 : 1,
+            ),
+            boxShadow: [
+              if (_ttsSpeaking)
+                BoxShadow(
+                  color: ik.accentSun.withValues(alpha: 0.22),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+            ],
+          ),
+          child: Text.rich(
+            TextSpan(children: _ikamvaClozeStemSpans(
+              sentence: cloze.sentence,
+              theme: theme,
+              ik: ik,
+              hiStart: _ttsRangeStart,
+              hiEnd: _ttsRangeEnd,
+            )),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 22),
+        chipsHint,
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final opt in cloze.options)
+              ChoiceChip(
+                label: Text(opt),
+                selected: _selectedChoice == opt,
+                onSelected: (selected) {
+                  if (selected) setState(() => _selectedChoice = opt);
+                },
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildActiveTask(ThemeData theme, ClozePayload? cloze) {
     switch (_taskType) {
       case TaskType.cloze:
-        if (cloze != null) return _buildClozeBody(theme, cloze);
+        if (cloze != null) return _buildClozeBody(context, cloze);
         return const Text('Invalid cloze task.');
       case TaskType.reorder:
         if (_reorderPayload != null) return _buildReorderBody(theme);
@@ -969,6 +1184,11 @@ class _GameShellScreenState extends State<GameShellScreen> {
       case TaskType.dialogueChoice:
         return 'Dialogue';
       case TaskType.cloze:
+        if (_tasks.isNotEmpty &&
+            SkillId.tryParse(_tasks[_taskIndex].skillId) ==
+                SkillId.vocabulary) {
+          return 'Vocabulary';
+        }
         return 'Cloze';
       case null:
         return 'Task';
@@ -1061,6 +1281,71 @@ class _GameShellScreenState extends State<GameShellScreen> {
       ),
     );
   }
+}
+
+/// Stem text for vocabulary cloze: underlined [___] gap, optional TTS word highlight.
+List<InlineSpan> _ikamvaClozeStemSpans({
+  required String sentence,
+  required ThemeData theme,
+  required IkamvaColors ik,
+  int? hiStart,
+  int? hiEnd,
+}) {
+  final len = sentence.length;
+  var h0 = -1;
+  var h1 = -1;
+  if (hiStart != null && hiEnd != null && hiEnd > hiStart) {
+    h0 = hiStart.clamp(0, len);
+    h1 = hiEnd.clamp(0, len);
+    if (h1 < h0) h1 = h0;
+  }
+
+  final base = theme.textTheme.headlineSmall!.copyWith(
+    height: 1.4,
+    fontWeight: FontWeight.w600,
+    color: theme.colorScheme.onSurface,
+  );
+  final blankStyle = base.copyWith(
+    color: theme.colorScheme.primary,
+    decoration: TextDecoration.underline,
+    decorationThickness: 2,
+    decorationColor: theme.colorScheme.primary.withValues(alpha: 0.45),
+  );
+
+  TextStyle withHi(TextStyle s, int segStart, int segEnd) {
+    if (h0 < 0 || h1 <= h0) return s;
+    if (segEnd <= h0 || segStart >= h1) return s;
+    return s.copyWith(
+      backgroundColor: ik.accentSun.withValues(alpha: 0.38),
+    );
+  }
+
+  final spans = <InlineSpan>[];
+  var last = 0;
+  for (final m in RegExp(r'___').allMatches(sentence)) {
+    if (m.start > last) {
+      final a = last;
+      final b = m.start;
+      spans.add(TextSpan(
+        text: sentence.substring(a, b),
+        style: withHi(base, a, b),
+      ));
+    }
+    final a = m.start;
+    final b = m.end;
+    spans.add(TextSpan(
+      text: '___',
+      style: withHi(blankStyle, a, b),
+    ));
+    last = m.end;
+  }
+  if (last < len) {
+    spans.add(TextSpan(
+      text: sentence.substring(last),
+      style: withHi(base, last, len),
+    ));
+  }
+  return spans;
 }
 
 /// Distinct accent per match row (left index) for borders and badges.
