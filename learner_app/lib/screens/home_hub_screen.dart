@@ -11,6 +11,10 @@ import '../widgets/ikamva_app_bar_title.dart';
 const double _hubTextGutter = 20;
 const double _hubMaxContentWidth = 560;
 
+/// Min height (approx.) for the [PageView] row to stack two topic cards; otherwise 1×1.
+/// Based on [LayoutBuilder] height for the carousel strip (below the swipe hint), minus dots.
+const double _carouselMinHeightForTwoUp = 296;
+
 class _HubPayload {
   const _HubPayload(this.offers, this.done);
 
@@ -31,6 +35,10 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
   late final PageController _pageController;
 
   int _pageIndex = 0;
+
+  /// Last synced with [LayoutBuilder] carousel height; controller reset when this changes.
+  int _carouselTopicsPerPage = 2;
+  bool _carouselSyncScheduled = false;
 
   String get _todayKey => DailyTopicsService.calendarDayKeyLocal();
 
@@ -63,7 +71,26 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
     });
   }
 
-  int _pageCount(int offerCount) => (offerCount + 1) >> 1;
+  static int _pageCount(int offerCount, int topicsPerPage) {
+    if (topicsPerPage < 1) return 0;
+    return (offerCount + topicsPerPage - 1) ~/ topicsPerPage;
+  }
+
+  void _syncCarouselTopicsPerPageIfNeeded(int layoutPerPage) {
+    if (layoutPerPage == _carouselTopicsPerPage) return;
+    if (_carouselSyncScheduled) return;
+    _carouselSyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _carouselSyncScheduled = false;
+      if (!mounted || layoutPerPage == _carouselTopicsPerPage) return;
+      setState(() {
+        _pageController.dispose();
+        _pageController = PageController(viewportFraction: 1);
+        _carouselTopicsPerPage = layoutPerPage;
+        _pageIndex = 0;
+      });
+    });
+  }
 
   Widget _topicCard({
     required ThemeData theme,
@@ -83,60 +110,84 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
+        padding: const EdgeInsets.all(12),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: ik.accentSun.withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  offer.label,
+                                  style: theme.textTheme.labelLarge,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('A1', style: theme.textTheme.bodySmall),
+                          ],
+                        ),
+                        if (doneToday) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(Icons.check_circle, size: 18, color: ik.success),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  'Done today',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: ik.success,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
-                    decoration: BoxDecoration(
-                      color: ik.accentSun.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Short games — about 3 minutes.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton(
+                          onPressed: () => _openTopic(offer),
+                          child: const Text('Start'),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      offer.label,
-                      style: theme.textTheme.labelLarge,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text('A1', style: theme.textTheme.bodySmall),
-              ],
-            ),
-            if (doneToday) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.check_circle, size: 18, color: ik.success),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Done today',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: ik.success,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
               ),
-            ],
-            const Spacer(),
-            Text(
-              'Short games — about 3 minutes.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () => _openTopic(offer),
-              child: const Text('Start'),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -182,7 +233,7 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Swipe sideways — two themes per screen. Fresh picks each day.',
+                        'Swipe sideways for more themes. Fresh picks each day.',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurface
                               .withValues(alpha: 0.82),
@@ -230,7 +281,6 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                   final done = payload.done;
                   final practised =
                       offers.where((o) => done.contains(o.topic)).length;
-                  final pages = _pageCount(offers.length);
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -267,79 +317,174 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                           ),
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(6, 6, 6, 4),
-                        child: Text(
-                          pages > 1
-                              ? 'More themes on the left or right →'
-                              : 'All today’s themes fit on this screen.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ),
                       Expanded(
-                        child: Row(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _CarouselSideChevron(
-                              icon: Icons.chevron_left_rounded,
-                              enabled: _pageIndex > 0,
-                              label: 'Previous pair',
-                              onTap: () {
-                                _pageController.previousPage(
-                                  duration: const Duration(milliseconds: 280),
-                                  curve: Curves.easeOutCubic,
-                                );
-                              },
-                            ),
+                            if (offers.length > 1)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(6, 0, 6, 4),
+                                child: Text(
+                                  'Swipe for more topics →',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              )
+                            else
+                              const SizedBox(height: 4),
                             Expanded(
-                              child: PageView.builder(
-                                controller: _pageController,
-                                itemCount: pages,
-                                onPageChanged: (i) {
-                                  setState(() => _pageIndex = i);
-                                },
-                                itemBuilder: (context, pageIdx) {
-                                  final i0 = pageIdx * 2;
-                                  final i1 = i0 + 1;
-                                  final a = offers[i0];
-                                  final b =
-                                      i1 < offers.length ? offers[i1] : null;
+                              child: LayoutBuilder(
+                                builder: (context, rowConstraints) {
+                                  // Reserve ~24px for page dots below the row.
+                                  final rowBudget =
+                                      rowConstraints.maxHeight - 24;
+                                  final perPage =
+                                      rowBudget >= _carouselMinHeightForTwoUp
+                                          ? 2
+                                          : 1;
+                                  _syncCarouselTopicsPerPageIfNeeded(
+                                    perPage,
+                                  );
+                                  final pages =
+                                      _pageCount(offers.length, perPage);
+                                  final safePages =
+                                      pages > 0 ? pages : 1;
+                                  final safeIndex = _pageIndex.clamp(
+                                    0,
+                                    safePages - 1,
+                                  );
+
                                   return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
                                       Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            left: 2,
-                                            right: 2,
-                                          ),
-                                          child: _topicCard(
-                                            theme: theme,
-                                            ik: ik,
-                                            offer: a,
-                                            doneToday: done.contains(a.topic),
-                                          ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            _CarouselSideChevron(
+                                              icon: Icons
+                                                  .chevron_left_rounded,
+                                              enabled: safeIndex > 0,
+                                              label: perPage == 2
+                                                  ? 'Previous pair'
+                                                  : 'Previous topic',
+                                              onTap: () {
+                                                _pageController
+                                                    .previousPage(
+                                                  duration: const Duration(
+                                                    milliseconds: 280,
+                                                  ),
+                                                  curve: Curves.easeOutCubic,
+                                                );
+                                              },
+                                            ),
+                                            Expanded(
+                                              child: PageView.builder(
+                                                controller: _pageController,
+                                                itemCount: pages,
+                                                onPageChanged: (i) {
+                                                  setState(
+                                                    () => _pageIndex = i,
+                                                  );
+                                                },
+                                                itemBuilder:
+                                                    (context, pageIdx) {
+                                                  final children =
+                                                      <Widget>[];
+                                                  for (var slot = 0;
+                                                      slot < perPage;
+                                                      slot++) {
+                                                    final idx =
+                                                        pageIdx * perPage +
+                                                            slot;
+                                                    if (idx >=
+                                                        offers.length) {
+                                                      children.add(
+                                                        const Expanded(
+                                                          child: SizedBox
+                                                              .shrink(),
+                                                        ),
+                                                      );
+                                                    } else {
+                                                      children.add(
+                                                        Expanded(
+                                                          child: Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .only(
+                                                              left: 2,
+                                                              right: 2,
+                                                            ),
+                                                            child:
+                                                                _topicCard(
+                                                              theme: theme,
+                                                              ik: ik,
+                                                              offer: offers[
+                                                                  idx],
+                                                              doneToday: done
+                                                                  .contains(
+                                                                offers[idx]
+                                                                    .topic,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                    if (slot <
+                                                        perPage - 1) {
+                                                      children.add(
+                                                        const SizedBox(
+                                                          height: 8,
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
+                                                  return Column(
+                                                    children: children,
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            _CarouselSideChevron(
+                                              icon: Icons
+                                                  .chevron_right_rounded,
+                                              enabled: safeIndex <
+                                                  safePages - 1,
+                                              label: perPage == 2
+                                                  ? 'Next pair'
+                                                  : 'Next topic',
+                                              onTap: () {
+                                                _pageController.nextPage(
+                                                  duration: const Duration(
+                                                    milliseconds: 280,
+                                                  ),
+                                                  curve: Curves.easeOutCubic,
+                                                );
+                                              },
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            left: 2,
-                                            right: 2,
-                                          ),
-                                          child: b != null
-                                              ? _topicCard(
-                                                  theme: theme,
-                                                  ik: ik,
-                                                  offer: b,
-                                                  doneToday:
-                                                      done.contains(b.topic),
-                                                )
-                                              : const SizedBox.expand(),
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 4,
+                                          bottom: 4,
+                                        ),
+                                        child: _PageDots(
+                                          count: pages,
+                                          index: safeIndex,
+                                          color:
+                                              theme.colorScheme.primary,
+                                          inactive: theme
+                                              .colorScheme.outline
+                                              .withValues(alpha: 0.35),
                                         ),
                                       ),
                                     ],
@@ -347,28 +492,7 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                                 },
                               ),
                             ),
-                            _CarouselSideChevron(
-                              icon: Icons.chevron_right_rounded,
-                              enabled: _pageIndex < pages - 1,
-                              label: 'Next pair',
-                              onTap: () {
-                                _pageController.nextPage(
-                                  duration: const Duration(milliseconds: 280),
-                                  curve: Curves.easeOutCubic,
-                                );
-                              },
-                            ),
                           ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4, bottom: 4),
-                        child: _PageDots(
-                          count: pages,
-                          index: _pageIndex,
-                          color: theme.colorScheme.primary,
-                          inactive: theme.colorScheme.outline
-                              .withValues(alpha: 0.35),
                         ),
                       ),
                     ],
