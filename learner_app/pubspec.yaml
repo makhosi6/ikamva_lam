@@ -41,6 +41,8 @@ dependencies:
   uuid: ^4.5.1
   flutter_tts: ^4.2.0
   http: ^1.2.2
+  kokoro_tts_flutter: ^0.2.0+1
+  just_audio: ^0.10.5
 
 dev_dependencies:
   flutter_test:
@@ -90,3 +92,5 @@ flutter:
   assets:
     - assets/branding/logo.png
     - assets/prompts/prompt_v3/
+    - assets/kokoro/kokoro-v1.0.int8.onnx
+    - assets/kokoro/voices_bundle.json

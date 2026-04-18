@@ -356,7 +356,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
           _ttsRangeEnd = null;
         });
         await TtsService.instance.speak(
-          line,
+          line.replaceAll('___', ' blank '),
           onProgress: (start, end) {
             if (!mounted) return;
             setState(() {
@@ -376,7 +376,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
         return;
       }
 
-      await TtsService.instance.speak(line);
+      await TtsService.instance.speak(line.replaceAll('___', ' blank '));
     });
   }
 
@@ -729,7 +729,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
     });
     _showGameSnackBar(text);
     if (SettingsScope.of(context).ttsEnabled) {
-      unawaited(TtsService.instance.speak(text));
+      unawaited(TtsService.instance.speak(text.replaceAll('___', ' blank ')));
     }
   }
 

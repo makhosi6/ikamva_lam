@@ -50,7 +50,7 @@ class AiHintCoordinator {
     if (!context.mounted) return;
     final settings = SettingsScope.of(context);
     if (settings.ttsEnabled) {
-      await TtsService.instance.speak(parsed.hintEn);
+      await TtsService.instance.speak(parsed.hintEn.replaceAll('___', ' blank '));
     }
   }
 }
