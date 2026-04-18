@@ -29,6 +29,8 @@ import '../game/session_controller.dart';
 import '../game/task_queue_service.dart';
 import '../hints/ai_hint_coordinator.dart';
 import '../hub/daily_quest_ids.dart';
+import '../hub/daily_topics_service.dart';
+import '../hub/hub_daily_topic_progress.dart';
 import '../state/database_scope.dart';
 import '../state/game_pause_store.dart';
 import '../state/settings_scope.dart';
@@ -592,9 +594,19 @@ class _GameShellScreenState extends State<GameShellScreen> {
     _scheduleTtsStem();
   }
 
+  Future<void> _recordHubTopicProgress() async {
+    final q = _quest;
+    if (q == null) return;
+    await HubDailyTopicProgress.markCompleted(
+      DailyTopicsService.calendarDayKeyLocal(),
+      q.topic,
+    );
+  }
+
   Future<void> _finishSession() async {
     try {
       final ended = await _session.endSession();
+      await _recordHubTopicProgress();
       final attempts =
           await AttemptRepository(_db).listForSession(ended.id);
       final hints = attempts.where((a) => a.usedHint).length;
@@ -653,6 +665,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
     if (ok != true || !mounted) return;
     try {
       final ended = await _session.endSession();
+      await _recordHubTopicProgress();
       final attempts =
           await AttemptRepository(_db).listForSession(ended.id);
       final hints = attempts.where((a) => a.usedHint).length;
