@@ -13,7 +13,7 @@ This document translates [spec.md](spec.md) and [writeup.md](writeup.md) into co
 | Actor | Primary surface | Connectivity | Notes |
 |--------|-----------------|--------------|--------|
 | **Learner** | Flutter app (tablet / laptop) | Offline-first; sync when available | Multimodal: tap, read, listen, optional voice |
-| **Teacher** | Web dashboard (optional) + in-app setup on shared device | Low bandwidth when syncing | Sees summaries and insights, not raw chat |
+| **Teacher/Parent** | Web dashboard (optional) + in-app setup on shared or home device | Low bandwidth when syncing | School teacher or parent; sees summaries and insights, not raw chat |
 | **System** | SQLite + llama.cpp + cache | N/A | Rule-based eval first; AI for generation & hints |
 
 ---
@@ -30,7 +30,7 @@ flowchart TD
   B -->|No| C[Welcome + illustration]
   C --> D[Choose display name or initials]
   D --> E[Optional: home language for hints]
-  E --> F[Teacher pairing code OR guest mode]
+  E --> F[Teacher/Parent pairing code OR guest mode]
   F --> G[Home / quest hub]
   B -->|Yes| G
 ```
@@ -39,7 +39,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  G[Home hub] --> H{Active teacher quest?}
+  G[Home hub] --> H{Active Teacher/Parent quest?}
   H -->|Yes| I[Quest card: topic + level + time limit]
   H -->|No| J[Practice mode: pick topic band]
   I --> K[Start session]
@@ -78,7 +78,7 @@ flowchart TD
 ```mermaid
 flowchart LR
   A[Last N attempts] --> B{Accuracy greater than 80%?}
-  B -->|Yes| C[Increase difficulty step within teacher max]
+  B -->|Yes| C[Increase difficulty step within Teacher/Parent max]
   B -->|No| D{Accuracy less than 50%?}
   D -->|Yes| E[Repeat strand with hints on]
   D -->|No| F[Maintain level]
@@ -108,13 +108,13 @@ flowchart TD
 
 ---
 
-## 3. Teacher user flows
+## 3. Teacher/Parent user flows
 
 ### 3.1 Configure a weekly quest
 
 ```mermaid
 flowchart TD
-  T1[Teacher logs in web or shared tablet] --> T2[Create quest]
+  T1[Teacher/Parent logs in web or shared tablet] --> T2[Create quest]
   T2 --> T3[Topic e.g. food school daily life]
   T3 --> T4[Difficulty band A1 A2 etc]
   T4 --> T5[Session cap time or task count]
@@ -147,7 +147,7 @@ flowchart TD
 | Match | Vocabulary pairs | Large touch targets |
 | Dialogue choice | Contextual comprehension | Character illustration optional |
 | Hint sheet | Multilingual hints | `hint_en` / `hint_xh` etc.; optional audio |
-| Session end | Celebrate + stats | Simple charts; teacher-safe messaging |
+| Session end | Celebrate + stats | Simple charts; Teacher/Parent-safe messaging |
 | Settings | Language for hints, TTS on/off, voice mode | Plain language labels |
 
 ---
@@ -201,7 +201,7 @@ Use as Flutter `ThemeExtension` or constants. Favor **WCAG AA** contrast for tex
 ### 5.5 Illustration style
 
 - **Flat or soft-vector** characters and scenes; consistent stroke weight.
-- **Diverse** South African classroom and daily-life contexts (uniforms, taxis, food, family scenes) — align with teacher topics.
+- **Diverse** South African classroom and daily-life contexts (uniforms, taxis, food, family scenes) — align with Teacher/Parent-chosen topics.
 - **Functional:** each illustration should **anchor meaning** for the sentence, not mere decoration.
 
 ### 5.6 Motion (performance rules)
@@ -228,11 +228,11 @@ Use as Flutter `ThemeExtension` or constants. Favor **WCAG AA** contrast for tex
 | **Answer chips** | Cloze options as full-width chips; selected state high contrast |
 | **Hint drawer** | Bottom sheet; tabs or segmented control for EN / isiXhosa / isiZulu / Afrikaans |
 | **Voice FAB** | Optional; when on, shows mic state listening / processing |
-| **Insight card (teacher)** | Issue title, pattern subtitle, recommendation bullet |
+| **Insight card (Teacher/Parent)** | Issue title, pattern subtitle, recommendation bullet |
 
 ---
 
-## 7. Teacher dashboard (web) — visual alignment
+## 7. Teacher/Parent dashboard (web) — visual alignment
 
 - **Dense but scannable:** tables for class list; cards for AI insights.
 - **Same primary/accent** as learner app for brand continuity.
@@ -245,7 +245,7 @@ Use as Flutter `ThemeExtension` or constants. Favor **WCAG AA** contrast for tex
 
 | Track | How design supports it |
 |-------|-------------------------|
-| Main | Clear learner + teacher loops in flows above |
+| Main | Clear learner + Teacher/Parent loops in flows above |
 | Future of education | Skill graph + adaptive flow tied to measurable session end stats |
 | Digital equity | Offline paths, large type, multilingual hint UI, low-end motion rules |
 | llama.cpp | No UI dependency on streaming; show optional “thinking…” only if needed; prefer pre-cached tasks |
@@ -255,7 +255,7 @@ Use as Flutter `ThemeExtension` or constants. Favor **WCAG AA** contrast for tex
 ## 9. Next steps for implementation
 
 1. Flutter theme from §5 tokens + `ThemeExtension`.
-2. Figma (optional):6 key frames — Welcome, Hub, Cloze, Hint drawer, Session end, Teacher insight card.
+2. Figma (optional):6 key frames — Welcome, Hub, Cloze, Hint drawer, Session end, Teacher/Parent insight card.
 3. Asset pipeline: Lottie or Rive **only** if profiled on target 4–8GB devices; else sprite-based animation.
 
 ---

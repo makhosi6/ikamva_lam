@@ -4,7 +4,7 @@
 
 ![Ikamva Lam logo](branding/logo.png) · *Vector: [branding/logo.svg](branding/logo.svg)*
 
-Playful English practice for primary and secondary learners—teacher-guided and powered by on-device Gemma 4
+Playful English practice for primary and secondary learners—guided by a **Teacher/Parent** (school or home) and powered by on-device Gemma 4
 
 ---
 
@@ -16,9 +16,9 @@ Ikamva Lam is a lightweight learning app that helps learners build English confi
 - Access to books and devices is limited
 - Internet connectivity is unreliable
 
-The system keeps teachers in control, while AI runs locally on-device to support learners with hints, feedback, and structured practice. The learner app is deliberately multimodal—animations, illustrations, and voice—so learners can listen while they read, practice speaking aloud, and use optional voice commands without everything depending on dense on-screen text alone.
+The system keeps the **Teacher/Parent** in control, while AI runs locally on-device to support learners with hints, feedback, and structured practice. The learner app is deliberately multimodal—animations, illustrations, and voice—so learners can listen while they read, practice speaking aloud, and use optional voice commands without everything depending on dense on-screen text alone.
 
-**One-line pitch:** Ikamva Lam builds English confidence through guided play, with teacher oversight, a rich multimodal learner interface, and fully offline AI support.
+**One-line pitch:** Ikamva Lam builds English confidence through guided play, with Teacher/Parent oversight, a rich multimodal learner interface, and fully offline AI support.
 
 ---
 
@@ -33,7 +33,7 @@ South Africa faces a well-documented literacy challenge:
 In practice:
 
 - Learners don’t get enough repetition and feedback
-- Teachers don’t have time for individual attention
+- Teachers and parents often lack time for individual attention at scale
 - Digital tools often depend on internet access, which is unreliable or expensive
 
 ---
@@ -72,13 +72,13 @@ The interface uses motion, art, and audio together to support literacy and oral 
 
 ---
 
-## 👩🏽‍🏫 Teacher in the Loop
+## 👩🏽‍🏫 Teacher/Parent in the loop
 
-Teachers:
+The adult guide may be a **school teacher** or a **parent**—the same product flows apply. **Teacher/Parent**:
 
-- Set topics (e.g. food, school, daily life)
-- Choose difficulty levels
-- Control time or session limits
+- Sets topics (e.g. food, school, daily life)
+- Chooses difficulty levels
+- Controls time or session limits
 
 They also receive:
 
@@ -86,12 +86,12 @@ They also receive:
 - Common mistakes, weak skills, and clustered error patterns (computed on-device where possible)
 - Optional AI-assisted insights (e.g. recurring issues and revision suggestions)
 
-An optional teacher dashboard can sync low-bandwidth summaries—not raw learner dialogues—when connectivity allows.
+An optional **Teacher/Parent** web dashboard can sync low-bandwidth summaries—not raw learner dialogues—when connectivity allows.
 
-This allows teachers to:
+This allows teachers and parents to:
 
-- Adjust lessons
-- Run small-group interventions
+- Adjust lessons or home practice
+- Run small-group interventions or one-to-one support
 - Stay fully in control of learning outcomes
 
 ---
@@ -113,7 +113,7 @@ The AI handles:
 - Generating practice questions
 - Giving hints (including multilingual explanations where configured)
 - Rephrasing incorrect answers
-- Adapting difficulty within teacher-defined limits
+- Adapting difficulty within Teacher/Parent-defined limits
 
 Generation stays bounded: short outputs, tight token budgets, curriculum-aligned wording (e.g. simpler sentences for early levels). Tasks can be pre-generated in the background and cached so gameplay rarely waits on the model.
 
@@ -139,11 +139,11 @@ Generation stays bounded: short outputs, tight token budgets, curriculum-aligned
 
 ## 🔁 Example Workflow
 
-1. Teacher assigns a weekly quest (topic + difficulty)
+1. Teacher/Parent assigns a weekly quest (topic + difficulty)
 2. Learners complete short game sessions—tasks are served from cache or generated on-device as needed
 3. Answers are evaluated with rules first; the model supplies hints when appropriate, including spoken guidance where enabled
 4. Results and skill signals are stored locally for analytics
-5. Teacher reviews summary (and optional insight cards) and adjusts teaching
+5. Teacher/Parent reviews summary (and optional insight cards) and adjusts support or teaching
 
 ---
 
@@ -155,18 +155,18 @@ It directly addresses:
 
 - Limited connectivity
 - Shared devices
-- Teacher workload
+- Adult (teacher/parent) workload
 - Need for engaging literacy practice
 - Multilingual classrooms—scaffolding and hints can be offered in languages such as isiXhosa, isiZulu, and Afrikaans alongside English, with support for mixed-language learner responses normalised for assessment
 
-Instead of replacing teachers, it amplifies their reach.
+Instead of replacing teachers or parents, it amplifies their reach.
 
 ---
 
 ## 🚀 What Makes This Different
 
 - Offline-first AI learning tool
-- Teacher-controlled AI (not autonomous)
+- Teacher/Parent-controlled AI (not autonomous)
 - Skill-linked games plus adaptive difficulty—not undifferentiated drills
 - Multimodal learner experience: animation, illustration, and voice (listening, speaking, optional voice commands)
 - Focus on practice volume + motivation
@@ -198,7 +198,7 @@ Instead of replacing teachers, it amplifies their reach.
 
 - Deeper longitudinal models of mastery per skill over terms and years
 - Richer speech feedback (pronunciation scoring, more voice locales)
-- Expanded teacher dashboard exports and class-level rollups
+- Expanded Teacher/Parent dashboard exports and class- or household-level rollups
 - Further optimisation for the lowest RAM tiers without sacrificing multimodal UX
 
 ---

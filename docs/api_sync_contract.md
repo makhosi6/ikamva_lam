@@ -1,6 +1,6 @@
 # Summary sync API (TASKS §14.1)
 
-Optional HTTPS endpoint for **compressed JSON summaries only** (no raw attempts).
+Optional HTTPS endpoint for **compressed JSON summaries only** (no raw attempts), consumed by a **Teacher/Parent** dashboard or ops tooling.
 
 ## `POST /v1/summaries`
 

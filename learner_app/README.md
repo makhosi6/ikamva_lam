@@ -10,6 +10,6 @@ Ikamva Lam is a lightweight learning app that helps learners build English confi
 - Access to books and devices is limited
 - Internet connectivity is unreliable
 
-The system keeps teachers in control, while AI runs locally on-device to support learners with hints, feedback, and structured practice. The learner app is deliberately multimodal—animations, illustrations, and voice—so learners can listen while they read, practice speaking aloud, and use optional voice commands without everything depending on dense on-screen text alone.
+The system keeps the **Teacher/Parent** (school or home) in control, while AI runs locally on-device to support learners with hints, feedback, and structured practice. The learner app is deliberately multimodal—animations, illustrations, and voice—so learners can listen while they read, practice speaking aloud, and use optional voice commands without everything depending on dense on-screen text alone.
 
-One-line pitch: Ikamva Lam builds English confidence through guided play, with teacher oversight, a rich multimodal learner interface, and fully offline AI support.
+One-line pitch: Ikamva Lam builds English confidence through guided play, with Teacher/Parent oversight, a rich multimodal learner interface, and fully offline AI support.

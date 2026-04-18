@@ -2,7 +2,7 @@
 
 <img src="branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
 
-Playful, teacher-guided English practice for primary and early secondary learners. Learner app targets **offline-first** use on tablets and low-end laptops; on-device AI is planned via **llama.cpp** and quantised **Gemma 4** (see [spec.md](spec.md)).
+Playful, Teacher/Parent-guided English practice for primary and early secondary learners (school or home). Learner app targets **offline-first** use on tablets and low-end laptops; on-device AI is planned via **llama.cpp** and quantised **Gemma 4** (see [spec.md](spec.md)).
 
 ## Repository layout
 
@@ -18,7 +18,7 @@ Playful, teacher-guided English practice for primary and early secondary learner
 | [writeup.md](writeup.md) | Hackathon narrative |
 | [docs/api_sync_contract.md](docs/api_sync_contract.md) | Optional summary sync API (TASKS §14) |
 | [DEMO.md](DEMO.md) | 90s judging script (TASKS §16.1) |
-| [teacher_web/](teacher_web/) | Web dashboard placeholder (TASKS §14.3) |
+| [teacher_web/](teacher_web/) | Teacher/Parent web dashboard placeholder (TASKS §14.3) |
 | [notebooks/](notebooks/) | Kaggle-friendly overview notebook (TASKS §16.4) |
 
 ## Benchmarks & devices (TASKS §15.1–15.2)

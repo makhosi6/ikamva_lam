@@ -1,6 +1,6 @@
-# Teacher web (TASKS §14.3 scaffold)
+# Teacher/Parent web (TASKS §14.3 scaffold)
 
-This folder is a **placeholder** for a future Flutter Web or static dashboard. The hackathon MVP implements the **teacher loop inside the learner app** (`/teacher` routes) plus the API sketch in [`docs/api_sync_contract.md`](../docs/api_sync_contract.md).
+This folder is a **placeholder** for a future Flutter Web or static dashboard. The hackathon MVP implements the **Teacher/Parent loop inside the learner app** (`/teacher` routes) plus the API sketch in [`docs/api_sync_contract.md`](../docs/api_sync_contract.md).
 
 To extend:
 

@@ -10,7 +10,7 @@ Ikamva Lam — Advanced Technical Spec
 🎯 1. Design Goals (Aligned to Tracks)
 
 Main Track
-	•	End-to-end system (learner app + teacher loop)
+	•	End-to-end system (learner app + teacher/parent loop)
 	•	Real-world deployable in low-resource schools  ￼
 
 Future of Education
@@ -27,6 +27,9 @@ llama.cpp Track
 	•	Quantised Gemma 4
 	•	Efficient memory + token usage
 
+**1.1 Adult guide (Teacher/Parent).** The adult who assigns quests and reviews summaries may be a **school teacher** or a **parent** (shared classroom tablet or home device). Specs, design, and **user-visible app copy** use **Teacher/Parent** for that role. Schema names such as `paired_teacher_code` remain shorthand for the paired adult unless a future migration renames them.
+
+
 ⸻
 
 🧱 2. System Architecture (Upgraded)
@@ -41,7 +44,7 @@ llama.cpp Track
     |
 [ Optional Sync Layer ]
     |
-[ Teacher Dashboard (Web) ]
+[ Teacher/Parent dashboard (Web) ]
 
 
 ⸻
@@ -69,7 +72,7 @@ This is where you win the competition.
 Use Case	Model
 Low-end devices	Gemma 4 E2B (2B)
 Mid devices	Gemma 4 E4B (4B)
-Teacher analytics (optional server)	26B
+Teacher/Parent-facing analytics (optional server)	26B
 
 Why:
 	•	Small models are designed for edge/mobile use  ￼
@@ -205,7 +208,7 @@ Example:
 
 ⸻
 
-📊 6. Teacher Intelligence Layer
+📊 6. Teacher/Parent intelligence layer
 
 6.1 Local Analytics Engine
 
@@ -226,7 +229,7 @@ Runs on-device:
 
 ⸻
 
-6.3 Teacher Dashboard (Optional Cloud)
+6.3 Teacher/Parent dashboard (optional cloud)
 	•	Sync summaries only (not raw data)
 	•	Low bandwidth
 
@@ -321,4 +324,4 @@ For llama.cpp Prize
 
 Frame it like this:
 
-“Ikamva Lam is not just an AI app — it is a fully local, teacher-guided learning system designed for real classrooms where connectivity, time, and resources are limited.”
+“Ikamva Lam is not just an AI app — it is a fully local, teacher- or parent-guided learning system designed for real classrooms and homes where connectivity, time, and resources are limited.”

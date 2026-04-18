@@ -67,8 +67,8 @@ writeup.md
 
 Use **SQLite** (`drift` / `sqflite` / `sqlite3` + FFI). Prefer typed queries and migrations.
 
-- [x] **2.1** Define **LearnerProfile**: `id`, `displayName`, `homeLanguageCode` (nullable), `pairedTeacherCode` (nullable), `createdAt`. **(P0)**
-- [x] **2.2** Define **Quest** (teacher assignment manifest mirrored locally): `id`, `topic`, `level` (e.g. A1), `maxDifficultyStep`, `sessionTimeLimitSec` OR `maxTasks`, `startsAt`, `endsAt`, `isActive`. **(P0)**
+- [x] **2.1** Define **LearnerProfile**: `id`, `displayName`, `homeLanguageCode` (nullable), `pairedTeacherCode` (nullable, paired **Teacher/Parent** adult), `createdAt`. **(P0)**
+- [x] **2.2** Define **Quest** (Teacher/Parent assignment manifest mirrored locally): `id`, `topic`, `level` (e.g. A1), `maxDifficultyStep`, `sessionTimeLimitSec` OR `maxTasks`, `startsAt`, `endsAt`, `isActive`. **(P0)**
 - [x] **2.3** Define **Skill** enum/table: `vocabulary`, `sentence_structure`, `grammar_tense`, `grammar_plural`, `grammar_articles` (align with spec §4.1; adjust names in one place only). **(P0)**
 - [x] **2.4** Define **TaskRecord** (generated content instance): `id`, `taskType` (cloze, reorder, match, dialogue_choice), `skillId`, `difficulty`, `topic`, `payloadJson` (structured blob), `source` (cached, generated), `createdAt`. **(P0)**
 - [x] **2.5** Define **Attempt**: `id`, `taskId`, `sessionId`, `learnerAnswerJson`, `correct`, `usedHint`, `hintSteps`, `latencyMs`, `timestamp`. **(P0)**
@@ -115,7 +115,7 @@ Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 
 - [x] **5.1** Define **DifficultyState** per skill or global session: integer step bounded by quest `maxDifficultyStep`. **(P0)**
 - [x] **5.2** Implement rolling window (last `N` attempts, e.g. 10) accuracy calculator per active skill. **(P0)**
-- [x] **5.3** Implement state machine: increase step, decrease step, enable “hint-first” mode, or repeat same strand — **within teacher caps**. **(P0)**
+- [x] **5.3** Implement state machine: increase step, decrease step, enable “hint-first” mode, or repeat same strand — **within Teacher/Parent-configured caps**. **(P0)**
 - [x] **5.4** Persist difficulty state to SQLite so restarts don’t reset unfairly. **(P1)**
 - [x] **5.5** Telemetry fields for judging: expose accuracy before/after in session summary (spec §9). **(P1)**
 
@@ -151,7 +151,7 @@ Spec §3.3 — **no open chat**; structured tasks only.
 - [x] **7.3** Implement **pedagogy rules** in prompt preamble: short sentences for A1, no complex grammar for beginners, curriculum-aligned vocabulary list injection (static file for MVP). **(P1)**
 - [x] **7.4** Implement **hint prompt**: given task + wrong answer, return JSON with multilingual keys `hint_en`, `hint_xh`, `hint_zu`, `hint_af` (subset allowed if model weak). **(P0)**
 - [x] **7.5** Optional **normalisation prompt** for code-switching learner answers (spec §5.2): map spoken/written mix to canonical English for evaluator — keep **privacy** (on-device). **(P2)**
-- [x] **7.6** **Insight prompt** (teacher): input aggregated error stats → JSON `{ issue, pattern, recommendation }` per spec §6.2. **(P1)**
+- [x] **7.6** **Insight prompt** (Teacher/Parent-facing): input aggregated error stats → JSON `{ issue, pattern, recommendation }` per spec §6.2. **(P1)**
 
 **Acceptance:** Prompts versioned (`prompt_v3` in DB or file name); changing template doesn’t require code changes beyond loading new asset.
 
@@ -199,16 +199,16 @@ Implement inside **GameShell** with shared header + bottom actions (Continue, Hi
 
 ---
 
-## Phase 11 — Local analytics & teacher insights (on-device)
+## Phase 11 — Local analytics & Teacher/Parent insights (on-device)
 
 Spec §6.1–6.2.
 
 - [x] **11.1** **WeakSkillsDetector**: aggregate attempts by skill; flag below threshold accuracy over window. **(P1)**
 - [x] **11.2** **ErrorClustering** (MVP): bucket by `grammar_tense`, `subject_verb`, etc., using simple rule tags from evaluator (not ML). **(P1)**
-- [x] **11.3** **InsightJob**: when session ends or on teacher screen open, run insight prompt with aggregates; store **InsightCard** records locally. **(P1)**
+- [x] **11.3** **InsightJob**: when session ends or on Teacher/Parent screen open, run insight prompt with aggregates; store **InsightCard** records locally. **(P1)**
 - [x] **11.4** **Export summary JSON** for sync (not raw attempts): totals + top3 weaknesses + last session stats. **(P1)**
 
-**Acceptance:** After ~20 attempts, dashboard/teacher view shows plausible weakness ordering matching injected test data.
+**Acceptance:** After ~20 attempts, dashboard / Teacher/Parent view shows plausible weakness ordering matching injected test data.
 
 ---
 
@@ -225,21 +225,22 @@ Design §2.1, spec §2.1.
 
 ---
 
-## Phase 13 — Teacher loop in app (minimum viable)
+## Phase 13 — Teacher/Parent loop in app (minimum viable)
 
-Before or instead of full web dashboard.
+Before or instead of full web dashboard. The adult actor is a **school teacher** or **parent**; user-visible copy should say **Teacher/Parent** (see **13.6**).
 
-- [x] **13.1** **Teacher mode** gate (PIN or simple password) on shared tablet. **(P1)**
+- [x] **13.1** **Teacher/Parent mode** gate (PIN or simple password) on shared tablet. **(P1)**
 - [x] **13.2** Screens: create/edit **Quest**, set topic + level + limits, generate **pairing code**. **(P1)**
 - [x] **13.3** Show **class summary** list (learners on device): accuracy, sessions, hint rate — from local DB. **(P1)**
 - [x] **13.4** Show **insight cards** from Phase 11. **(P1)**
 - [x] **13.5** **Privacy copy** visible: summaries only (design §7). **(P1)**
+- [ ] **13.6** **Copy pass:** replace remaining user-visible **Teacher** / **Teacher mode** strings with **Teacher/Parent** / **Teacher/Parent mode** (hub CTA, gate & home app bars, privacy screen, any snackbars/dialogs). Route names and Dart identifiers may stay `teacher_*` unless the team prefers a rename. **(P1)**
 
-**Acceptance:** Teacher can configure a quest without recompiling; learner sees it on hub.
+**Acceptance:** Teacher/Parent can configure a quest without recompiling; learner sees it on hub.
 
 ---
 
-## Phase 14 — Optional sync layer & teacher web dashboard
+## Phase 14 — Optional sync layer & Teacher/Parent web dashboard
 
 Spec §6.3, design §7.
 
@@ -267,7 +268,7 @@ Spec §7, §9.
 
 ## Phase 16 — Demo, video & submission
 
-- [x] **16.1** **Scripted demo**: 90s — teacher assigns quest → learner plays 3 tasks (wrong once → hint) → session summary → teacher insight. **(P0)**
+- [x] **16.1** **Scripted demo**: 90s — Teacher/Parent assigns quest → learner plays 3 tasks (wrong once → hint) → session summary → Teacher/Parent insight. **(P0)**
 - [ ] **16.2** Record **video** with voiceover hitting all tracks: main system, education structure, equity offline, llama.cpp efficiency. **(P0)** — *Human step: cannot be automated here.*
 - [x] **16.3** Update [writeup.md](writeup.md) submission links table with repo, demo URL, video URL. **(P0)**
 - [x] **16.4** **Kaggle notebook** (if required): summarize architecture + link to code; optional smoke test cells (no huge model in notebook). **(P1)**
@@ -285,7 +286,7 @@ Spec §7, §9.
 - **9 (hints)** depends on **4**, **6–8**.
 - **11 (analytics)** depends on **4**; insight JSON optionally **7**.
 - **12 (TTS / voice)** depends on **10** surfaces and **9** for hint text.
-- **13 (teacher in-app)** depends on **2**, **11**.
+- **13 (Teacher/Parent in-app)** depends on **2**, **11**.
 - **14 (web / sync)** depends on **11** and **2** (outbox); can be last.
 - **15–16** run alongside; **16** assumes **10** and preferably **13** or **14**.
 
