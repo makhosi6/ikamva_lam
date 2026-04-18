@@ -321,21 +321,7 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            if (offers.length > 1)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(6, 0, 6, 4),
-                                child: Text(
-                                  'Swipe for more topics →',
-                                  textAlign: TextAlign.center,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                ),
-                              )
-                            else
-                              const SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Expanded(
                               child: LayoutBuilder(
                                 builder: (context, rowConstraints) {
