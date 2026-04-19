@@ -18,7 +18,7 @@ void main() {
         topic: 'food',
         payloadJson:
             '{"sentence":"I ___ .","answer":"run","options":["run","walk","sit","eat"]}',
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.generated.storageValue,
         createdAt: DateTime.utc(2026),
       );
       expect(
@@ -40,7 +40,7 @@ void main() {
         topic: 'food',
         payloadJson:
             '{"tokens":["like","I","apples"],"correct_order":[1,0,2]}',
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.generated.storageValue,
         createdAt: DateTime.utc(2026),
       );
       expect(
@@ -65,7 +65,7 @@ void main() {
             '"right":["kitten","puppy"],'
             '"pairs":[[0,1],[1,0]]'
             '}',
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.generated.storageValue,
         createdAt: DateTime.utc(2026),
       );
       expect(
@@ -91,7 +91,41 @@ void main() {
             '"options":["Hi","Bye"],'
             '"correct_index":0'
             '}',
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.generated.storageValue,
+        createdAt: DateTime.utc(2026),
+      );
+      expect(eval.evaluate(task, '{"index":0}').correct, isTrue);
+      expect(eval.evaluate(task, '{"index":1}').correct, isFalse);
+    });
+
+    test('read_aloud: completed flag', () {
+      final task = TaskRecord(
+        id: 't5',
+        taskType: TaskType.readAloud.storageValue,
+        skillId: SkillId.readAloud.storageValue,
+        difficulty: 1,
+        topic: 'food',
+        payloadJson: '{"display_text":"Hello."}',
+        source: TaskSource.generated.storageValue,
+        createdAt: DateTime.utc(2026),
+      );
+      expect(eval.evaluate(task, '{"completed":true}').correct, isTrue);
+      expect(eval.evaluate(task, '{"completed":false}').correct, isFalse);
+    });
+
+    test('pronunciation_intonation: MCQ index', () {
+      final task = TaskRecord(
+        id: 't6',
+        taskType: TaskType.pronunciationIntonation.storageValue,
+        skillId: SkillId.pronunciationIntonation.storageValue,
+        difficulty: 1,
+        topic: 'food',
+        payloadJson: '{'
+            '"question":"Which is stressed on first syllable?",'
+            '"options":["TA-ble","ta-BLE","TABLE","tables"],'
+            '"correct_index":0'
+            '}',
+        source: TaskSource.generated.storageValue,
         createdAt: DateTime.utc(2026),
       );
       expect(eval.evaluate(task, '{"index":0}').correct, isTrue);

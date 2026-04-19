@@ -1,7 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ikamva_lam/config/learner_content_policy.dart';
 import 'package:ikamva_lam/data/quest_repository.dart';
+import 'package:ikamva_lam/db/app_database.dart';
 import 'package:ikamva_lam/db/database_connection.dart';
 import 'package:ikamva_lam/db/seed.dart';
+import 'package:ikamva_lam/domain/skill_id.dart';
+import 'package:ikamva_lam/domain/task_source.dart';
+import 'package:ikamva_lam/domain/task_type.dart';
 import 'package:ikamva_lam/game/game_coordinator.dart';
 
 void main() {
@@ -66,6 +71,32 @@ void main() {
       final watched = await coord.watchTasksForQuest(q).first;
       final loaded = await coord.loadTasksForQuest(q);
       expect(watched, loaded);
+      await db.close();
+    });
+
+    test('strict learner policy lists only AI-sourced tasks', () async {
+      final db = openMemoryDatabase();
+      await ensureDevSeed(db);
+      final quest = (await QuestRepository(db).getById(kSeedQuestId))!;
+      await db.into(db.taskRecords).insert(
+            TaskRecordsCompanion.insert(
+              id: 'ai-only-strict-1',
+              taskType: TaskType.cloze.storageValue,
+              skillId: SkillId.vocabulary.storageValue,
+              difficulty: 1,
+              topic: quest.topic,
+              payloadJson: kSeedClozePayloadJson,
+              source: TaskSource.generated.storageValue,
+              createdAt: DateTime.now().toUtc(),
+            ),
+          );
+      LearnerContentPolicy.debugAllowDevSeedOverride = false;
+      addTearDown(() => LearnerContentPolicy.debugAllowDevSeedOverride = null);
+
+      final coord = GameCoordinator(db);
+      final tasks = await coord.loadTasksForQuest(quest);
+      expect(tasks, hasLength(1));
+      expect(tasks.single.id, 'ai-only-strict-1');
       await db.close();
     });
   });

@@ -1,0 +1,25 @@
+TASK: generate_pronunciation_intonation
+LEVEL: {{LEVEL}}
+TOPIC: {{TOPIC}}
+SKILL: {{SKILL}}
+DIFFICULTY_STEP: {{DIFFICULTY_STEP}}
+
+Produce ONE multiple-choice item about **pronunciation, stress, rhythm, or intonation** (e.g. which word is stressed, which line sounds like a question, minimal-pair listening described in text).
+
+OUTPUT JSON ONLY (no markdown fences, no commentary). If you cannot comply, output exactly `{}`.
+Schema:
+{
+  "question": "clear MCQ stem referencing the skill",
+  "options": ["…", "…", "…"] or four strings,
+  "correct_index": 0,
+  "reference_line": "optional short line to read aloud before answering (may echo part of the question)",
+  "hint_en": "optional",
+  "hint_xh": "optional",
+  "hint_zu": "optional",
+  "hint_af": "optional"
+}
+
+Rules:
+- Exactly 3 or 4 distinct `options`; `correct_index` zero-based into `options`.
+- No IPA symbols unless the level is B1+ and the stem explicitly teaches them; prefer everyday wording.
+- Stay on topic "{{TOPIC}}" and level {{LEVEL}}.

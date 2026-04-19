@@ -8,6 +8,8 @@ Work against this file in order within each phase unless a task notes a dependen
 
 **Reference docs:** [spec.md](spec.md), [writeup.md](writeup.md), [design.md](design.md).
 
+**Content policy:** Learner-facing **questions and task payloads** must be **AI-generated** for uniqueness (including items served from cache that were model-written when cached). See [spec.md §4.1.1](spec.md). Bundled static tasks are **tests / dev UI only**, not the production learner path.
+
 ---
 
 ## Conventions
@@ -70,6 +72,7 @@ Use **SQLite** (`drift` / `sqflite` / `sqlite3` + FFI). Prefer typed queries and
 - [x] **2.1** Define **LearnerProfile**: `id`, `displayName`, `homeLanguageCode` (nullable), `pairedTeacherCode` (nullable, paired **Teacher/Parent** adult), `createdAt`. **(P0)**
 - [x] **2.2** Define **Quest** (Teacher/Parent assignment manifest mirrored locally): `id`, `topic`, `level` (e.g. A1), `maxDifficultyStep`, `sessionTimeLimitSec` OR `maxTasks`, `startsAt`, `endsAt`, `isActive`. **(P0)**
 - [x] **2.3** Define **Skill** enum/table: `vocabulary`, `sentence_structure`, `grammar_tense`, `grammar_plural`, `grammar_articles` (align with spec §4.1; adjust names in one place only). **(P0)**
+- [x] **2.10** Extend **Skill** enum/table per [spec.md §4.1](spec.md): `reading_fluency`, `pronunciation_intonation`, `read_aloud` (or equivalent names); migrate DB + seed if needed. **(P0)**
 - [x] **2.4** Define **TaskRecord** (generated content instance): `id`, `taskType` (cloze, reorder, match, dialogue_choice), `skillId`, `difficulty`, `topic`, `payloadJson` (structured blob), `source` (cached, generated), `createdAt`. **(P0)**
 - [x] **2.5** Define **Attempt**: `id`, `taskId`, `sessionId`, `learnerAnswerJson`, `correct`, `usedHint`, `hintSteps`, `latencyMs`, `timestamp`. **(P0)**
 - [x] **2.6** Define **Session**: `id`, `questId` (nullable for practice mode), `startedAt`, `endedAt`, `tasksCompleted`, `accuracy`, `hintRate`. **(P0)**
@@ -91,6 +94,9 @@ All AI output must be **validated** before showing to learners (fail closed → 
 - [x] **3.4** Define payload for **Dialogue choice**: short context, `question`, `options`, `correctIndex` or `correctId`. **(P1)**
 - [x] **3.5** Implement **JSON schema validation** (manual null checks or `json_schema` package): reject empty strings, wrong option count, duplicate options, sentence length policy (spec: prefer &lt;10 words for A1 — enforce per level table). **(P0)**
 - [x] **3.6** Central **TaskNormalizer**: map wrong shapes / legacy keys to canonical model; log validation failures for tuning prompts. **(P1)**
+- [x] **3.7** Define payloads + validation for **Read aloud** (per [design.md §4](design.md)): `displayText`, optional `referenceAudioUrl` (if ever used), `ttsLocale`, `rubricHint` or self-check copy; `taskType` e.g. `read_aloud`. **(P0)**
+- [x] **3.8** Define payloads for **Pronunciation / intonation**: e.g. minimal-pair choice (`options` + `correctIndex`), **stress / tune** multiple-choice, or **shadow** line with `targetPattern` enum; enforce short text and non-duplicate distractors. **(P0)**
+- [x] **3.9** Extend **TaskRecord.source** semantics: distinguish `generated` vs `cached_generated` vs `dev_seed_only` (latter **must not** enqueue for production learner sessions). **(P1)**
 
 **Acceptance:** Invalid JSON from a test string never reaches the game UI; golden tests for valid/invalid samples.
 
@@ -99,6 +105,7 @@ All AI output must be **validated** before showing to learners (fail closed → 
 ## Phase 4 — Game engine orchestration (no AI yet)
 
 - [x] **4.1** **GameCoordinator** service: given `Quest` or practice config, yields a stream/list of `TaskRecord` (initially from DB seed only). **(P0)**
+- [x] **4.7** Extend **GameCoordinator** + **RuleBasedEvaluator** for `read_aloud`, `pronunciation_intonation` (or chosen `taskType` strings): scoring may be **lightweight** (completion, MCQ correctness, optional ASR hook **P2**). **(P0)**
 - [x] **4.2** **SessionController**: start/end session, attach `sessionId` to attempts, enforce time limit OR task count from quest. **(P0)**
 - [x] **4.3** **RuleBasedEvaluator** per task type: cloze compares normalized string equality or canonical answer id; reorder compares permutation; match compares pairs; dialogue compares selection. **(P0)**
 - [x] **4.4** **Retry policy**: max retries per task (e.g. 2); track `hintSteps` and `usedHint`. **(P0)**
@@ -152,6 +159,8 @@ Spec §3.3 — **no open chat**; structured tasks only.
 - [x] **7.4** Implement **hint prompt**: given task + wrong answer, return JSON with multilingual keys `hint_en`, `hint_xh`, `hint_zu`, `hint_af` (subset allowed if model weak). **(P0)**
 - [x] **7.5** Optional **normalisation prompt** for code-switching learner answers (spec §5.2): map spoken/written mix to canonical English for evaluator — keep **privacy** (on-device). **(P2)**
 - [x] **7.6** **Insight prompt** (Teacher/Parent-facing): input aggregated error stats → JSON `{ issue, pattern, recommendation }` per spec §6.2. **(P1)**
+- [x] **7.7** Prompt templates `generate_read_aloud`, `generate_pronunciation_intonation` per [spec.md §4.1.2](spec.md): JSON-only output, level/topic/skill slots, **short display lines**, optional `instruction_en` (+ multilingual hint keys if used). **(P0)**
+- [x] **7.8** Pedagogy preamble additions: **no** long tongue-twisters at A1; **explicit** intonation targets where required (question vs statement). **(P1)**
 
 **Acceptance:** Prompts versioned (`prompt_v3` in DB or file name); changing template doesn’t require code changes beyond loading new asset.
 
@@ -164,10 +173,11 @@ Spec §3.3 pre-generation + §8 data flow.
 - [x] **8.1** **TaskQueueService**: maintains10–20 upcoming tasks per (topic, level, skill mix) in SQLite; background fill when count &lt; threshold. **(P0)**
 - [x] **8.2** **Background worker** using `compute` / isolate / `Workmanager` (Android) where appropriate; respect battery and thermal (pause when app backgrounded if needed). **(P1)**
 - [x] **8.3** **Dedup:** hash sentence stem + answer to avoid near-duplicate tasks in the same session. **(P1)**
-- [x] **8.4** **Fallback:** if generation fails, dequeue static tasks from bundled pack (offline safety). **(P0)**
+- [x] **8.4** **Fallback:** if generation fails, dequeue static tasks from bundled pack (offline safety). **(P0)** — *Superseded for product claims by [spec.md §4.1.1](spec.md): production learner sessions must not serve static banks; see **8.6**.*
+- [x] **8.6** **AI-only serving path:** remove or gate **8.4** static dequeue for **release** builds; on failure, **retry generation**, shrink context, or show **“preparing next task”** with backoff—**never** silently substitute workbook items. Keep bundled JSON **for tests / `--dart-define=ALLOW_DEV_SEED`** only. **(P0)** — *Implemented via [LearnerContentPolicy](learner_app/lib/config/learner_content_policy.dart) + DB migration; debug/profile still allow seeds unless `ALLOW_DEV_SEED=false`.*
 - [x] **8.5** Expose **debug panel** (dev only): cache size, last error, tokens/sec, model path. **(P1)**
 
-**Acceptance:** Airplane mode: new session still receives tasks from cache without blocking UI.
+**Acceptance:** Airplane mode: new session still receives **AI-cached** tasks without blocking UI; **8.6** satisfied in release configuration (no static-bank dequeue for learners).
 
 ---
 
@@ -192,6 +202,8 @@ Implement inside **GameShell** with shared header + bottom actions (Continue, Hi
 - [x] **10.2** **Reorder screen**: drag-and-drop or tap-to-reorder (choose one pattern for low-end); large hit targets. **(P1)**
 - [x] **10.3** **Match screen**: two columns, line drawing optional (if heavy, use tap-first-then-tap). **(P1)**
 - [x] **10.4** **Dialogue choice**: short dialogue bubbles + choices. **(P1)**
+- [x] **10.7** **Read aloud** screen: show line; **Play reference** (TTS); learner **Record** or **Done** (per platform capability); optional simple self-check; wire to `read_aloud` payload (**3.7**). **(P0)** — *Self-check “I read this aloud” + Hear example TTS in [game_shell_screen.dart](learner_app/lib/screens/game_shell_screen.dart).*
+- [x] **10.8** **Pronunciation / intonation** screen: MCQ or repeat-after-model flow per **3.8**; large tap targets; optional replay reference. **(P0)**
 - [x] **10.5** **Illustration slot**: `Image.asset` per topic or generic placeholder art; topic → asset map. **(P1)**
 - [x] **10.6** **Session end**: stars/celebration + accuracy, hints used, time; CTA “Back to hub”. **(P0)**
 

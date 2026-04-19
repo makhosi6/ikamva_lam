@@ -2,6 +2,8 @@ import 'cefr_task_limits.dart';
 import 'cloze_payload.dart';
 import 'dialogue_choice_payload.dart';
 import 'match_payload.dart';
+import 'pronunciation_intonation_payload.dart';
+import 'read_aloud_payload.dart';
 import 'reorder_payload.dart';
 import 'task_text_policy.dart' show countWords, duplicateFoldedStrings, stringsEqualIgnoreCase;
 
@@ -107,6 +109,46 @@ abstract final class TaskPayloadValidators {
       final wo = countWords(p.options[i].text);
       if (wo > maxB) {
         issues.add('dialogue: option[$i] has $wo words (max $maxB)');
+      }
+    }
+    return issues;
+  }
+
+  static List<String> validateReadAloud(ReadAloudPayload p, String? questLevel) {
+    final issues = <String>[];
+    final maxLine = CefrTaskLimits.maxWordsReadAloudLine(questLevel);
+    final n = countWords(p.displayText);
+    if (n > maxLine) {
+      issues.add('read_aloud: display_text has $n words (max $maxLine)');
+    }
+    final ins = p.instructionEn;
+    if (ins != null && countWords(ins) > maxLine) {
+      issues.add('read_aloud: instruction too long');
+    }
+    return issues;
+  }
+
+  static List<String> validatePronunciationIntonation(
+    PronunciationIntonationPayload p,
+    String? questLevel,
+  ) {
+    final issues = <String>[];
+    final maxQ = CefrTaskLimits.maxWordsProsodyQuestion(questLevel);
+    final nq = countWords(p.question);
+    if (nq > maxQ) {
+      issues.add('pronunciation: question has $nq words (max $maxQ)');
+    }
+    final dup = duplicateFoldedStrings(p.options);
+    if (dup.isNotEmpty) {
+      issues.add(
+        'pronunciation: duplicate options (case-insensitive): ${dup.join(", ")}',
+      );
+    }
+    final maxOpt = maxQ;
+    for (var i = 0; i < p.options.length; i++) {
+      final w = countWords(p.options[i]);
+      if (w > maxOpt) {
+        issues.add('pronunciation: option[$i] has $w words (max $maxOpt)');
       }
     }
     return issues;

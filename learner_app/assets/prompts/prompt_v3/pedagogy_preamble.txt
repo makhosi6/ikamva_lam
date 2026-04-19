@@ -4,4 +4,5 @@ Pedagogy (level {{LEVEL}}, max ~{{LEVEL_MAX_WORDS}} words per sentence where app
 - Keep vocabulary aligned with topic "{{TOPIC}}"; prefer words from: {{TOPIC_VOCAB}}.
 - Target skill strand: {{SKILL}}; difficulty step: {{DIFFICULTY_STEP}}.
 - For A1: very short sentences, present tense where possible, no idioms.
+- For **read aloud** and **pronunciation / intonation**: keep display lines short; no tongue-twisters at A1; if the task targets intonation (question vs statement), say so plainly in `instruction_en` or `question`.
 - Avoid sensitive personal data requests; stay classroom-safe.

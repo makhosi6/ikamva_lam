@@ -17,5 +17,11 @@ String ruleHintForFirstWrong(String skillId) {
       return 'Read the words in order like a short story.';
     case SkillId.vocabulary:
       return 'Which word fits the meaning of the sentence best?';
+    case SkillId.readingFluency:
+      return 'Read in short chunks and keep your eyes moving along the line.';
+    case SkillId.pronunciationIntonation:
+      return 'Listen for stress and tune — which option fits best?';
+    case SkillId.readAloud:
+      return 'Say it clearly, matching the calm example you heard.';
   }
 }

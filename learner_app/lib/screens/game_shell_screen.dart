@@ -19,6 +19,8 @@ import '../domain/task_type.dart';
 import '../domain/tasks/cloze_payload.dart';
 import '../domain/tasks/dialogue_choice_payload.dart';
 import '../domain/tasks/match_payload.dart';
+import '../domain/tasks/pronunciation_intonation_payload.dart';
+import '../domain/tasks/read_aloud_payload.dart';
 import '../domain/tasks/reorder_payload.dart';
 import '../game/adaptive_difficulty_engine.dart';
 import '../game/game_coordinator.dart';
@@ -88,6 +90,10 @@ class _GameShellScreenState extends State<GameShellScreen> {
   int? _matchPickLeft;
   int? _dialogueIndex;
   DialogueChoicePayload? _dialoguePayload;
+  ReadAloudPayload? _readAloudPayload;
+  bool _readAloudDone = false;
+  int? _pronunciationIndex;
+  PronunciationIntonationPayload? _pronunciationPayload;
 
   /// Vocabulary cloze: TTS word range in [cloze.sentence] (when the engine reports it).
   bool _ttsSpeaking = false;
@@ -340,6 +346,21 @@ class _GameShellScreenState extends State<GameShellScreen> {
           final d = DialogueChoicePayload.tryParseJsonString(t.payloadJson);
           line = d == null ? null : '${d.context} ${d.question}';
           break;
+        case TaskType.readAloud:
+          final r = ReadAloudPayload.tryParseJsonString(t.payloadJson);
+          if (r != null) {
+            line = r.instructionEn != null && r.instructionEn!.isNotEmpty
+                ? '${r.instructionEn} ${r.displayText}'
+                : r.displayText;
+          }
+          break;
+        case TaskType.pronunciationIntonation:
+          final p =
+              PronunciationIntonationPayload.tryParseJsonString(t.payloadJson);
+          if (p != null) {
+            line = p.referenceLine ?? p.question;
+          }
+          break;
         default:
           break;
       }
@@ -418,6 +439,10 @@ class _GameShellScreenState extends State<GameShellScreen> {
     _matchPickLeft = null;
     _dialogueIndex = null;
     _dialoguePayload = null;
+    _readAloudPayload = null;
+    _readAloudDone = false;
+    _pronunciationIndex = null;
+    _pronunciationPayload = null;
     _hintSteps = 0;
     _usedHintThisTask = false;
     _prepareTaskKindState();
@@ -456,6 +481,15 @@ class _GameShellScreenState extends State<GameShellScreen> {
         _dialoguePayload =
             DialogueChoicePayload.tryParseJsonString(t.payloadJson);
         break;
+      case TaskType.readAloud:
+        _readAloudPayload = ReadAloudPayload.tryParseJsonString(t.payloadJson);
+        _readAloudDone = false;
+        break;
+      case TaskType.pronunciationIntonation:
+        _pronunciationPayload =
+            PronunciationIntonationPayload.tryParseJsonString(t.payloadJson);
+        _pronunciationIndex = null;
+        break;
       default:
         break;
     }
@@ -491,6 +525,12 @@ class _GameShellScreenState extends State<GameShellScreen> {
       case TaskType.dialogueChoice:
         if (_dialogueIndex == null) return null;
         return jsonEncode({'index': _dialogueIndex});
+      case TaskType.readAloud:
+        if (!_readAloudDone) return null;
+        return jsonEncode({'completed': true});
+      case TaskType.pronunciationIntonation:
+        if (_pronunciationIndex == null) return null;
+        return jsonEncode({'index': _pronunciationIndex});
       default:
         return null;
     }
@@ -564,6 +604,8 @@ class _GameShellScreenState extends State<GameShellScreen> {
       setState(() {
         _selectedChoice = null;
         _dialogueIndex = null;
+        _pronunciationIndex = null;
+        _readAloudDone = false;
       });
       return;
     }
@@ -689,47 +731,94 @@ class _GameShellScreenState extends State<GameShellScreen> {
   void _onHint() {
     final task = _tasks[_taskIndex];
     final type = TaskType.tryParse(task.taskType);
-    String? text;
+    var hintLine = 'Take a slow second look before you choose.';
     switch (type) {
       case TaskType.cloze:
         final cloze = _cloze;
         if (cloze == null) return;
         final settings = SettingsScope.of(context);
         final code = settings.hintLanguageCode.toLowerCase();
+        String? h;
         switch (code) {
           case 'xh':
-            text = cloze.hintXh ?? cloze.hintEn;
+            h = cloze.hintXh ?? cloze.hintEn;
             break;
           case 'zu':
-            text = cloze.hintZu ?? cloze.hintEn;
+            h = cloze.hintZu ?? cloze.hintEn;
             break;
           case 'af':
-            text = cloze.hintAf ?? cloze.hintEn;
+            h = cloze.hintAf ?? cloze.hintEn;
             break;
           default:
-            text = cloze.hintEn;
+            h = cloze.hintEn;
         }
-        text ??= 'Pick the word that fits the blank.';
+        hintLine = h ?? 'Pick the word that fits the blank.';
         break;
       case TaskType.reorder:
-        text = 'Read the mixed line aloud, then tap arrows until it sounds right.';
+        hintLine =
+            'Read the mixed line aloud, then tap arrows until it sounds right.';
         break;
       case TaskType.match:
-        text = 'Tap a word on the left, then its partner on the right.';
+        hintLine = 'Tap a word on the left, then its partner on the right.';
         break;
       case TaskType.dialogueChoice:
-        text = 'Reread the short story, then pick the answer that fits best.';
+        hintLine =
+            'Reread the short story, then pick the answer that fits best.';
+        break;
+      case TaskType.readAloud:
+        hintLine = 'Read the line aloud, then match the calm example.';
+        final r = _readAloudPayload;
+        if (r != null) {
+          final settings = SettingsScope.of(context);
+          final code = settings.hintLanguageCode.toLowerCase();
+          switch (code) {
+            case 'xh':
+              hintLine = r.hintXh ?? r.hintEn ?? hintLine;
+              break;
+            case 'zu':
+              hintLine = r.hintZu ?? r.hintEn ?? hintLine;
+              break;
+            case 'af':
+              hintLine = r.hintAf ?? r.hintEn ?? hintLine;
+              break;
+            default:
+              hintLine = r.hintEn ?? hintLine;
+          }
+        }
+        break;
+      case TaskType.pronunciationIntonation:
+        hintLine = 'Listen for stress and tune before you pick.';
+        final p = _pronunciationPayload;
+        if (p != null) {
+          final settings = SettingsScope.of(context);
+          final code = settings.hintLanguageCode.toLowerCase();
+          switch (code) {
+            case 'xh':
+              hintLine = p.hintXh ?? p.hintEn ?? hintLine;
+              break;
+            case 'zu':
+              hintLine = p.hintZu ?? p.hintEn ?? hintLine;
+              break;
+            case 'af':
+              hintLine = p.hintAf ?? p.hintEn ?? hintLine;
+              break;
+            default:
+              hintLine = p.hintEn ?? hintLine;
+          }
+        }
         break;
       default:
-        text = 'Take a slow second look before you choose.';
+        break;
     }
     setState(() {
       _usedHintThisTask = true;
       _hintSteps++;
     });
-    _showGameSnackBar(text);
+    _showGameSnackBar(hintLine);
     if (SettingsScope.of(context).ttsEnabled) {
-      unawaited(TtsService.instance.speak(text.replaceAll('___', ' blank ')));
+      unawaited(
+        TtsService.instance.speak(hintLine.replaceAll('___', ' blank ')),
+      );
     }
   }
 
@@ -1010,6 +1099,88 @@ class _GameShellScreenState extends State<GameShellScreen> {
     );
   }
 
+  Future<void> _playReadAloudReference() async {
+    final p = _readAloudPayload;
+    if (p == null) return;
+    final line = p.displayText;
+    if (line.isEmpty) return;
+    await TtsService.instance.speak(line);
+  }
+
+  Future<void> _playPronunciationReference() async {
+    final p = _pronunciationPayload;
+    if (p == null) return;
+    final line = p.referenceLine ?? p.question;
+    if (line.isEmpty) return;
+    await TtsService.instance.speak(line);
+  }
+
+  Widget _buildReadAloudBody(ThemeData theme) {
+    final p = _readAloudPayload!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Read aloud', style: theme.textTheme.headlineSmall),
+        const SizedBox(height: 12),
+        if (p.instructionEn != null && p.instructionEn!.trim().isNotEmpty) ...[
+          Text(
+            p.instructionEn!,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Text(
+          p.displayText,
+          style: theme.textTheme.headlineSmall?.copyWith(height: 1.35),
+        ),
+        const SizedBox(height: 20),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.volume_up_rounded),
+          label: const Text('Hear example'),
+          onPressed: () => unawaited(_playReadAloudReference()),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.tonal(
+          onPressed: () => setState(() => _readAloudDone = true),
+          child: const Text('I read this aloud'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPronunciationBody(ThemeData theme) {
+    final p = _pronunciationPayload!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Listen & choose', style: theme.textTheme.headlineSmall),
+        const SizedBox(height: 12),
+        Text(p.question, style: theme.textTheme.titleMedium),
+        const SizedBox(height: 12),
+        if (p.referenceLine != null && p.referenceLine!.trim().isNotEmpty)
+          OutlinedButton.icon(
+            icon: const Icon(Icons.hearing_rounded),
+            label: const Text('Play reference'),
+            onPressed: () => unawaited(_playPronunciationReference()),
+          ),
+        if (p.referenceLine != null && p.referenceLine!.trim().isNotEmpty)
+          const SizedBox(height: 12),
+        for (var i = 0; i < p.options.length; i++)
+          ListTile(
+            onTap: () => setState(() => _pronunciationIndex = i),
+            leading: Icon(
+              _pronunciationIndex == i
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_off,
+            ),
+            title: Text(p.options[i]),
+          ),
+      ],
+    );
+  }
+
   Widget _buildDialogueBody(ThemeData theme) {
     final p = _dialoguePayload!;
     return Column(
@@ -1183,6 +1354,14 @@ class _GameShellScreenState extends State<GameShellScreen> {
       case TaskType.dialogueChoice:
         if (_dialoguePayload != null) return _buildDialogueBody(theme);
         return const Text('Invalid dialogue task.');
+      case TaskType.readAloud:
+        if (_readAloudPayload != null) return _buildReadAloudBody(theme);
+        return const Text('Invalid read-aloud task.');
+      case TaskType.pronunciationIntonation:
+        if (_pronunciationPayload != null) {
+          return _buildPronunciationBody(theme);
+        }
+        return const Text('Invalid pronunciation task.');
       case null:
         return const Text('Unknown task type.');
     }
@@ -1203,6 +1382,10 @@ class _GameShellScreenState extends State<GameShellScreen> {
           return 'Vocabulary';
         }
         return 'Cloze';
+      case TaskType.readAloud:
+        return 'Read aloud';
+      case TaskType.pronunciationIntonation:
+        return 'Pronunciation';
       case null:
         return 'Task';
     }

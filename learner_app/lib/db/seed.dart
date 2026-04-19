@@ -17,6 +17,8 @@ const String kSeedTaskD3 = 'seed-task-cloze-d3';
 const String kSeedReorderId = 'seed-task-reorder-1';
 const String kSeedMatchId = 'seed-task-match-1';
 const String kSeedDialogueId = 'seed-task-dialogue-1';
+const String kSeedReadAloudId = 'seed-task-read-aloud-1';
+const String kSeedPronunciationId = 'seed-task-pronunciation-1';
 
 /// Sample cloze payload (Phase 3 will add typed models + validation).
 const String kSeedClozePayloadJson = '{'
@@ -71,6 +73,13 @@ const String kSeedDialoguePayloadJson = '{'
     '"correct_index":0'
     '}';
 
+const String kSeedReadAloudPayloadJson = '{'
+    '"display_text":"I would like some water, please.",'
+    '"instruction_en":"Read it politely, like at the school lunch line."'
+    '}';
+
+const String kSeedPronunciationPayloadJson = r'''{"question":"Which line puts the strongest stress on the food word?","options":["I like SOME rice.","I LIKE some rice.","I like some RICE.","LIKE I some rice."],"correct_index":2,"reference_line":"I like some rice."}''';
+
 /// Inserts seed profile, quest, and one cached task when the DB has no learners.
 Future<void> ensureDevSeed(IkamvaDatabase db) async {
   final count = await db.select(db.learnerProfiles).get();
@@ -113,7 +122,7 @@ Future<void> ensureDevSeed(IkamvaDatabase db) async {
         difficulty: 1,
         topic: 'food',
         payloadJson: kSeedClozePayloadJson,
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.devSeedOnly.storageValue,
         createdAt: now,
       ),
     );
@@ -126,7 +135,7 @@ Future<void> ensureDevSeed(IkamvaDatabase db) async {
         difficulty: 1,
         topic: 'food',
         payloadJson: kSeedCloze2PayloadJson,
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.devSeedOnly.storageValue,
         createdAt: now.add(const Duration(milliseconds: 1)),
       ),
     );
@@ -139,7 +148,7 @@ Future<void> ensureDevSeed(IkamvaDatabase db) async {
         difficulty: 1,
         topic: 'food',
         payloadJson: kSeedCloze3PayloadJson,
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.devSeedOnly.storageValue,
         createdAt: now.add(const Duration(milliseconds: 2)),
       ),
     );
@@ -152,7 +161,7 @@ Future<void> ensureDevSeed(IkamvaDatabase db) async {
         difficulty: 2,
         topic: 'food',
         payloadJson: kSeedClozeD2aPayloadJson,
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.devSeedOnly.storageValue,
         createdAt: now.add(const Duration(milliseconds: 3)),
       ),
     );
@@ -165,7 +174,7 @@ Future<void> ensureDevSeed(IkamvaDatabase db) async {
         difficulty: 2,
         topic: 'food',
         payloadJson: kSeedClozeD2bPayloadJson,
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.devSeedOnly.storageValue,
         createdAt: now.add(const Duration(milliseconds: 4)),
       ),
     );
@@ -178,7 +187,7 @@ Future<void> ensureDevSeed(IkamvaDatabase db) async {
         difficulty: 3,
         topic: 'food',
         payloadJson: kSeedClozeD3PayloadJson,
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.devSeedOnly.storageValue,
         createdAt: now.add(const Duration(milliseconds: 5)),
       ),
     );
@@ -202,7 +211,7 @@ Future<void> ensureExtraSeedTaskTypes(IkamvaDatabase db) async {
         difficulty: 1,
         topic: 'food',
         payloadJson: kSeedReorderPayloadJson,
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.devSeedOnly.storageValue,
         createdAt: now,
       ),
     );
@@ -215,7 +224,7 @@ Future<void> ensureExtraSeedTaskTypes(IkamvaDatabase db) async {
         difficulty: 1,
         topic: 'food',
         payloadJson: kSeedMatchPayloadJson,
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.devSeedOnly.storageValue,
         createdAt: now.add(const Duration(milliseconds: 1)),
       ),
     );
@@ -228,8 +237,34 @@ Future<void> ensureExtraSeedTaskTypes(IkamvaDatabase db) async {
         difficulty: 1,
         topic: 'food',
         payloadJson: kSeedDialoguePayloadJson,
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.devSeedOnly.storageValue,
         createdAt: now.add(const Duration(milliseconds: 2)),
+      ),
+    );
+    b.insert(
+      db.taskRecords,
+      TaskRecordsCompanion.insert(
+        id: kSeedReadAloudId,
+        taskType: TaskType.readAloud.storageValue,
+        skillId: SkillId.readAloud.storageValue,
+        difficulty: 1,
+        topic: 'food',
+        payloadJson: kSeedReadAloudPayloadJson,
+        source: TaskSource.devSeedOnly.storageValue,
+        createdAt: now.add(const Duration(milliseconds: 3)),
+      ),
+    );
+    b.insert(
+      db.taskRecords,
+      TaskRecordsCompanion.insert(
+        id: kSeedPronunciationId,
+        taskType: TaskType.pronunciationIntonation.storageValue,
+        skillId: SkillId.pronunciationIntonation.storageValue,
+        difficulty: 1,
+        topic: 'food',
+        payloadJson: kSeedPronunciationPayloadJson,
+        source: TaskSource.devSeedOnly.storageValue,
+        createdAt: now.add(const Duration(milliseconds: 4)),
       ),
     );
   });

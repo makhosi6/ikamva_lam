@@ -1,7 +1,16 @@
-/// How a task row was produced (TASKS §2.4).
+/// How a task row was produced (TASKS §2.4, §3.9, §8.6).
+///
+/// **Production learner sessions** should only use [generated] and
+/// [cachedGenerated]. [devSeedOnly] is for bundled dev/test fixtures.
 enum TaskSource {
-  cached('cached'),
-  generated('generated');
+  /// Fresh model output inserted for this row.
+  generated('generated'),
+
+  /// Pre-generated earlier and stored for reuse (still model-authored).
+  cachedGenerated('cached_generated'),
+
+  /// Bundled / copied workbook-style fixtures — not for release learner play.
+  devSeedOnly('dev_seed_only');
 
   const TaskSource(this.storageValue);
 
@@ -12,6 +21,8 @@ enum TaskSource {
     for (final s in TaskSource.values) {
       if (s.storageValue == raw) return s;
     }
+    // Legacy DB value (schema &lt; v4): treat as dev seed semantics.
+    if (raw == 'cached') return TaskSource.devSeedOnly;
     return null;
   }
 

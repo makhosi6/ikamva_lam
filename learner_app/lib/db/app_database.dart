@@ -20,7 +20,7 @@ class IkamvaDatabase extends _$IkamvaDatabase {
   IkamvaDatabase(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -35,6 +35,12 @@ class IkamvaDatabase extends _$IkamvaDatabase {
       if (from < 3) {
         await m.addColumn(taskRecords, taskRecords.contentHash);
         await m.createTable(insightCards);
+      }
+      if (from < 4) {
+        // Legacy `cached` rows were dev seeds / fallbacks (TASKS §3.9, §8.6).
+        await customStatement(
+          "UPDATE task_records SET source = 'dev_seed_only' WHERE source = 'cached'",
+        );
       }
     },
     beforeOpen: (OpeningDetails details) async {

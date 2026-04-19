@@ -1,0 +1,24 @@
+TASK: generate_read_aloud
+LEVEL: {{LEVEL}}
+TOPIC: {{TOPIC}}
+SKILL: {{SKILL}}
+DIFFICULTY_STEP: {{DIFFICULTY_STEP}}
+
+Produce ONE read-aloud item: a short English line the learner reads on screen, optionally with a brief instruction (e.g. “Read it like a question”, “Say it cheerfully”).
+
+OUTPUT JSON ONLY (no markdown fences, no commentary). If you cannot comply, output exactly `{}`.
+Schema:
+{
+  "display_text": "…one or two short sentences, total under ~{{LEVEL_MAX_WORDS}} words…",
+  "instruction_en": "optional short direction for the learner",
+  "tts_locale": "optional BCP-47 tag e.g. en-ZA",
+  "hint_en": "optional short teacher hint",
+  "hint_xh": "optional",
+  "hint_zu": "optional",
+  "hint_af": "optional"
+}
+
+Rules:
+- `display_text` must be classroom-safe and on-topic for "{{TOPIC}}".
+- No blank markers like ___; this is not a cloze.
+- Keep A1 lines very short and clear.

@@ -3,7 +3,9 @@ enum TaskType {
   cloze('cloze'),
   reorder('reorder'),
   match('match'),
-  dialogueChoice('dialogue_choice');
+  dialogueChoice('dialogue_choice'),
+  readAloud('read_aloud'),
+  pronunciationIntonation('pronunciation_intonation');
 
   const TaskType(this.storageValue);
 

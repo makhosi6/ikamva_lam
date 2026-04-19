@@ -22,6 +22,36 @@ void main() {
     expect(p, contains('LEVEL: A1'));
   });
 
+  test('composeGenerationPrompt read_aloud asset', () async {
+    const slots = PromptSlots(
+      level: 'A1',
+      topic: 'food',
+      skill: 'read_aloud',
+      difficultyStep: '1',
+    );
+    final p = await PromptComposer().composeGenerationPrompt(
+      TaskType.readAloud,
+      slots,
+    );
+    expect(p, contains('TASK: generate_read_aloud'));
+    expect(p, contains('OUTPUT JSON ONLY'));
+  });
+
+  test('composeGenerationPrompt pronunciation_intonation asset', () async {
+    const slots = PromptSlots(
+      level: 'A1',
+      topic: 'food',
+      skill: 'pronunciation_intonation',
+      difficultyStep: '1',
+    );
+    final p = await PromptComposer().composeGenerationPrompt(
+      TaskType.pronunciationIntonation,
+      slots,
+    );
+    expect(p, contains('TASK: generate_pronunciation_intonation'));
+    expect(p, contains('correct_index'));
+  });
+
   test('composeHintPrompt and insight include JSON-only rules', () async {
     final c = PromptComposer();
     final h = await c.composeHintPrompt(

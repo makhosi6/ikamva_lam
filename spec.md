@@ -151,9 +151,16 @@ Skills:
 - Vocabulary
 - Sentence Structure
 - Grammar (Tense, Plural, Articles)
+- Reading fluency (decode on screen, pace, phrasing)
+- Pronunciation & intonation (stress, rhythm, tune; listen–compare–produce)
+- Read aloud (speak a displayed line or dialogue turn; optional reference audio)
 
 Each game maps to:
 skill_id + difficulty_level
+
+**4.1.1 AI-generated learner content (uniqueness).** Every **question and task payload** shown to a learner in normal play **must be produced by the on-device Gemma pipeline** so sessions stay **unique** and can adapt to level, topic, and prior errors. Items taken from the **pre-generation cache** still satisfy this requirement **only if** they were **written by the model** when the cache was filled. **Fixed static workbook banks** must **not** be the primary source of served questions in production builds (seeded JSON may remain **for automated tests and local UI development** when the model is unavailable).
+
+**4.1.2 Oral reading, pronunciation, intonation & read aloud.** The learning mix **must include** task types that explicitly support **reading on screen**, **correct pronunciation**, **intonation** (statement vs question, emphasis, chunking), and **read aloud** practice (learner speaks while the app listens or self-checks against a reference). These may pair **TTS or recorded reference** clips with **short prompts** (e.g. “Say this like a question”, “Which word is stressed?”, shadowing, repeat-after-model). Prompt templates and validators **must** output structured JSON for these modes (see TASKS Phase 3/7).
 
 
 ⸻
@@ -174,6 +181,7 @@ Rules:
 	•	Only generate curriculum-aligned sentences
 	•	No complex grammar for A1 learners
 	•	Prefer short sentences (<10 words)
+	•	For **read aloud** and **pronunciation / intonation** tasks, keep **display text short**, age-appropriate, and aligned to the same level rules; avoid opaque phonetic notation unless the template explicitly requires it
 
 ⸻
 
@@ -271,7 +279,7 @@ Game Loop
 
 Start Game
    ↓
-Fetch from Cache OR Generate via AI
+Fetch from Cache (AI-filled) OR Generate via AI — **no non-AI question bank in production**
    ↓
 User Answer
    ↓

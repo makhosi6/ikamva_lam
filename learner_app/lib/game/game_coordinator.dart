@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../config/learner_content_policy.dart';
 import '../db/app_database.dart';
 import 'practice_task_config.dart';
 
@@ -117,7 +118,8 @@ class GameCoordinator {
     int? maxDifficultyInclusive,
     String? skillId,
   ) {
-    Expression<bool> e = t.topic.equals(topic);
+    Expression<bool> e = t.topic.equals(topic) &
+        LearnerContentPolicy.taskRowAllowed(t);
     if (maxDifficultyInclusive != null) {
       e = e & t.difficulty.isSmallerOrEqualValue(maxDifficultyInclusive);
     }
@@ -132,7 +134,7 @@ class GameCoordinator {
     int? maxDifficultyInclusive,
     String? skillId,
   ) {
-    Expression<bool> e = const Constant(true);
+    Expression<bool> e = LearnerContentPolicy.taskRowAllowed(t);
     if (maxDifficultyInclusive != null) {
       e = e & t.difficulty.isSmallerOrEqualValue(maxDifficultyInclusive);
     }

@@ -5,6 +5,8 @@ import '../task_type.dart';
 import 'cloze_payload.dart';
 import 'dialogue_choice_payload.dart';
 import 'match_payload.dart';
+import 'pronunciation_intonation_payload.dart';
+import 'read_aloud_payload.dart';
 import 'reorder_payload.dart';
 
 /// Rewrites legacy / sloppy JSON into the canonical maps expected by
@@ -53,6 +55,10 @@ class TaskNormalizer {
         return _normalizeMatch(flat);
       case TaskType.dialogueChoice:
         return _normalizeDialogue(flat);
+      case TaskType.readAloud:
+        return _normalizeReadAloud(flat);
+      case TaskType.pronunciationIntonation:
+        return _normalizePronunciationIntonation(flat);
     }
   }
 
@@ -188,6 +194,68 @@ class TaskNormalizer {
       return out;
     } on FormatException catch (e) {
       _log('TaskNormalizer[match]: parser rejected: $e');
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _normalizeReadAloud(Map<String, dynamic> r) {
+    final display = _firstString(r, const [
+      'display_text',
+      'displayText',
+      'line',
+      'text',
+    ]);
+    if (display == null) {
+      _log('TaskNormalizer[read_aloud]: missing display_text');
+      return null;
+    }
+    final out = <String, dynamic>{'display_text': display};
+    final ins = _firstString(r, const ['instruction_en', 'instructionEn']);
+    if (ins != null) out['instruction_en'] = ins;
+    final loc = _firstString(r, const ['tts_locale', 'ttsLocale']);
+    if (loc != null) out['tts_locale'] = loc;
+    _copyOptionalHintKeys(r, out);
+    try {
+      ReadAloudPayload.fromJson(out);
+      return out;
+    } on FormatException catch (e) {
+      _log('TaskNormalizer[read_aloud]: parser rejected: $e');
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _normalizePronunciationIntonation(
+    Map<String, dynamic> r,
+  ) {
+    final question = _firstString(r, const [
+      'question',
+      'prompt',
+      'stem',
+    ]);
+    final optionsRaw = r['options'] ?? r['choices'];
+    if (question == null || optionsRaw is! List) {
+      _log('TaskNormalizer[pronunciation]: missing question or options');
+      return null;
+    }
+    final options = _coerceStringList(optionsRaw, 'options');
+    if (options == null || options.length < 3) return null;
+    final out = <String, dynamic>{
+      'question': question,
+      'options': options.length > 4 ? options.sublist(0, 4) : options,
+    };
+    final ci = r['correct_index'] ?? r['correctIndex'];
+    if (ci != null) {
+      final idx = ci is int ? ci : int.tryParse('$ci');
+      if (idx != null) out['correct_index'] = idx;
+    }
+    final ref = _firstString(r, const ['reference_line', 'referenceLine']);
+    if (ref != null) out['reference_line'] = ref;
+    _copyOptionalHintKeys(r, out);
+    try {
+      PronunciationIntonationPayload.fromJson(out);
+      return out;
+    } on FormatException catch (e) {
+      _log('TaskNormalizer[pronunciation]: parser rejected: $e');
       return null;
     }
   }

@@ -49,6 +49,9 @@ class PromptComposer {
         TaskType.reorder => 'generate_reorder.txt',
         TaskType.match => 'generate_match.txt',
         TaskType.dialogueChoice => 'generate_dialogue_choice.txt',
+        TaskType.readAloud => 'generate_read_aloud.txt',
+        TaskType.pronunciationIntonation =>
+          'generate_pronunciation_intonation.txt',
       };
 
   /// Preamble (pedagogy) + task-specific `generate_*` body.

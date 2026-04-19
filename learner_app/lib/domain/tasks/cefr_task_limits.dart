@@ -69,4 +69,28 @@ abstract final class CefrTaskLimits {
         return 8;
     }
   }
+
+  /// Read-aloud **display** line (single utterance).
+  static int maxWordsReadAloudLine(String? levelCode) {
+    switch (normalizeLevel(levelCode)) {
+      case 'A1':
+        return 12;
+      case 'A2':
+        return 16;
+      default:
+        return 22;
+    }
+  }
+
+  /// Prosody / pronunciation MCQ **question** line.
+  static int maxWordsProsodyQuestion(String? levelCode) {
+    switch (normalizeLevel(levelCode)) {
+      case 'A1':
+        return 18;
+      case 'A2':
+        return 24;
+      default:
+        return 32;
+    }
+  }
 }

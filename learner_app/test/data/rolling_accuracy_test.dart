@@ -75,7 +75,7 @@ void main() {
             difficulty: 1,
             topic: 'x',
             payloadJson: '{"sentence":"I ___ .","answer":"a","options":["a","b","c","d"]}',
-            source: TaskSource.cached.storageValue,
+            source: TaskSource.devSeedOnly.storageValue,
             createdAt: now,
           ),
         );

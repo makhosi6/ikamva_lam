@@ -14,7 +14,7 @@ This document translates [spec.md](spec.md) and [writeup.md](writeup.md) into co
 |--------|-----------------|--------------|--------|
 | **Learner** | Flutter app (tablet / laptop) | Offline-first; sync when available | Multimodal: tap, read, listen, optional voice |
 | **Teacher/Parent** | Web dashboard (optional) + in-app setup on shared or home device | Low bandwidth when syncing | School teacher or parent; sees summaries and insights, not raw chat |
-| **System** | SQLite + llama.cpp + cache | N/A | Rule-based eval first; AI for generation & hints |
+| **System** | SQLite + llama.cpp + cache | N/A | Rule-based eval first; AI for generation & hints; **learner-facing questions are AI-generated** (cache holds prior model output, not static banks in production) |
 
 ---
 
@@ -45,11 +45,13 @@ flowchart TD
   I --> K[Start session]
   J --> K
   K --> L[Pre-roll: cache check]
-  L --> M{Tasks in cache?}
+  L --> M{AI-generated tasks in cache?}
   M -->|Yes| N[Load next task]
   M -->|No| O[Background generate via Gemma]
   O --> N
 ```
+
+*Cache entries are pre-generated model outputs; they are not a substitute for fixed offline question packs in production (see [spec.md §4.1.1](spec.md)).*
 
 ### 2.3 Core game loop (per task)
 
@@ -57,7 +59,7 @@ Aligned with spec §8: cache/generate → answer → rule eval → hint if neede
 
 ```mermaid
 flowchart TD
-  N[Present task UI] --> P[Multimodal support: illustration + optional TTS + voice cmds]
+  N[Present task UI] --> P[Multimodal support: illustration + TTS reference + optional voice cmds; oral-reading tasks]
   P --> Q[Learner submits answer]
   Q --> R{Rule-based correct?}
   R -->|Yes| S[Success animation + skill signal]
@@ -146,6 +148,9 @@ flowchart TD
 | Reorder | Drag or tap-to-order | Short lines; haptic/light animation |
 | Match | Vocabulary pairs | Large touch targets |
 | Dialogue choice | Contextual comprehension | Character illustration optional |
+| Read aloud | Speak displayed text | Large type; **Play reference** (TTS) then record or tap “I said it”; aligns with spec §4.1.2 |
+| Pronunciation / intonation | Listen–compare–choose or produce | Minimal pairs, stress marks, or “say it like a question”; optional waveform or simple turn-taking UI |
+| Oral reading check | Reading + speaking together | Short line shown; learner reads aloud; app may compare timing/stress heuristics or offer self-rubric |
 | Hint sheet | Multilingual hints | `hint_en` / `hint_xh` etc.; optional audio |
 | Session end | Celebrate + stats | Simple charts; Teacher/Parent-safe messaging |
 | Settings | Language for hints, TTS on/off, voice mode | Plain language labels |
@@ -216,6 +221,8 @@ Use as Flutter `ThemeExtension` or constants. Favor **WCAG AA** contrast for tex
 - **Always** pair spoken instructions with on-screen text where possible.
 - **Subtitles** for TTS strings; **caption** length matches spec short outputs.
 - **Reduce motion** OS flag: swap animations for color/state change only.
+- **Pronunciation & read aloud:** offer a **clear reference utterance** (TTS) before the learner speaks; keep lines short; avoid dense phonetic symbols unless the level calls for it—prefer **listen → repeat → light feedback** over long explanations.
+- **Intonation cues:** where the task is “say it like a question” or emphasis, use **layout** (punctuation visible), **optional pitch contour iconography**, or a **second TTS playback** as the target pattern—not open-ended chat.
 
 ---
 
@@ -246,7 +253,7 @@ Use as Flutter `ThemeExtension` or constants. Favor **WCAG AA** contrast for tex
 | Track | How design supports it |
 |-------|-------------------------|
 | Main | Clear learner + Teacher/Parent loops in flows above |
-| Future of education | Skill graph + adaptive flow tied to measurable session end stats |
+| Future of education | Skill graph + adaptive flow tied to measurable session end stats; **oral reading & prosody** task surfaces in §4 |
 | Digital equity | Offline paths, large type, multilingual hint UI, low-end motion rules |
 | llama.cpp | No UI dependency on streaming; show optional “thinking…” only if needed; prefer pre-cached tasks |
 

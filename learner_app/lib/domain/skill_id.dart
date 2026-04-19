@@ -4,7 +4,10 @@ enum SkillId {
   sentenceStructure('sentence_structure'),
   grammarTense('grammar_tense'),
   grammarPlural('grammar_plural'),
-  grammarArticles('grammar_articles');
+  grammarArticles('grammar_articles'),
+  readingFluency('reading_fluency'),
+  pronunciationIntonation('pronunciation_intonation'),
+  readAloud('read_aloud');
 
   const SkillId(this.storageValue);
 

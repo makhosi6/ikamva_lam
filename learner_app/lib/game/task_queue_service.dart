@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../config/learner_content_policy.dart';
 import '../data/task_record_repository.dart';
 import '../db/app_database.dart';
 import '../db/seed.dart';
@@ -12,6 +13,8 @@ import '../domain/skill_id.dart';
 import '../domain/task_source.dart';
 import '../domain/task_type.dart';
 import '../domain/tasks/cloze_payload.dart';
+import '../domain/tasks/pronunciation_intonation_payload.dart';
+import '../domain/tasks/read_aloud_payload.dart';
 import '../domain/tasks/task_normalizer.dart';
 import '../domain/tasks/task_payload_validators.dart';
 import '../llm/llm_generate_request.dart';
@@ -22,7 +25,7 @@ import '../prompts/prompt_composer.dart';
 import '../prompts/prompt_slots.dart';
 import 'task_content_hash.dart';
 
-/// Pre-fills SQLite with generated or fallback tasks (TASKS §8.1, §8.4).
+/// Pre-fills SQLite with model-generated tasks (TASKS §8.1, §8.6).
 class TaskQueueService {
   TaskQueueService(this._db);
 
@@ -35,13 +38,14 @@ class TaskQueueService {
 
   static String? lastFillError;
 
+  /// Count of **AI-authored** rows for [topic] (generated or prior-model cache).
   Future<int> countTopicCandidates(String topic) async {
     final rows = await (_db.select(_db.taskRecords)
           ..where((t) => t.topic.equals(topic))
           ..where(
             (t) => t.source.isIn([
-              TaskSource.cached.storageValue,
               TaskSource.generated.storageValue,
+              TaskSource.cachedGenerated.storageValue,
             ]),
           ))
         .get();
@@ -70,13 +74,20 @@ class TaskQueueService {
     final topic = quest.topic;
     var count = await countTopicCandidates(topic);
     if (count >= _minTopicTasks) return;
-    for (var i = 0; i < 12 && count < _minTopicTasks && count < _maxTopicTasks; i++) {
-      final added = await _tryGenerateOrFallbackCloze(quest);
-      if (added) {
-        count = await countTopicCandidates(topic);
-      } else {
-        count = await countTopicCandidates(topic);
+    for (var i = 0;
+        i < 18 && count < _minTopicTasks && count < _maxTopicTasks;
+        i++) {
+      final phase = i % 3;
+      var added = false;
+      if (phase == 1) {
+        added = await _tryGenerateReadAloud(quest);
+      } else if (phase == 2) {
+        added = await _tryGeneratePronunciation(quest);
       }
+      if (!added) {
+        added = await _tryGenerateOrFallbackCloze(quest);
+      }
+      count = await countTopicCandidates(topic);
     }
   }
 
@@ -97,25 +108,25 @@ class TaskQueueService {
         LlmGenerateRequest(prompt: prompt),
       );
       if (isEmptyComplianceObject(raw)) {
-        await _insertFallback(quest);
+        await _maybeInsertFallback(quest);
         return false;
       }
       final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw);
       final map = _normalizer.normalizeJson(TaskType.cloze, span);
       if (map == null) {
-        await _insertFallback(quest);
+        await _maybeInsertFallback(quest);
         return false;
       }
       late final ClozePayload cloze;
       try {
         cloze = ClozePayload.fromJson(map);
       } on Object {
-        await _insertFallback(quest);
+        await _maybeInsertFallback(quest);
         return false;
       }
       final issues = TaskPayloadValidators.validateCloze(cloze, quest.level);
       if (issues.isNotEmpty) {
-        await _insertFallback(quest);
+        await _maybeInsertFallback(quest);
         return false;
       }
       final payloadJson = jsonEncode(cloze.toJson());
@@ -140,9 +151,117 @@ class TaskQueueService {
       return true;
     } on Object catch (e) {
       lastFillError = '$e';
-      await _insertFallback(quest);
+      await _maybeInsertFallback(quest);
       return false;
     }
+  }
+
+  Future<bool> _tryGenerateReadAloud(Quest quest) async {
+    final topic = quest.topic;
+    final slots = PromptSlots(
+      level: quest.level,
+      topic: topic,
+      skill: SkillId.readAloud.storageValue,
+      difficultyStep: '${min(quest.maxDifficultyStep, 2)}',
+    );
+    try {
+      final prompt = await PromptComposer().composeGenerationPrompt(
+        TaskType.readAloud,
+        slots,
+      );
+      final raw = await LlmService.instance.generate(
+        LlmGenerateRequest(prompt: prompt),
+      );
+      if (isEmptyComplianceObject(raw)) return false;
+      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw);
+      final map = _normalizer.normalizeJson(TaskType.readAloud, span);
+      if (map == null) return false;
+      late final ReadAloudPayload payload;
+      try {
+        payload = ReadAloudPayload.fromJson(map);
+      } on Object {
+        return false;
+      }
+      final issues = TaskPayloadValidators.validateReadAloud(payload, quest.level);
+      if (issues.isNotEmpty) return false;
+      final payloadJson = jsonEncode(payload.toJson());
+      final hash = contentHashForReadAloudPayloadJson(payloadJson);
+      if (hash != null && await _hashExists(topic, hash)) return false;
+      await _db.into(_db.taskRecords).insert(
+            TaskRecordsCompanion.insert(
+              id: 'gen-${_uuid.v4()}',
+              taskType: TaskType.readAloud.storageValue,
+              skillId: SkillId.readAloud.storageValue,
+              difficulty: 1,
+              topic: topic,
+              payloadJson: payloadJson,
+              source: TaskSource.generated.storageValue,
+              contentHash: Value(hash),
+              createdAt: DateTime.now().toUtc(),
+            ),
+          );
+      return true;
+    } on Object catch (e) {
+      lastFillError = '$e';
+      return false;
+    }
+  }
+
+  Future<bool> _tryGeneratePronunciation(Quest quest) async {
+    final topic = quest.topic;
+    final slots = PromptSlots(
+      level: quest.level,
+      topic: topic,
+      skill: SkillId.pronunciationIntonation.storageValue,
+      difficultyStep: '${min(quest.maxDifficultyStep, 2)}',
+    );
+    try {
+      final prompt = await PromptComposer().composeGenerationPrompt(
+        TaskType.pronunciationIntonation,
+        slots,
+      );
+      final raw = await LlmService.instance.generate(
+        LlmGenerateRequest(prompt: prompt),
+      );
+      if (isEmptyComplianceObject(raw)) return false;
+      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw);
+      final map = _normalizer.normalizeJson(TaskType.pronunciationIntonation, span);
+      if (map == null) return false;
+      late final PronunciationIntonationPayload payload;
+      try {
+        payload = PronunciationIntonationPayload.fromJson(map);
+      } on Object {
+        return false;
+      }
+      final issues =
+          TaskPayloadValidators.validatePronunciationIntonation(payload, quest.level);
+      if (issues.isNotEmpty) return false;
+      final payloadJson = jsonEncode(payload.toJson());
+      final hash = contentHashForPronunciationPayloadJson(payloadJson);
+      if (hash != null && await _hashExists(topic, hash)) return false;
+      await _db.into(_db.taskRecords).insert(
+            TaskRecordsCompanion.insert(
+              id: 'gen-${_uuid.v4()}',
+              taskType: TaskType.pronunciationIntonation.storageValue,
+              skillId: SkillId.pronunciationIntonation.storageValue,
+              difficulty: 1,
+              topic: topic,
+              payloadJson: payloadJson,
+              source: TaskSource.generated.storageValue,
+              contentHash: Value(hash),
+              createdAt: DateTime.now().toUtc(),
+            ),
+          );
+      return true;
+    } on Object catch (e) {
+      lastFillError = '$e';
+      return false;
+    }
+  }
+
+  Future<void> _maybeInsertFallback(Quest quest) async {
+    if (!LearnerContentPolicy.allowDevSeed) return;
+    await _insertFallback(quest);
   }
 
   Future<void> _insertFallback(Quest quest) async {
@@ -166,7 +285,7 @@ class TaskQueueService {
         difficulty: src.difficulty,
         topic: quest.topic,
         payloadJson: src.payloadJson,
-        source: TaskSource.cached.storageValue,
+        source: TaskSource.devSeedOnly.storageValue,
         createdAt: DateTime.now().toUtc(),
       ),
     );

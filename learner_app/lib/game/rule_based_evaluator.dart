@@ -5,6 +5,7 @@ import '../domain/task_type.dart';
 import '../domain/tasks/cloze_payload.dart';
 import '../domain/tasks/dialogue_choice_payload.dart';
 import '../domain/tasks/match_payload.dart';
+import '../domain/tasks/pronunciation_intonation_payload.dart';
 import '../domain/tasks/reorder_payload.dart';
 
 /// Outcome of comparing a learner answer to the task payload (TASKS §4.3).
@@ -21,6 +22,8 @@ class EvaluationResult {
 /// - **reorder:** `{"order":[1,0,2]}` — must match `correct_order`.
 /// - **match:** `{"pairs":[[0,0],[1,1]]}` or list of `{"left":0,"right":0}` — must match canonical pairs as a set.
 /// - **dialogue_choice:** `{"index":0}` or `{"id":"a"}`.
+/// - **read_aloud:** `{"completed":true}` (lightweight completion signal).
+/// - **pronunciation_intonation:** `{"index":0}` (MCQ).
 class RuleBasedEvaluator {
   const RuleBasedEvaluator();
 
@@ -38,6 +41,10 @@ class RuleBasedEvaluator {
           return _match(task.payloadJson, learnerAnswerJson);
         case TaskType.dialogueChoice:
           return _dialogue(task.payloadJson, learnerAnswerJson);
+        case TaskType.readAloud:
+          return _readAloud(learnerAnswerJson);
+        case TaskType.pronunciationIntonation:
+          return _pronunciation(task.payloadJson, learnerAnswerJson);
       }
     } on Object {
       return const EvaluationResult(correct: false);
@@ -143,6 +150,39 @@ class RuleBasedEvaluator {
       return out;
     } on Object {
       return null;
+    }
+  }
+
+  EvaluationResult _readAloud(String learnerAnswerJson) {
+    try {
+      final decoded = jsonDecode(learnerAnswerJson.trim());
+      if (decoded is! Map) return const EvaluationResult(correct: false);
+      final map = Map<String, dynamic>.from(decoded);
+      final done = map['completed'] == true ||
+          map['read_aloud_done'] == true ||
+          map['done'] == true;
+      return EvaluationResult(correct: done);
+    } on Object {
+      return const EvaluationResult(correct: false);
+    }
+  }
+
+  EvaluationResult _pronunciation(String payloadJson, String learnerAnswerJson) {
+    final payload = PronunciationIntonationPayload.tryParseJsonString(payloadJson);
+    if (payload == null) return const EvaluationResult(correct: false);
+    try {
+      final decoded = jsonDecode(learnerAnswerJson.trim());
+      if (decoded is! Map) {
+        return const EvaluationResult(correct: false);
+      }
+      final map = Map<String, dynamic>.from(decoded);
+      final idx = _asInt(
+        map['index'] ?? map['selectedIndex'] ?? map['choice_index'],
+      );
+      if (idx == null) return const EvaluationResult(correct: false);
+      return EvaluationResult(correct: idx == payload.correctIndex);
+    } on Object {
+      return const EvaluationResult(correct: false);
     }
   }
 
