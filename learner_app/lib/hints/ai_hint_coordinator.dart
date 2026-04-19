@@ -30,12 +30,13 @@ class AiHintCoordinator {
     final parsed = AiMultilingualHint.tryParse(raw);
     if (!context.mounted) return;
     if (parsed != null) {
-      final gate = ChildFriendlyContentGate.evaluateJsonValue({
+      final gate = await ChildFriendlyContentGate.evaluateJsonValue({
         'hint_en': parsed.hintEn,
         if (parsed.hintXh != null) 'hint_xh': parsed.hintXh,
         if (parsed.hintZu != null) 'hint_zu': parsed.hintZu,
         if (parsed.hintAf != null) 'hint_af': parsed.hintAf,
       });
+      if (!context.mounted) return;
       if (!gate.ok) {
         final bottom = MediaQuery.paddingOf(context).bottom + 76;
         ScaffoldMessenger.of(context).showSnackBar(

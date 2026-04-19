@@ -63,7 +63,8 @@ class TaskQueueService {
 
   Future<void> ensureForQuest(Quest quest) async {
     if (quest.topic.isEmpty) return;
-    final topicOk = ChildFriendlyContentGate.evaluateTopicPhrase(quest.topic);
+    final topicOk =
+        await ChildFriendlyContentGate.evaluateTopicPhrase(quest.topic);
     if (!topicOk.ok) {
       lastFillError = 'topic_failed_safety:${topicOk.violations.join(",")}';
       developer.log(
@@ -140,7 +141,7 @@ class TaskQueueService {
         return false;
       }
       final payloadJson = jsonEncode(cloze.toJson());
-      if (!_payloadPassesChildSafety(payloadJson)) {
+      if (!await _payloadPassesChildSafety(payloadJson)) {
         await _maybeInsertFallback(quest);
         return false;
       }
@@ -199,7 +200,7 @@ class TaskQueueService {
       final issues = TaskPayloadValidators.validateReadAloud(payload, quest.level);
       if (issues.isNotEmpty) return false;
       final payloadJson = jsonEncode(payload.toJson());
-      if (!_payloadPassesChildSafety(payloadJson)) return false;
+      if (!await _payloadPassesChildSafety(payloadJson)) return false;
       final hash = contentHashForReadAloudPayloadJson(payloadJson);
       if (hash != null && await _hashExists(topic, hash)) return false;
       await _db.into(_db.taskRecords).insert(
@@ -252,7 +253,7 @@ class TaskQueueService {
           TaskPayloadValidators.validatePronunciationIntonation(payload, quest.level);
       if (issues.isNotEmpty) return false;
       final payloadJson = jsonEncode(payload.toJson());
-      if (!_payloadPassesChildSafety(payloadJson)) return false;
+      if (!await _payloadPassesChildSafety(payloadJson)) return false;
       final hash = contentHashForPronunciationPayloadJson(payloadJson);
       if (hash != null && await _hashExists(topic, hash)) return false;
       await _db.into(_db.taskRecords).insert(
@@ -275,8 +276,9 @@ class TaskQueueService {
     }
   }
 
-  bool _payloadPassesChildSafety(String payloadJson) {
-    final v = ChildFriendlyContentGate.evaluateJsonPayloadString(payloadJson);
+  Future<bool> _payloadPassesChildSafety(String payloadJson) async {
+    final v =
+        await ChildFriendlyContentGate.evaluateJsonPayloadString(payloadJson);
     if (v.ok) return true;
     developer.log(
       'TaskQueueService: payload failed child-friendly gate → ${v.violations}',

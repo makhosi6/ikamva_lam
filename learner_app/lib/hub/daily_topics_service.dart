@@ -68,14 +68,21 @@ abstract final class DailyTopicsService {
           final list = (map['topics'] as List).cast<String>();
           final normalized =
               _dedupeTopics(list.map(DailyQuestIds.normalizeTopicToken));
-          final safe = <String>[];
+          final ruleOk = <String>[];
           for (final t in normalized) {
-            if (ChildFriendlyContentGate.evaluateTopicPhrase(t).ok) {
-              safe.add(t);
+            if (ChildFriendlyContentGate.evaluateTopicPhraseRules(t).ok) {
+              ruleOk.add(t);
             }
           }
-          if (safe.isNotEmpty) {
-            return _asOffers(safe);
+          if (ruleOk.isNotEmpty) {
+            final sent =
+                await ChildFriendlyContentGate.evaluateHubTopicsBatchSentiment(
+              ruleOk,
+            );
+            if (sent.ok) {
+              return _asOffers(ruleOk);
+            }
+            await p.remove(_prefsKey);
           }
         }
       } on Object {
@@ -118,15 +125,32 @@ abstract final class DailyTopicsService {
         attempt++) {
       final batch = await _tryLlmTopics();
       if (batch == null) continue;
+      final candidates = <String>[];
       for (final t in batch) {
-        final verdict = ChildFriendlyContentGate.evaluateTopicPhrase(t);
-        if (!verdict.ok) {
+        final vr = ChildFriendlyContentGate.evaluateTopicPhraseRules(t);
+        if (!vr.ok) {
           developer.log(
-            'DailyTopicsService: rejected topic "$t" → ${verdict.violations}',
+            'DailyTopicsService: topic rules reject "$t" → ${vr.violations}',
             name: 'DailyTopicsService',
           );
           continue;
         }
+        candidates.add(t);
+      }
+      if (candidates.isEmpty) continue;
+      final batchSentiment =
+          await ChildFriendlyContentGate.evaluateHubTopicsBatchSentiment(
+        candidates,
+      );
+      if (!batchSentiment.ok) {
+        developer.log(
+          'DailyTopicsService: Gemma rejected topic batch → '
+          '${batchSentiment.violations}',
+          name: 'DailyTopicsService',
+        );
+        continue;
+      }
+      for (final t in candidates) {
         if (seen.add(t)) accumulated.add(t);
         if (accumulated.length >= _topicCount) break;
       }
@@ -135,7 +159,7 @@ abstract final class DailyTopicsService {
       return accumulated.take(_topicCount).toList();
     }
     if (LearnerContentPolicy.allowDevSeed) {
-      return _fallbackForDay(dayKey, seeds: accumulated);
+      return await _fallbackForDay(dayKey, seeds: accumulated);
     }
     return accumulated;
   }
@@ -201,14 +225,17 @@ abstract final class DailyTopicsService {
     return out;
   }
 
-  static List<String> _fallbackForDay(String dayKey, {List<String> seeds = const []}) {
+  static Future<List<String>> _fallbackForDay(
+    String dayKey, {
+    List<String> seeds = const [],
+  }) async {
     final out = _dedupeTopics(seeds);
     final pool = List<String>.from(_fallbackPool)
       ..shuffle(Random(dayKey.hashCode));
     for (final p in pool) {
       if (out.length >= _topicCount) break;
       if (!out.contains(p) &&
-          ChildFriendlyContentGate.evaluateTopicPhrase(p).ok) {
+          ChildFriendlyContentGate.evaluateTopicPhraseRules(p).ok) {
         out.add(p);
       }
     }
@@ -218,6 +245,17 @@ abstract final class DailyTopicsService {
       if (!out.contains(p)) out.add(p);
       i++;
     }
-    return out.take(_topicCount).toList();
+    final trimmed = out.take(_topicCount).toList();
+    final sent =
+        await ChildFriendlyContentGate.evaluateHubTopicsBatchSentiment(trimmed);
+    if (!sent.ok) {
+      developer.log(
+        'DailyTopicsService: fallback topics failed Gemma sentiment → '
+        '${sent.violations}',
+        name: 'DailyTopicsService',
+      );
+      return [];
+    }
+    return trimmed;
   }
 }

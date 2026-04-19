@@ -36,7 +36,8 @@ class _TeacherQuestEditorScreenState extends State<TeacherQuestEditorScreen> {
 
   Future<void> _save() async {
     final topic = _topic.text.trim().toLowerCase();
-    final topicVerdict = ChildFriendlyContentGate.evaluateTopicPhrase(topic);
+    final topicVerdict =
+        await ChildFriendlyContentGate.evaluateTopicPhrase(topic);
     if (!topicVerdict.ok) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -48,6 +49,7 @@ class _TeacherQuestEditorScreenState extends State<TeacherQuestEditorScreen> {
       );
       return;
     }
+    if (!mounted) return;
     final db = DatabaseScope.of(context);
     final id = 'quest-${_uuid.v4()}';
     final now = DateTime.now().toUtc();

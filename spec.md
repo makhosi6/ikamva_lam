@@ -164,7 +164,7 @@ skill_id + difficulty_level
 
 **4.1.3 AI-generated practice topics.** **Topic labels** shown on the learner hub (“today’s themes”) **must be produced by the on-device model** in production, then filtered for deduplication, **child-friendly** screening, and policy. A **fixed fallback topic wheel** is **not** a production source; it may exist **only** when dev-seed / offline tooling explicitly allows it (same policy family as §4.1.1; see `LearnerContentPolicy` in the learner app).
 
-**4.1.4 Child-friendly content gate.** All **AI-generated strings** that learners may see — **hub topics**, **task JSON** (every string field in the payload), and **multilingual hint** fields — **must pass** an on-device **child-friendly gate** before SQLite persistence or UI. The gate is **rule-based** (token blocklist, URL/email heuristics, length caps); outputs that fail are **dropped** and generation is retried or skipped. Optional future upgrade: a second lightweight model pass — not required for MVP.
+**4.1.4 Child-friendly content gate.** All **AI-generated strings** that learners may see — **hub topics**, **task JSON** (every string field in the payload), and **multilingual hint** fields — **must pass** an on-device **child-friendly gate** before SQLite persistence or UI. The gate runs **rule-based** screening first (token blocklist, URL/email heuristics, length caps), then a **Gemma JSON sentiment** pass on consolidated learner-facing text (prompt marker `TASK: child_content_sentiment_check`; tests use a stub that returns deterministic `{"safe":true}`). Outputs that fail either stage are **dropped** and generation is retried or skipped.
 
 ⸻
 

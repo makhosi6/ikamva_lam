@@ -15,6 +15,9 @@ class StubLlmEngine implements LlmEngine {
   @override
   Future<String> generate(LlmGenerateRequest request) async {
     if (!_ready) await ensureLoaded();
+    if (request.prompt.contains('TASK: child_content_sentiment_check')) {
+      return '{"safe":true,"reason":"stub_engine"}';
+    }
     final snippet = request.prompt.length > 120
         ? request.prompt.substring(0, 120)
         : request.prompt;
