@@ -36,7 +36,7 @@ class _TeacherGateScreenState extends State<TeacherGateScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const IkamvaAppBarTitle(title: 'Teacher mode', logoHeight: 28),
+        title: const IkamvaAppBarTitle(title: 'Teacher/Parent mode', logoHeight: 28),
       ),
       body: SafeArea(
         child: ConstrainedContent(
@@ -44,7 +44,7 @@ class _TeacherGateScreenState extends State<TeacherGateScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                'Enter the teacher PIN for this device. Default demo PIN is 4242.',
+                'Enter the Teacher/Parent PIN for this device. Default demo PIN is 4242.',
               ),
               const SizedBox(height: 16),
               TextField(

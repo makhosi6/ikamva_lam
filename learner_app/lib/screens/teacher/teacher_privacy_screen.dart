@@ -17,7 +17,7 @@ class TeacherPrivacyScreen extends StatelessWidget {
         child: ConstrainedContent(
           child: const Text(
             'Ikamva Lam keeps learner practice on this device by default. '
-            'Teacher views use summaries and aggregates — not raw chat logs. '
+            'Teacher/Parent views use summaries and aggregates — not raw chat logs. '
             'When sync is enabled, only compressed summary JSON leaves the tablet, '
             'as described in docs/api_sync_contract.md.',
             style: TextStyle(fontSize: 16, height: 1.4),

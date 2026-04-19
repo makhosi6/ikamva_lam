@@ -576,7 +576,7 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                       const SizedBox(height: 12),
                       OutlinedButton(
                         onPressed: () => context.push('/teacher'),
-                        child: const Text('Teacher mode'),
+                        child: const Text('Teacher/Parent mode'),
                       ),
                       if (kDebugMode) ...[
                         const SizedBox(height: 8),

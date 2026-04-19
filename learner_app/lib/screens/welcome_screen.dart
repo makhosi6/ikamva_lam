@@ -37,7 +37,7 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               Text(
-                'You will read, listen, and speak in short games. Your teacher guides what you practise.',
+                'You will read, listen, and speak in short games. Your teacher or parent guides what you practise.',
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),

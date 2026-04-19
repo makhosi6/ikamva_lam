@@ -251,7 +251,7 @@ Before or instead of full web dashboard. The adult actor is a **school teacher**
 - [x] **13.3** Show **class summary** list (learners on device): accuracy, sessions, hint rate — from local DB. **(P1)**
 - [x] **13.4** Show **insight cards** from Phase 11. **(P1)**
 - [x] **13.5** **Privacy copy** visible: summaries only (design §7). **(P1)**
-- [ ] **13.6** **Copy pass:** replace remaining user-visible **Teacher** / **Teacher mode** strings with **Teacher/Parent** / **Teacher/Parent mode** (hub CTA, gate & home app bars, privacy screen, any snackbars/dialogs). Route names and Dart identifiers may stay `teacher_*` unless the team prefers a rename. **(P1)**
+- [x] **13.6** **Copy pass:** replace remaining user-visible **Teacher** / **Teacher mode** strings with **Teacher/Parent** / **Teacher/Parent mode** (hub CTA, gate & home app bars, privacy screen, any snackbars/dialogs). Route names and Dart identifiers may stay `teacher_*` unless the team prefers a rename. **(P1)**
 
 **Acceptance:** Teacher/Parent can configure a quest without recompiling; learner sees it on hub.
 

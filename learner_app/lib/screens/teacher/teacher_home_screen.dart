@@ -11,7 +11,7 @@ class TeacherHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const IkamvaAppBarTitle(title: 'Teacher', logoHeight: 28),
+        title: const IkamvaAppBarTitle(title: 'Teacher/Parent', logoHeight: 28),
       ),
       body: SafeArea(
         child: ConstrainedContent(
@@ -37,7 +37,7 @@ class TeacherHomeScreen extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () => context.go('/home'),
-                child: const Text('Exit teacher mode'),
+                child: const Text('Exit Teacher/Parent mode'),
               ),
             ],
           ),

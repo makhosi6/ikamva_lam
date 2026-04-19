@@ -27,6 +27,9 @@ class EvaluationResult {
 class RuleBasedEvaluator {
   const RuleBasedEvaluator();
 
+  /// Shared normaliser for scoring, voice, and mixed-language paths (spec §5.2).
+  static String normalizeAnswerToken(String s) => s.trim().toLowerCase();
+
   EvaluationResult evaluate(TaskRecord task, String learnerAnswerJson) {
     final type = TaskType.tryParse(task.taskType);
     if (type == null) return const EvaluationResult(correct: false);
@@ -58,8 +61,8 @@ class RuleBasedEvaluator {
     final choice = _extractClozeChoice(learnerAnswerJson);
     if (choice == null) return const EvaluationResult(correct: false);
 
-    final a = _norm(payload.answer);
-    final b = _norm(choice);
+    final a = normalizeAnswerToken(payload.answer);
+    final b = normalizeAnswerToken(choice);
     return EvaluationResult(correct: a == b);
   }
 
@@ -213,7 +216,9 @@ class RuleBasedEvaluator {
       if (id == null) return const EvaluationResult(correct: false);
       final expected = payload.correctId;
       if (expected == null) return const EvaluationResult(correct: false);
-      return EvaluationResult(correct: _norm(id) == _norm(expected));
+      return EvaluationResult(
+        correct: normalizeAnswerToken(id) == normalizeAnswerToken(expected),
+      );
     } on Object {
       return const EvaluationResult(correct: false);
     }
@@ -260,5 +265,4 @@ class RuleBasedEvaluator {
     return t.isEmpty ? null : t;
   }
 
-  static String _norm(String s) => s.trim().toLowerCase();
 }

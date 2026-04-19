@@ -26,6 +26,7 @@ dependencies:
   http: ^1.2.2
   kokoro_tts_flutter: ^0.2.0+1
   just_audio: ^0.10.5
+  speech_to_text: ^7.0.0
 
 dev_dependencies:
   flutter_test:

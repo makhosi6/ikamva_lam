@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -146,13 +147,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: settings.ttsEnabled,
                     onChanged: settings.setTtsEnabled,
                   ),
-                  ListTile(
+                  SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Voice commands'),
-                    subtitle: const Text(
-                      'Hands-free repeat / skip (TASKS §12.3 — planned; not wired in MVP build).',
+                    subtitle: Text(
+                      kIsWeb
+                          ? 'Not supported in the browser build — use iOS, Android, or desktop.'
+                          : 'Mic on the game bar: say repeat, skip, read aloud, or answer by letter (A–D).',
                     ),
-                    trailing: const Icon(Icons.mic_none),
+                    value: settings.voiceCommandsEnabled && !kIsWeb,
+                    onChanged: kIsWeb ? null : settings.setVoiceCommandsEnabled,
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Mixed-language answer help (AI)'),
+                    subtitle: const Text(
+                      'On-device normalisation for answers that mix English with other languages (spec §5.2).',
+                    ),
+                    value: settings.normaliseMixedLanguageAnswers,
+                    onChanged: settings.setNormaliseMixedLanguageAnswers,
                   ),
                   const SizedBox(height: 16),
                   Text('Hint language', style: theme.textTheme.titleMedium),

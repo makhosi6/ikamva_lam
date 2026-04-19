@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../analytics/ikamva_analytics.dart';
 import '../analytics/insight_job.dart';
 import '../audio/tts_service.dart';
+import '../audio/voice_command_controller.dart';
 import '../data/attempt_repository.dart';
 import '../metrics/metrics_store.dart';
 import '../data/difficulty_state_repository.dart';
@@ -22,6 +24,7 @@ import '../domain/tasks/match_payload.dart';
 import '../domain/tasks/pronunciation_intonation_payload.dart';
 import '../domain/tasks/read_aloud_payload.dart';
 import '../domain/tasks/reorder_payload.dart';
+import '../game/answer_normalisation_service.dart';
 import '../game/adaptive_difficulty_engine.dart';
 import '../game/game_coordinator.dart';
 import '../game/retry_policy.dart';
@@ -95,6 +98,8 @@ class _GameShellScreenState extends State<GameShellScreen> {
   int? _pronunciationIndex;
   PronunciationIntonationPayload? _pronunciationPayload;
 
+  late VoiceCommandController _voiceCmd;
+
   /// Vocabulary cloze: TTS word range in [cloze.sentence] (when the engine reports it).
   bool _ttsSpeaking = false;
   int? _ttsRangeStart;
@@ -107,12 +112,21 @@ class _GameShellScreenState extends State<GameShellScreen> {
   void initState() {
     super.initState();
     _retry = PerTaskRetryPolicy();
+    _voiceCmd = VoiceCommandController(
+      VoiceCommandHandlers(
+        onRepeat: _onVoiceTts,
+        onReadAloud: _onVoiceTts,
+        onSkip: _voiceSkipTask,
+        onTranscript: _handleVoiceTranscript,
+      ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
   }
 
   @override
   void dispose() {
     unawaited(TtsService.instance.stop());
+    _voiceCmd.shutdown();
     super.dispose();
   }
 
@@ -426,6 +440,143 @@ class _GameShellScreenState extends State<GameShellScreen> {
     );
   }
 
+  void _onVoiceTts() {
+    if (!mounted) return;
+    _scheduleTtsStem();
+  }
+
+  Future<void> _voiceSkipTask() async {
+    if (_tasks.isEmpty || _taskIndex >= _tasks.length) return;
+    final task = _tasks[_taskIndex];
+    try {
+      await _session.addAttempt(
+        taskId: task.id,
+        learnerAnswerJson: jsonEncode({'voiceSkip': true}),
+        correct: false,
+        usedHint: _usedHintThisTask,
+        hintSteps: _hintSteps,
+      );
+    } on SessionLimitExceeded {
+      if (mounted) _showGameSnackBar('Time limit reached.');
+      await _finishSession();
+      return;
+    }
+    await _afterAttemptAdapt(task);
+    _analytics.recordAttemptOutcome(
+      taskId: task.id,
+      skillId: task.skillId,
+      correct: false,
+      usedHint: _usedHintThisTask,
+    );
+    if (!mounted) return;
+    _showGameSnackBar('Skipped this task.');
+    await _goNextTask();
+  }
+
+  void _handleVoiceTranscript(String raw) {
+    unawaited(_applyVoiceTranscriptAsync(raw));
+  }
+
+  Future<void> _applyVoiceTranscriptAsync(String raw) async {
+    if (!mounted || _tasks.isEmpty || _taskIndex >= _tasks.length) return;
+    final settings = SettingsScope.of(context);
+    final task = _tasks[_taskIndex];
+    final type = TaskType.tryParse(task.taskType);
+    final w = raw.trim().toLowerCase();
+
+    int? letterIndex(String letter, int n) {
+      final code = letter.codeUnitAt(0) - 97;
+      if (code < 0 || code >= n) return null;
+      return code;
+    }
+
+    switch (type) {
+      case TaskType.cloze:
+        final payload = ClozePayload.tryParseJsonString(task.payloadJson);
+        if (payload == null) return;
+        final m = RegExp(r'\b([abcd])\b', caseSensitive: false).firstMatch(w);
+        if (m != null) {
+          final idx = letterIndex(m.group(1)!, payload.options.length);
+          if (idx != null) {
+            setState(() => _selectedChoice = payload.options[idx]);
+            return;
+          }
+        }
+        for (final o in payload.options) {
+          final n = RuleBasedEvaluator.normalizeAnswerToken(o);
+          if (n.isNotEmpty && (w == n || w.contains(n))) {
+            setState(() => _selectedChoice = o);
+            return;
+          }
+        }
+        if (settings.normaliseMixedLanguageAnswers) {
+          final canon = await AnswerNormalisationService.tryCanonicalEn(
+            taskPayloadJson: task.payloadJson,
+            learnerText: raw,
+          );
+          if (!mounted || canon == null) return;
+          final chip = AnswerNormalisationService.matchingClozeOption(
+            payload: payload,
+            canonical: canon,
+          );
+          if (chip != null) {
+            setState(() => _selectedChoice = chip);
+          }
+        }
+        return;
+      case TaskType.dialogueChoice:
+        final d = DialogueChoicePayload.tryParseJsonString(task.payloadJson);
+        if (d == null) return;
+        final m = RegExp(r'\b([abcd])\b', caseSensitive: false).firstMatch(w);
+        if (m != null) {
+          final idx = letterIndex(m.group(1)!, d.options.length);
+          if (idx != null) {
+            setState(() => _dialogueIndex = idx);
+            return;
+          }
+        }
+        for (var i = 0; i < d.options.length; i++) {
+          final t = RuleBasedEvaluator.normalizeAnswerToken(d.options[i].text);
+          if (t.isNotEmpty && (w == t || w.contains(t))) {
+            setState(() => _dialogueIndex = i);
+            return;
+          }
+        }
+        return;
+      case TaskType.pronunciationIntonation:
+        final p =
+            PronunciationIntonationPayload.tryParseJsonString(task.payloadJson);
+        if (p == null) return;
+        final m = RegExp(r'\b([abcd])\b', caseSensitive: false).firstMatch(w);
+        if (m != null) {
+          final idx = letterIndex(m.group(1)!, p.options.length);
+          if (idx != null) {
+            setState(() => _pronunciationIndex = idx);
+            return;
+          }
+        }
+        for (var i = 0; i < p.options.length; i++) {
+          final t = RuleBasedEvaluator.normalizeAnswerToken(p.options[i]);
+          if (t.isNotEmpty && (w == t || w.contains(t))) {
+            setState(() => _pronunciationIndex = i);
+            return;
+          }
+        }
+        return;
+      default:
+        return;
+    }
+  }
+
+  Future<void> _toggleVoiceMic() async {
+    if (!mounted) return;
+    if (!SettingsScope.of(context).voiceCommandsEnabled) return;
+    await _voiceCmd.toggleListen();
+    if (mounted) setState(() {});
+  }
+
+  bool _hasNonAscii(String s) => RegExp(r'[^\x00-\x7F]').hasMatch(s);
+
   void _resetTaskUi() {
     unawaited(TtsService.instance.stop());
     _ttsSpeaking = false;
@@ -546,7 +697,36 @@ class _GameShellScreenState extends State<GameShellScreen> {
     if (json == null) return;
 
     final task = _tasks[_taskIndex];
-    final result = _evaluator.evaluate(task, json);
+    var result = _evaluator.evaluate(task, json);
+
+    if (!result.correct) {
+      final settings = SettingsScope.of(context);
+      final type = TaskType.tryParse(task.taskType);
+      if (settings.normaliseMixedLanguageAnswers && type == TaskType.cloze) {
+        final choice = _selectedChoice;
+        if (choice != null && _hasNonAscii(choice)) {
+          final canon = await AnswerNormalisationService.tryCanonicalEn(
+            taskPayloadJson: task.payloadJson,
+            learnerText: choice,
+          );
+          if (canon != null && mounted) {
+            final payload = ClozePayload.tryParseJsonString(task.payloadJson);
+            if (payload != null) {
+              final chip = AnswerNormalisationService.matchingClozeOption(
+                payload: payload,
+                canonical: canon,
+              );
+              if (chip != null) {
+                result = _evaluator.evaluate(
+                  task,
+                  jsonEncode({'choice': chip}),
+                );
+              }
+            }
+          }
+        }
+      }
+    }
 
     _retry.recordSubmission();
     final attemptNo = _retry.submissionCount;
@@ -1416,6 +1596,8 @@ class _GameShellScreenState extends State<GameShellScreen> {
     final progress = total == 0 ? 0.0 : (_taskIndex + 1) / total;
     final cloze = _cloze;
 
+    final settings = SettingsScope.of(context);
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -1424,6 +1606,18 @@ class _GameShellScreenState extends State<GameShellScreen> {
         ),
         title: IkamvaAppBarTitle(title: quest.topic, logoHeight: 30),
         actions: [
+          if (settings.voiceCommandsEnabled && !kIsWeb)
+            ListenableBuilder(
+              listenable: _voiceCmd.listening,
+              builder: (context, _) {
+                final on = _voiceCmd.listening.value;
+                return IconButton(
+                  icon: Icon(on ? Icons.mic : Icons.mic_none),
+                  tooltip: on ? 'Stop listening' : 'Voice command (tap, then speak)',
+                  onPressed: _toggleVoiceMic,
+                );
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.pause_circle_outline),
             tooltip: 'Pause',
