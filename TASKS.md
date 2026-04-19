@@ -294,6 +294,19 @@ Spec §7, §9.
 
 ---
 
+## Phase 17 — Spec parity backlog (post-MVP, excludes §16.2 video & full teacher_web)
+
+**Scope note:** Implements remaining **spec / positioning** gaps that are still code or measurable docs. **Out of scope here:** TASKS **§16.2** (demo video), and a **production Teacher/Parent web app** beyond the existing contract + learner outbox (see [teacher_web/README.md](teacher_web/README.md)).
+
+- [ ] **17.1** **README benchmark table:** capture real numbers per root README procedure (device model, OS, commit, cold start, model ready, first-token / full completion, queue fill); link or paste evidence for writeup. **(P1)**
+- [ ] **17.2** **Streaming output ([spec.md](spec.md) §7.3):** implement [StreamingLlmCapability](learner_app/lib/llm/streaming_llm_capability.dart) on the chosen backend; consume via [LlmService.tryOpenGenerateStream](learner_app/lib/llm/llm_service.dart); add UI hook (e.g. debug panel or hint “typing” line) with **fallback** to batch [generate](learner_app/lib/llm/llm_service.dart). **(P1)**
+- [ ] **17.3** **FFI / `libllama` ([spec.md](spec.md) §3.2):** follow [native/README.md — FFI migration checklist](native/README.md); ship one ABI first; gate with `--dart-define` or runtime flag; keep subprocess path for CI. **(P1)**
+- [ ] **17.4** **Open decisions log:** close “Drift vs raw sqflite” and “Desktop target for judges” rows once the team locks choices. **(P2)**
+
+**Acceptance:** README table no longer all TBD on at least one reference device; streaming either works in debug or is explicitly deferred with issue link; FFI doc checklist reflects what was built or consciously skipped for the submission.
+
+---
+
 ## Dependency graph (high level)
 
 - **0 → 1 → 2 → 3 → 4 → 10:** Foundation through playable static tasks and game UI.
@@ -306,6 +319,7 @@ Spec §7, §9.
 - **13 (Teacher/Parent in-app)** depends on **2**, **11**.
 - **14 (web / sync)** depends on **11** and **2** (outbox); can be last.
 - **15–16** run alongside; **16** assumes **10** and preferably **13** or **14**.
+- **17** (spec parity) can follow **6**/**8**; **17.2** streaming depends on a backend that can emit partials; **17.3** FFI replaces or parallels **6** subprocess.
 
 
 ---
@@ -329,9 +343,9 @@ Defer: dialogue game, web dashboard, voice commands, cloud sync.
 |----------|---------|--------|------|
 | FFI vs subprocess | dart:ffi / CLI / platform channel | Subprocess `llama-cli` first (stub when paths unset); FFI later | 2026-04-17 |
 | State management | Riverpod / Bloc / Provider | Inherited `DatabaseScope` + `SettingsScope` + `SettingsStore` listenable | 2026-04-17 |
-| Drift vs raw sqflite | | | |
-| Desktop target for judges | macOS / Windows / neither | | |
+| Drift vs raw sqflite | Drift / raw sqflite | **Drift** (see `learner_app/` + migrations) | 2026-04-19 |
+| Desktop target for judges | macOS / Windows / neither | **macOS** (toolchain + entitlements in repo; Windows optional) | 2026-04-19 |
 
 ---
 
-*Last updated: aligned with spec.md, writeup.md, design.md. Edit this file as scope changes.*
+*Last updated: Phase 17 backlog for spec parity (excludes §16.2 video, excludes full teacher_web app).*

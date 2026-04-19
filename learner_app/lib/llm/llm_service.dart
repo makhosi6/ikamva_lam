@@ -5,6 +5,7 @@ import 'llm_engine.dart';
 import 'llm_generate_request.dart';
 import 'llm_limits.dart';
 import 'process_llm_engine.dart';
+import 'streaming_llm_capability.dart';
 import 'stub_llm_engine.dart';
 
 /// App-wide access to on-device LLM (TASKS §6.4–6.8).
@@ -49,6 +50,35 @@ class LlmService {
     final engine = _engine ??= _createEngine();
     await engine.ensureLoaded();
     return engine.generate(resolved);
+  }
+
+  /// Streaming path for [spec.md](../../../spec.md) §7.3 when the active engine
+  /// implements [StreamingLlmCapability]. Otherwise returns `null` — use [generate].
+  ///
+  /// Phase 17 (TASKS): wire a real implementation before surfacing streamed text in UI.
+  Future<Stream<String>?> tryOpenGenerateStream(LlmGenerateRequest request) async {
+    _throwIfDisposed();
+    final lowRam = _settings?.lowRamProfile ?? false;
+    final ctx = LlmLimits.clampContext(
+      request.contextSize ?? 0,
+      lowRamProfile: lowRam,
+    );
+    final maxNew = LlmLimits.clampMaxNewTokens(
+      request.maxTokens ?? LlmLimits.defaultMaxNewTokens,
+    );
+    final resolved = LlmGenerateRequest(
+      prompt: request.prompt,
+      maxTokens: maxNew,
+      stopSequences: request.stopSequences,
+      contextSize: ctx,
+    );
+
+    final engine = _engine ??= _createEngine();
+    await engine.ensureLoaded();
+    if (engine is StreamingLlmCapability) {
+      return (engine as StreamingLlmCapability).generateChunkStream(resolved);
+    }
+    return null;
   }
 
   LlmEngine _createEngine() {

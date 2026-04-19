@@ -32,6 +32,8 @@ Fill this table on real hardware after profiling. Stub LLM timings are not repre
 | First-token latency (one cloze prompt) | TBD | TBD |
 | Avg. task generation (queue fill) | TBD | TBD |
 
+**How to capture (TASKS Phase 17.1):** (1) Note device model, OS version, RAM, and Git commit. (2) Cold start: time from app icon tap until Welcome or Hub is interactive. (3) Model ready: first successful `generate` after `IKAMVA_GGUF` + CLI resolved (or in-app “model ready” if you add UI). (4) First-token: one representative `TASK: generate_cloze` prompt; stopwatch from invoke to first visible character if streaming is enabled, else full completion. (5) Queue fill: average wall time for `TaskQueueService` top-up of *N* items (pick N in app logs or debug panel). Paste numbers into this table and keep a copy for [writeup.md](writeup.md).
+
 **Battery / thermal (TASKS §15.4):** run a continuous 15-minute practice session on a physical device; note % battery drop and subjective warmth in your writeup. No simulator substitute.
 
 ## Deploy demo (TASKS §14.4)

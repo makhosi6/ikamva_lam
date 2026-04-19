@@ -68,3 +68,18 @@ JSON-only prompts should still be post-processed (see `LlmOutputFilters` in Dart
 - **`IKAMVA_USE_STUB_LLM=1`**: force stub engine (tests / CI).
 
 When the CLI or model path is missing, the app uses **`StubLlmEngine`** so `flutter test` and CI never require native binaries.
+
+## FFI migration checklist (TASKS Phase 17, [spec.md](../spec.md) §3.2)
+
+Use this when moving from **subprocess `llama-cli`** to **`dart:ffi` + `libllama`** (or a single shared `llama` library). Excludes **full Teacher/Parent web** and **demo video** — see [TASKS.md](../TASKS.md) Phase 17 scope note.
+
+1. **Build matrix** — Choose first ABI (e.g. Android `arm64-v8a` or macOS `arm64`). Document NDK / Xcode min versions in root README.
+2. **CMake / static or shared lib** — Produce `libllama` (or project-named `.so` / `.dylib`) from pinned `native/LLAMA_CPP_REF`; match flags to current CLI (`-c`, `-n`, no chat).
+3. **Dart FFI bindings** — Minimal surface: `load_model`, `decode`, optional `abort`; thread inference on a **background isolate** (same rule as TASKS §6.7).
+4. **`LlmEngine` implementation** — New class (e.g. `FfiLlmEngine`) implementing `generate`; keep `ProcessLlmEngine` behind a `--dart-define` or runtime flag for A/B and CI fallback.
+5. **`StreamingLlmCapability`** — Expose a `Stream<String>` from native partial callbacks when spec §7.3 UI is ready (`LlmService.tryOpenGenerateStream` in Dart).
+6. **Context reuse** — Single long-lived context per model load (TASKS §6.8); `dispose` tears down native handles.
+7. **Packaging** — iOS: embed signed `.framework` / `.xcframework`; Android: `jniLibs`; strip debug symbols for release size.
+8. **Smoke** — Extend or duplicate `native/scripts/llama_cli_smoke.sh` logic against the FFI path from a tiny Dart integration test or `flutter test` with a local `.so` path (optional CI skip).
+
+Until FFI lands, the subprocess path remains the **supported** default for demos and CI.

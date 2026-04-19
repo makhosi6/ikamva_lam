@@ -19,4 +19,15 @@ void main() {
     expect(out, contains('"stub":true'));
     expect(out, contains('hello'));
   });
+
+  test('tryOpenGenerateStream is null until an engine implements StreamingLlmCapability', () async {
+    final settings = SettingsStore();
+    await settings.load();
+    LlmService.instance.invalidateCachedEngine();
+    await LlmService.instance.configure(settings);
+    final stream = await LlmService.instance.tryOpenGenerateStream(
+      const LlmGenerateRequest(prompt: 'hello'),
+    );
+    expect(stream, isNull);
+  });
 }
