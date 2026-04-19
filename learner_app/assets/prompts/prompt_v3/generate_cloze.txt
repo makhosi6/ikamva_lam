@@ -14,4 +14,13 @@ Schema (use ___ as the single blank in sentence):
   "options": ["string", "string", "string"]
 }
 
+Rules (strict):
+- The sentence must contain the substring ___ exactly once (one gap only).
+- Exactly three options, all different, and the correct answer must be one of them.
+- Only ONE option may be objectively correct for that exact sentence: the stem must
+  force grammar (e.g. subject–verb agreement, tense, article + noun class) or a
+  unique collocation / fact so that the other options are clearly wrong in meaning
+  or grammar—not merely “unusual” or creative. Do not write stems where another
+  option could still make a plausible English sentence about the same topic.
+
 Options must be exactly three strings including the correct answer; no duplicates.

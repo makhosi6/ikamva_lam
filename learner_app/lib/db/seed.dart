@@ -54,11 +54,12 @@ const List<String> kDevSeedFallbackTemplateTaskIds = [
   kSeedTaskD3,
 ];
 
-/// Sample cloze payload (Phase 3 will add typed models + validation).
+/// Sample cloze payloads: each stem is written so grammar, collocation, or a
+/// fixed expression leaves only one plausible option (see validators + prompts).
 const String kSeedClozePayloadJson = '{'
-    '"sentence":"I like to ___ fruit.",'
-    '"answer":"eat",'
-    '"options":["eat","eats","eating","ate"]'
+    '"sentence":"We always ___ our hands before we eat.",'
+    '"answer":"wash",'
+    '"options":["wash","washes","washed","washing"]'
     '}';
 
 const String kSeedCloze2PayloadJson = '{'
@@ -68,13 +69,13 @@ const String kSeedCloze2PayloadJson = '{'
     '}';
 
 const String kSeedCloze3PayloadJson = '{'
-    '"sentence":"This is a small red ___ on the plate.",'
+    '"sentence":"An ___ a day keeps the doctor away.",'
     '"answer":"apple",'
-    '"options":["apple","spoon","fork","cup"]'
+    '"options":["apple","orange","egg","pill"]'
     '}';
 
 const String kSeedClozeD2aPayloadJson = '{'
-    '"sentence":"They ___ rice for dinner.",'
+    '"sentence":"Every Friday they ___ rice for dinner.",'
     '"answer":"cook",'
     '"options":["cook","cooks","cooking","cooked"]'
     '}';
@@ -86,9 +87,9 @@ const String kSeedClozeD2bPayloadJson = '{'
     '}';
 
 const String kSeedClozeD3PayloadJson = '{'
-    '"sentence":"We need ___ bread for our big picnic tomorrow.",'
-    '"answer":"extra",'
-    '"options":["extra","old","dry","plain"]'
+    '"sentence":"You eat soup with a round ___ .",'
+    '"answer":"spoon",'
+    '"options":["spoon","knife","fork","plate"]'
     '}';
 
 const String kSeedReorderPayloadJson =
@@ -129,7 +130,7 @@ const String _schoolClozeB = '{'
     '}';
 
 const String _schoolClozeC = '{'
-    '"sentence":"The ___ writes new words on the board.",'
+    '"sentence":"Our ___ writes new words on the board.",'
     '"answer":"teacher",'
     '"options":["teacher","desk","eraser","clock"]'
     '}';
@@ -160,9 +161,9 @@ const String _schoolPronun = r'''{"question":"Which line stresses the word schoo
 // --- Family topic -----------------------------------------------------------
 
 const String _familyClozeA = '{'
-    '"sentence":"We eat ___ at home.",'
+    '"sentence":"At seven pm we eat ___ at home.",'
     '"answer":"dinner",'
-    '"options":["dinner","sleep","run","swim"]'
+    '"options":["dinner","breakfast","lunch","math"]'
     '}';
 
 const String _familyClozeB = '{'
@@ -215,7 +216,7 @@ const String _travelClozeB = '{'
     '}';
 
 const String _travelClozeC = '{'
-    '"sentence":"Our train is ___ by ten minutes today.",'
+    '"sentence":"Our train is ten minutes ___ behind schedule today.",'
     '"answer":"late",'
     '"options":["late","noisy","new","full"]'
     '}';
@@ -246,7 +247,7 @@ const String _travelPronun = r'''{"question":"Which line stresses the word ticke
 // --- Weather topic ----------------------------------------------------------
 
 const String _weatherClozeA = '{'
-    '"sentence":"Today is hot and ___ .",'
+    '"sentence":"Today is hot and ___ with no clouds at all.",'
     '"answer":"sunny",'
     '"options":["sunny","metal","quiet","empty"]'
     '}';
@@ -258,7 +259,7 @@ const String _weatherClozeB = '{'
     '}';
 
 const String _weatherClozeC = '{'
-    '"sentence":"After the rain the sky looks ___ .",'
+    '"sentence":"When it rains the sky is usually flat and ___ .",'
     '"answer":"grey",'
     '"options":["grey","square","metal","hungry"]'
     '}';
@@ -301,7 +302,7 @@ const String _animalsClozeB = '{'
     '}';
 
 const String _animalsClozeC = '{'
-    '"sentence":"We see ___ at the zoo.",'
+    '"sentence":"At the zoo we see many wild ___ .",'
     '"answer":"animals",'
     '"options":["animals","cars","chairs","phones"]'
     '}';
@@ -338,7 +339,7 @@ const String _shoppingClozeA = '{'
     '}';
 
 const String _shoppingClozeB = '{'
-    '"sentence":"This ___ is too big.",'
+    '"sentence":"This shoe ___ is too big for my foot.",'
     '"answer":"size",'
     '"options":["size","sky","week","cloud"]'
     '}';
@@ -473,7 +474,7 @@ const String _musicClozeB = '{'
     '}';
 
 const String _musicClozeC = '{'
-    '"sentence":"She plays the ___ .",'
+    '"sentence":"She plays the ___ with black and white keys.",'
     '"answer":"piano",'
     '"options":["piano","table","grass","wall"]'
     '}';

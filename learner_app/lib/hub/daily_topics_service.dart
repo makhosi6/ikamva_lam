@@ -22,8 +22,8 @@ class HubTopicOffer {
 /// [ChildFriendlyContentGate] on every string. Cached per calendar day.
 abstract final class DailyTopicsService {
   /// Bump when topic policy changes (invalidates prefs cache).
-  static const _prefsKey = 'hub_daily_topics_v2';
-  static const _topicCount = 4;
+  static const _prefsKey = 'hub_daily_topics_v3';
+  static const _topicCount = 8;
 
   /// Dev-only fallback when LLM unavailable (see [LearnerContentPolicy.allowDevSeed]).
   static const _fallbackPool = <String>[
@@ -115,7 +115,7 @@ abstract final class DailyTopicsService {
   }
 
   /// Production: only **AI** topics that pass the child-friendly gate (may be
-  /// fewer than four). Dev/profile with [LearnerContentPolicy.allowDevSeed]:
+  /// fewer than [_topicCount]). Dev/profile with [LearnerContentPolicy.allowDevSeed]:
   /// may pad from a small curated pool if the model returns nothing usable.
   static Future<List<String>> _generateTopics(String dayKey) async {
     final accumulated = <String>[];
@@ -167,15 +167,16 @@ abstract final class DailyTopicsService {
   static Future<List<String>?> _tryLlmTopics() async {
     try {
       const prompt =
-          'Return only a JSON array of exactly 4 different strings. '
+          'Return only a JSON array of exactly 8 different strings. '
           'Each string is one short English-learning **topic title** for children '
           'ages about 8–14 in a South African classroom (wholesome, no romance, '
           'no violence, no drugs, no politics, no religion debates, no brands, '
           'no URLs). Use lowercase letters and single spaces only, max 5 words '
-          'per string. Example shape: ["food","travel","family","school"]. '
+          'per string. Example shape: '
+          '["food","travel","family","school","weather","music","sports","home"]. '
           'No markdown, no commentary, no extra keys.';
       final raw = await LlmService.instance.generate(
-        LlmGenerateRequest(prompt: prompt, maxTokens: 120),
+        LlmGenerateRequest(prompt: prompt, maxTokens: 220),
       );
       final slice = _extractJsonArray(raw) ?? raw.trim();
       final decoded = jsonDecode(slice);

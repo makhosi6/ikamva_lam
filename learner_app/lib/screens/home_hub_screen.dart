@@ -2,8 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/quest_repository.dart';
+import '../db/app_database.dart';
+import '../db/seed.dart';
 import '../hub/daily_topics_service.dart';
 import '../hub/hub_daily_topic_progress.dart';
+import '../state/database_scope.dart';
 import '../state/game_pause_store.dart';
 import '../theme/ikamva_colors.dart';
 import '../widgets/ikamva_app_bar_title.dart';
@@ -16,10 +20,19 @@ const double _hubMaxContentWidth = 560;
 const double _carouselMinHeightForTwoUp = 296;
 
 class _HubPayload {
-  const _HubPayload(this.offers, this.done);
+  const _HubPayload(
+    this.offers,
+    this.done, {
+    required this.questLevel,
+    required this.questMaxTasks,
+  });
 
   final List<HubTopicOffer> offers;
   final Set<String> done;
+  /// CEFR-style level from the template quest used for hub sessions.
+  final String questLevel;
+  /// Max task slots per hub session (same cap as the template quest).
+  final int questMaxTasks;
 }
 
 class HomeHubScreen extends StatefulWidget {
@@ -31,7 +44,7 @@ class HomeHubScreen extends StatefulWidget {
 
 class _HomeHubScreenState extends State<HomeHubScreen> {
   late final Future<GamePauseSnapshot?> _pauseFuture = GamePauseStore.load();
-  late Future<_HubPayload> _hubPayload;
+  Future<_HubPayload>? _hubPayload;
   late final PageController _pageController;
 
   int _pageIndex = 0;
@@ -46,7 +59,12 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 1);
-    _hubPayload = _fetchHub();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _hubPayload ??= _fetchHub(DatabaseScope.of(context));
   }
 
   @override
@@ -55,10 +73,18 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
     super.dispose();
   }
 
-  Future<_HubPayload> _fetchHub() async {
+  Future<_HubPayload> _fetchHub(IkamvaDatabase db) async {
     final offers = await DailyTopicsService.loadOffersForToday();
     final done = await HubDailyTopicProgress.completedForDay(_todayKey);
-    return _HubPayload(offers, done);
+    final template = await QuestRepository(db).getById(kSeedQuestId);
+    final level = (template?.level ?? 'A1').trim();
+    final maxTasks = template?.maxTasks ?? 24;
+    return _HubPayload(
+      offers,
+      done,
+      questLevel: level.isEmpty ? 'A1' : level,
+      questMaxTasks: maxTasks < 1 ? 24 : maxTasks,
+    );
   }
 
   Future<void> _openTopic(HubTopicOffer offer) async {
@@ -67,7 +93,7 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
     await context.push('/game?$q');
     if (!mounted) return;
     setState(() {
-      _hubPayload = _fetchHub();
+      _hubPayload = _fetchHub(DatabaseScope.of(context));
     });
   }
 
@@ -97,6 +123,8 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
     required IkamvaColors ik,
     required HubTopicOffer offer,
     required bool doneToday,
+    required String questLevel,
+    required int questMaxTasks,
   }) {
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -157,7 +185,10 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text('A1', style: theme.textTheme.bodySmall),
+                            Text(
+                              questLevel,
+                              style: theme.textTheme.bodySmall,
+                            ),
                           ],
                         ),
                       ],
@@ -167,8 +198,10 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Short games — about 3 minutes.',
+                          'About $questMaxTasks questions / games.(est 10min playtime)',
                           style: theme.textTheme.bodyMedium,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                         const SizedBox(height: 8),
                         FilledButton(
@@ -253,7 +286,8 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
               child: FutureBuilder<_HubPayload>(
                 future: _hubPayload,
                 builder: (context, snap) {
-                  if (snap.connectionState == ConnectionState.waiting) {
+                  if (_hubPayload == null ||
+                      snap.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snap.hasError ||
@@ -430,6 +464,12 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                                                                         offers[idx]
                                                                             .topic,
                                                                       ),
+                                                                  questLevel:
+                                                                      payload
+                                                                          .questLevel,
+                                                                  questMaxTasks:
+                                                                      payload
+                                                                          .questMaxTasks,
                                                                 ),
                                                               ),
                                                             ),

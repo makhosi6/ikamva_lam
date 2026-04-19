@@ -1,20 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ikamva_lam/db/seed.dart';
 import 'package:ikamva_lam/domain/tasks/cloze_payload.dart';
 
 void main() {
-  const validJson = '{'
-      '"sentence":"I like to ___ fruit.",'
-      '"answer":"eat",'
-      '"options":["eat","eats","eating","ate"]'
-      '}';
-
   group('ClozePayload', () {
     test('tryParseJsonString accepts seed-shaped payload', () {
-      final p = ClozePayload.tryParseJsonString(validJson);
+      final p = ClozePayload.tryParseJsonString(kSeedClozePayloadJson);
       expect(p, isNotNull);
-      expect(p!.sentence, 'I like to ___ fruit.');
-      expect(p.answer, 'eat');
-      expect(p.options, ['eat', 'eats', 'eating', 'ate']);
+      expect(p!.sentence, 'We always ___ our hands before we eat.');
+      expect(p.answer, 'wash');
+      expect(p.options, ['wash', 'washes', 'washed', 'washing']);
       expect(p.hintEn, isNull);
     });
 

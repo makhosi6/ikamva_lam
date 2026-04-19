@@ -1383,7 +1383,7 @@ class _GameShellScreenState extends State<GameShellScreen> {
         }
         return 'Cloze';
       case TaskType.readAloud:
-        return 'Read aloud';
+        return '';
       case TaskType.pronunciationIntonation:
         return 'Pronunciation';
       case null:

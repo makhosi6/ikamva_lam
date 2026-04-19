@@ -26,6 +26,12 @@ abstract final class TaskPayloadValidators {
     if (!answerInOptions) {
       issues.add('cloze: answer must appear in options list');
     }
+    const blank = '___';
+    if (!p.sentence.contains(blank)) {
+      issues.add('cloze: sentence must include exactly one "$blank" blank');
+    } else if (p.sentence.indexOf(blank) != p.sentence.lastIndexOf(blank)) {
+      issues.add('cloze: sentence must include exactly one "$blank" blank');
+    }
     final maxSent = CefrTaskLimits.maxWordsClozeSentence(questLevel);
     final n = countWords(p.sentence);
     if (n > maxSent) {

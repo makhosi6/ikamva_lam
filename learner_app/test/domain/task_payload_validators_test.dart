@@ -23,7 +23,7 @@ void main() {
 
     test('rejects duplicate options', () {
       final p = ClozePayload.fromJson({
-        'sentence': 'Pick one.',
+        'sentence': 'We ___ here now.',
         'answer': 'eat',
         'options': ['eat', 'Eat', 'runs', 'jumps'],
       });
@@ -45,9 +45,34 @@ void main() {
       );
     });
 
+    test('rejects sentence without a ___ blank', () {
+      final p = ClozePayload.fromJson({
+        'sentence': 'I like apples.',
+        'answer': 'like',
+        'options': ['like', 'hate', 'see', 'want'],
+      });
+      expect(
+        TaskPayloadValidators.validateCloze(p, 'A1').single,
+        contains('exactly one'),
+      );
+    });
+
+    test('rejects sentence with two ___ blanks', () {
+      final p = ClozePayload.fromJson({
+        'sentence': 'I ___ apples and she ___ pears.',
+        'answer': 'like',
+        'options': ['like', 'hate', 'see', 'want'],
+      });
+      expect(
+        TaskPayloadValidators.validateCloze(p, 'A1').single,
+        contains('exactly one'),
+      );
+    });
+
     test('rejects sentence over A1 word cap', () {
       final p = ClozePayload.fromJson({
-        'sentence': 'one two three four five six seven eight nine ten eleven',
+        'sentence':
+            'one two three four five six seven eight nine ten ___ eleven',
         'answer': 'x',
         'options': ['x', 'y', 'z', 'w'],
       });
