@@ -14,7 +14,7 @@ This document translates [spec.md](spec.md) and [writeup.md](writeup.md) into co
 |--------|-----------------|--------------|--------|
 | **Learner** | Flutter app (tablet / laptop) | Offline-first; sync when available | Multimodal: tap, read, listen, optional voice |
 | **Teacher/Parent** | Web dashboard (optional) + in-app setup on shared or home device | Low bandwidth when syncing | School teacher or parent; sees summaries and insights, not raw chat |
-| **System** | SQLite + llama.cpp + cache | N/A | Rule-based eval first; AI for generation & hints; **learner-facing questions are AI-generated** (cache holds prior model output, not static banks in production); **hub topics are model-generated** in production; **`ChildFriendlyContentGate`** applies rules then a **Gemma JSON sentiment** check on topics, task JSON string leaves, and hint fields before persist/UI |
+| **System** | SQLite + llama.cpp + cache | N/A | Rule-based eval first; AI for generation & hints; **learner-facing questions are AI-generated** (cache holds prior model output, not static banks in production); **hub topics are model-generated** in production; **`ChildFriendlyContentGate`** applies rules then a **Gemma JSON sentiment** check on topics, task JSON string leaves, hint fields, and **Teacher/Parent insight** card text before persist/UI |
 
 ---
 

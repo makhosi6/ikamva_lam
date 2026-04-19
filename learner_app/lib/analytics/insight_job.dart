@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:uuid/uuid.dart';
 
@@ -9,6 +10,7 @@ import '../llm/llm_generate_request.dart';
 import '../llm/llm_output_filters.dart';
 import '../llm/llm_service.dart';
 import '../prompts/prompt_composer.dart';
+import '../safety/child_friendly_content_gate.dart';
 import 'weak_skills_detector.dart';
 
 /// Persists one AI insight card from local aggregates (TASKS §11.3).
@@ -41,10 +43,26 @@ class InsightJob {
       final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw.trim());
       final map = jsonDecode(span);
       if (map is! Map<String, dynamic>) return;
-      final issue = map['issue'] as String? ?? 'Practice focus';
-      final pattern = map['pattern'] as String? ?? 'Mixed errors across skills.';
-      final rec =
-          map['recommendation'] as String? ?? 'Short review games on weak strands.';
+      final issue = _stringField(map, 'issue', 'Practice focus');
+      final pattern = _stringField(map, 'pattern', 'Mixed errors across skills.');
+      final rec = _stringField(
+        map,
+        'recommendation',
+        'Short review games on weak strands.',
+      );
+      final gate = await ChildFriendlyContentGate.evaluateJsonValue({
+        'issue': issue,
+        'pattern': pattern,
+        'recommendation': rec,
+      });
+      if (!gate.ok) {
+        developer.log(
+          'InsightJob: insight text failed child-friendly gate → '
+          '${gate.violations}',
+          name: 'InsightJob',
+        );
+        return;
+      }
       await InsightCardRepository(db).insert(
         InsightCardsCompanion.insert(
           id: 'ins-${_uuid.v4()}',
@@ -58,5 +76,18 @@ class InsightJob {
     } on Object {
       // Offline / stub LLM: skip silently
     }
+  }
+
+  static String _stringField(
+    Map<String, dynamic> map,
+    String key,
+    String fallback,
+  ) {
+    final v = map[key];
+    if (v is String) {
+      final t = v.trim();
+      if (t.isNotEmpty) return t;
+    }
+    return fallback;
   }
 }

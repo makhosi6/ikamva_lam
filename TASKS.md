@@ -10,7 +10,7 @@ Work against this file in order within each phase unless a task notes a dependen
 
 **Content policy:** Learner-facing **questions and task payloads** must be **AI-generated** for uniqueness (including items served from cache that were model-written when cached). See [spec.md §4.1.1](spec.md). Bundled static tasks are **tests / dev UI only**, not the production learner path.
 
-**Topics & safety (spec §4.1.3–4.1.4):** Hub **topic labels** are **model-generated** in production (prefs key `hub_daily_topics_v2`). A **child-friendly gate** (`learner_app/lib/safety/child_friendly_content_gate.dart`) filters topics, task JSON string fields, and hint strings before persist or UI.
+**Topics & safety (spec §4.1.3–4.1.4):** Hub **topic labels** are **model-generated** in production (prefs key `hub_daily_topics_v2`). A **child-friendly gate** (`learner_app/lib/safety/child_friendly_content_gate.dart`) filters topics, task JSON string fields, hint strings, and **Teacher/Parent insight** card text before persist or UI.
 
 ---
 
@@ -179,7 +179,7 @@ Spec §3.3 pre-generation + §8 data flow.
 - [x] **8.4** **Fallback:** if generation fails, dequeue static tasks from bundled pack (offline safety). **(P0)** — *Superseded for product claims by [spec.md §4.1.1](spec.md): production learner sessions must not serve static banks; see **8.6**.*
 - [x] **8.6** **AI-only serving path:** remove or gate **8.4** static dequeue for **release** builds; on failure, **retry generation**, shrink context, or show **“preparing next task”** with backoff—**never** silently substitute workbook items. Keep bundled JSON **for tests / `--dart-define=ALLOW_DEV_SEED`** only. **(P0)** — *Implemented via [LearnerContentPolicy](learner_app/lib/config/learner_content_policy.dart) + DB migration; debug/profile still allow seeds unless `ALLOW_DEV_SEED=false`.*
 - [x] **8.7** **AI hub topics + child-friendly gate:** `DailyTopicsService` uses **model-only** topics in release; prefs bump `hub_daily_topics_v2`; gate rejects unsafe topic strings. **(P0)** — *See [spec.md §4.1.3](spec.md).*
-- [x] **8.8** Run **`ChildFriendlyContentGate`** on all **generated task payloads** before insert; on **Teacher/Parent** quest save validate **topic**; on **AI hint** JSON validate hint fields. Gate = **rules + Gemma JSON sentiment** on consolidated strings (stub in CI). **(P0)** — *See [spec.md §4.1.4](spec.md).*
+- [x] **8.8** Run **`ChildFriendlyContentGate`** on all **generated task payloads** before insert; on **Teacher/Parent** quest save validate **topic**; on **AI hint** JSON validate hint fields; on **InsightJob** output before **InsightCard** insert. Gate = **rules + Gemma JSON sentiment** on consolidated strings (stub in CI). **(P0)** — *See [spec.md §4.1.4](spec.md).*
 - [x] **8.5** Expose **debug panel** (dev only): cache size, last error, tokens/sec, model path. **(P1)**
 
 **Acceptance:** Airplane mode: new session still receives **AI-cached** tasks without blocking UI; **8.6** satisfied in release configuration (no static-bank dequeue for learners).
@@ -222,7 +222,7 @@ Spec §6.1–6.2.
 
 - [x] **11.1** **WeakSkillsDetector**: aggregate attempts by skill; flag below threshold accuracy over window. **(P1)**
 - [x] **11.2** **ErrorClustering** (MVP): bucket by `grammar_tense`, `subject_verb`, etc., using simple rule tags from evaluator (not ML). **(P1)**
-- [x] **11.3** **InsightJob**: when session ends or on Teacher/Parent screen open, run insight prompt with aggregates; store **InsightCard** records locally. **(P1)**
+- [x] **11.3** **InsightJob**: when session ends or on Teacher/Parent screen open, run insight prompt with aggregates; run **`ChildFriendlyContentGate`** on parsed insight strings; store **InsightCard** records locally only if the gate passes. **(P1)**
 - [x] **11.4** **Export summary JSON** for sync (not raw attempts): totals + top3 weaknesses + last session stats. **(P1)**
 
 **Acceptance:** After ~20 attempts, dashboard / Teacher/Parent view shows plausible weakness ordering matching injected test data.
