@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/learner_content_policy.dart';
 import '../llm/llm_generate_request.dart';
 import '../llm/llm_service.dart';
+import '../safety/child_friendly_content_gate.dart';
 import 'daily_quest_ids.dart';
 
 /// One row on the hub: canonical [topic] for DB / routes, [label] for display.
@@ -15,12 +18,14 @@ class HubTopicOffer {
   final String label;
 }
 
-/// Picks a small set of practice topics per calendar day (LLM when available,
-/// deterministic fallback otherwise). Cached in [SharedPreferences] per day.
+/// Picks practice topics for the hub: **model-generated** in production, with
+/// [ChildFriendlyContentGate] on every string. Cached per calendar day.
 abstract final class DailyTopicsService {
-  static const _prefsKey = 'hub_daily_topics_v1';
+  /// Bump when topic policy changes (invalidates prefs cache).
+  static const _prefsKey = 'hub_daily_topics_v2';
   static const _topicCount = 4;
 
+  /// Dev-only fallback when LLM unavailable (see [LearnerContentPolicy.allowDevSeed]).
   static const _fallbackPool = <String>[
     'food',
     'family',
@@ -61,14 +66,24 @@ abstract final class DailyTopicsService {
         final map = jsonDecode(cached) as Map<String, dynamic>;
         if (map['day'] == dayKey && map['topics'] is List) {
           final list = (map['topics'] as List).cast<String>();
-          return _asOffers(_dedupeTopics(list.map(DailyQuestIds.normalizeTopicToken)));
+          final normalized =
+              _dedupeTopics(list.map(DailyQuestIds.normalizeTopicToken));
+          final safe = <String>[];
+          for (final t in normalized) {
+            if (ChildFriendlyContentGate.evaluateTopicPhrase(t).ok) {
+              safe.add(t);
+            }
+          }
+          if (safe.isNotEmpty) {
+            return _asOffers(safe);
+          }
         }
       } on Object {
         // ignore bad cache
       }
     }
 
-    final topics = await _generateOrFallback(dayKey);
+    final topics = await _generateTopics(dayKey);
     await p.setString(
       _prefsKey,
       jsonEncode({'day': dayKey, 'topics': topics}),
@@ -92,22 +107,49 @@ abstract final class DailyTopicsService {
         .join(' ');
   }
 
-  static Future<List<String>> _generateOrFallback(String dayKey) async {
-    final fromLlm = await _tryLlmTopics();
-    if (fromLlm != null && fromLlm.length >= _topicCount) {
-      return fromLlm.take(_topicCount).toList();
+  /// Production: only **AI** topics that pass the child-friendly gate (may be
+  /// fewer than four). Dev/profile with [LearnerContentPolicy.allowDevSeed]:
+  /// may pad from a small curated pool if the model returns nothing usable.
+  static Future<List<String>> _generateTopics(String dayKey) async {
+    final accumulated = <String>[];
+    final seen = <String>{};
+    for (var attempt = 0;
+        attempt < 4 && accumulated.length < _topicCount;
+        attempt++) {
+      final batch = await _tryLlmTopics();
+      if (batch == null) continue;
+      for (final t in batch) {
+        final verdict = ChildFriendlyContentGate.evaluateTopicPhrase(t);
+        if (!verdict.ok) {
+          developer.log(
+            'DailyTopicsService: rejected topic "$t" → ${verdict.violations}',
+            name: 'DailyTopicsService',
+          );
+          continue;
+        }
+        if (seen.add(t)) accumulated.add(t);
+        if (accumulated.length >= _topicCount) break;
+      }
     }
-    final seeds = fromLlm ?? const <String>[];
-    return _fallbackForDay(dayKey, seeds: seeds);
+    if (accumulated.length >= _topicCount) {
+      return accumulated.take(_topicCount).toList();
+    }
+    if (LearnerContentPolicy.allowDevSeed) {
+      return _fallbackForDay(dayKey, seeds: accumulated);
+    }
+    return accumulated;
   }
 
   static Future<List<String>?> _tryLlmTopics() async {
     try {
       const prompt =
           'Return only a JSON array of exactly 4 different strings. '
-          'Each string is a short English-learning topic for A1 adult learners '
-          '(one or two words, lowercase letters only, no punctuation). '
-          'Example: ["food","travel","family","work"]. No markdown, no extra text.';
+          'Each string is one short English-learning **topic title** for children '
+          'ages about 8–14 in a South African classroom (wholesome, no romance, '
+          'no violence, no drugs, no politics, no religion debates, no brands, '
+          'no URLs). Use lowercase letters and single spaces only, max 5 words '
+          'per string. Example shape: ["food","travel","family","school"]. '
+          'No markdown, no commentary, no extra keys.';
       final raw = await LlmService.instance.generate(
         LlmGenerateRequest(prompt: prompt, maxTokens: 120),
       );
@@ -165,7 +207,10 @@ abstract final class DailyTopicsService {
       ..shuffle(Random(dayKey.hashCode));
     for (final p in pool) {
       if (out.length >= _topicCount) break;
-      if (!out.contains(p)) out.add(p);
+      if (!out.contains(p) &&
+          ChildFriendlyContentGate.evaluateTopicPhrase(p).ok) {
+        out.add(p);
+      }
     }
     var i = 0;
     while (out.length < _topicCount) {

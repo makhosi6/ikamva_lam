@@ -6,6 +6,7 @@ import '../llm/llm_generate_request.dart';
 import '../llm/llm_service.dart';
 import '../prompts/prompt_composer.dart';
 import '../state/settings_scope.dart';
+import '../safety/child_friendly_content_gate.dart';
 import '../widgets/multilingual_hint_sheet.dart';
 import 'ai_multilingual_hint.dart';
 
@@ -28,6 +29,27 @@ class AiHintCoordinator {
     );
     final parsed = AiMultilingualHint.tryParse(raw);
     if (!context.mounted) return;
+    if (parsed != null) {
+      final gate = ChildFriendlyContentGate.evaluateJsonValue({
+        'hint_en': parsed.hintEn,
+        if (parsed.hintXh != null) 'hint_xh': parsed.hintXh,
+        if (parsed.hintZu != null) 'hint_zu': parsed.hintZu,
+        if (parsed.hintAf != null) 'hint_af': parsed.hintAf,
+      });
+      if (!gate.ok) {
+        final bottom = MediaQuery.paddingOf(context).bottom + 76;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.fromLTRB(16, 0, 16, bottom),
+            content: const Text(
+              'That hint did not pass safety checks. Try again later.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
     if (parsed == null) {
       final bottom = MediaQuery.paddingOf(context).bottom + 76;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/quest_repository.dart';
 import '../../db/app_database.dart';
+import '../../safety/child_friendly_content_gate.dart';
 import '../../state/database_scope.dart';
 import '../../widgets/constrained_content.dart';
 import '../../widgets/ikamva_app_bar_title.dart';
@@ -34,6 +35,19 @@ class _TeacherQuestEditorScreenState extends State<TeacherQuestEditorScreen> {
   }
 
   Future<void> _save() async {
+    final topic = _topic.text.trim().toLowerCase();
+    final topicVerdict = ChildFriendlyContentGate.evaluateTopicPhrase(topic);
+    if (!topicVerdict.ok) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Topic must be short and classroom-safe. (${topicVerdict.violations.join(", ")})',
+          ),
+        ),
+      );
+      return;
+    }
     final db = DatabaseScope.of(context);
     final id = 'quest-${_uuid.v4()}';
     final now = DateTime.now().toUtc();
@@ -41,7 +55,7 @@ class _TeacherQuestEditorScreenState extends State<TeacherQuestEditorScreen> {
     await QuestRepository(db).insert(
       QuestsCompanion.insert(
         id: id,
-        topic: _topic.text.trim().toLowerCase(),
+        topic: topic,
         level: _level.text.trim().toUpperCase(),
         maxDifficultyStep: int.tryParse(_maxStep.text.trim()) ?? 3,
         sessionTimeLimitSec: const Value.absent(),

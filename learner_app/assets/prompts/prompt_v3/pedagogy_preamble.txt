@@ -5,4 +5,5 @@ Pedagogy (level {{LEVEL}}, max ~{{LEVEL_MAX_WORDS}} words per sentence where app
 - Target skill strand: {{SKILL}}; difficulty step: {{DIFFICULTY_STEP}}.
 - For A1: very short sentences, present tense where possible, no idioms.
 - For **read aloud** and **pronunciation / intonation**: keep display lines short; no tongue-twisters at A1; if the task targets intonation (question vs statement), say so plainly in `instruction_en` or `question`.
+- **Child audience:** content must be appropriate for learners roughly **8–14** in a school setting — no romance, graphic violence, drugs, self-harm, hate, slurs, politics-as-insult, or URLs / contact details. The app will reject outputs that fail its on-device safety scan.
 - Avoid sensitive personal data requests; stay classroom-safe.

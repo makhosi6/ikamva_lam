@@ -265,7 +265,11 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          'Could not load topics. Try again later.',
+                          snap.hasError
+                              ? 'Could not load topics. Try again later.'
+                              : 'Daily topics are generated on this device. When the '
+                                  'learning model is ready, fresh child-safe themes '
+                                  'will appear here. Try again in a moment, or check Settings.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyLarge,
                         ),

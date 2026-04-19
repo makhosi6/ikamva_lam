@@ -10,6 +10,8 @@ Work against this file in order within each phase unless a task notes a dependen
 
 **Content policy:** Learner-facing **questions and task payloads** must be **AI-generated** for uniqueness (including items served from cache that were model-written when cached). See [spec.md §4.1.1](spec.md). Bundled static tasks are **tests / dev UI only**, not the production learner path.
 
+**Topics & safety (spec §4.1.3–4.1.4):** Hub **topic labels** are **model-generated** in production (prefs key `hub_daily_topics_v2`). A **child-friendly gate** (`learner_app/lib/safety/child_friendly_content_gate.dart`) filters topics, task JSON string fields, and hint strings before persist or UI.
+
 ---
 
 ## Conventions
@@ -161,6 +163,7 @@ Spec §3.3 — **no open chat**; structured tasks only.
 - [x] **7.6** **Insight prompt** (Teacher/Parent-facing): input aggregated error stats → JSON `{ issue, pattern, recommendation }` per spec §6.2. **(P1)**
 - [x] **7.7** Prompt templates `generate_read_aloud`, `generate_pronunciation_intonation` per [spec.md §4.1.2](spec.md): JSON-only output, level/topic/skill slots, **short display lines**, optional `instruction_en` (+ multilingual hint keys if used). **(P0)**
 - [x] **7.8** Pedagogy preamble additions: **no** long tongue-twisters at A1; **explicit** intonation targets where required (question vs statement). **(P1)**
+- [x] **7.9** Pedagogy preamble: **child audience** (~8–14), no romance/graphic content/URLs; reference on-device safety scan (spec §4.1.4). **(P1)**
 
 **Acceptance:** Prompts versioned (`prompt_v3` in DB or file name); changing template doesn’t require code changes beyond loading new asset.
 
@@ -175,6 +178,8 @@ Spec §3.3 pre-generation + §8 data flow.
 - [x] **8.3** **Dedup:** hash sentence stem + answer to avoid near-duplicate tasks in the same session. **(P1)**
 - [x] **8.4** **Fallback:** if generation fails, dequeue static tasks from bundled pack (offline safety). **(P0)** — *Superseded for product claims by [spec.md §4.1.1](spec.md): production learner sessions must not serve static banks; see **8.6**.*
 - [x] **8.6** **AI-only serving path:** remove or gate **8.4** static dequeue for **release** builds; on failure, **retry generation**, shrink context, or show **“preparing next task”** with backoff—**never** silently substitute workbook items. Keep bundled JSON **for tests / `--dart-define=ALLOW_DEV_SEED`** only. **(P0)** — *Implemented via [LearnerContentPolicy](learner_app/lib/config/learner_content_policy.dart) + DB migration; debug/profile still allow seeds unless `ALLOW_DEV_SEED=false`.*
+- [x] **8.7** **AI hub topics + child-friendly gate:** `DailyTopicsService` uses **model-only** topics in release; prefs bump `hub_daily_topics_v2`; gate rejects unsafe topic strings. **(P0)** — *See [spec.md §4.1.3](spec.md).*
+- [x] **8.8** Run **`ChildFriendlyContentGate`** on all **generated task payloads** before insert; on **Teacher/Parent** quest save validate **topic**; on **AI hint** JSON validate hint fields. **(P0)** — *See [spec.md §4.1.4](spec.md).*
 - [x] **8.5** Expose **debug panel** (dev only): cache size, last error, tokens/sec, model path. **(P1)**
 
 **Acceptance:** Airplane mode: new session still receives **AI-cached** tasks without blocking UI; **8.6** satisfied in release configuration (no static-bank dequeue for learners).

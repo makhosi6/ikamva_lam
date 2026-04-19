@@ -40,7 +40,7 @@ llama.cpp Track
     |-- Game Engine
     |-- Local DB (SQLite)
     |-- AI Runtime (llama.cpp + Gemma 4 E2B/E4B)
-    |-- Content Cache + Prompt Templates
+    |-- Content Cache + Prompt Templates + Child-friendly gate (on-device)
     |
 [ Optional Sync Layer ]
     |
@@ -162,6 +162,9 @@ skill_id + difficulty_level
 
 **4.1.2 Oral reading, pronunciation, intonation & read aloud.** The learning mix **must include** task types that explicitly support **reading on screen**, **correct pronunciation**, **intonation** (statement vs question, emphasis, chunking), and **read aloud** practice (learner speaks while the app listens or self-checks against a reference). These may pair **TTS or recorded reference** clips with **short prompts** (e.g. “Say this like a question”, “Which word is stressed?”, shadowing, repeat-after-model). Prompt templates and validators **must** output structured JSON for these modes (see TASKS Phase 3/7).
 
+**4.1.3 AI-generated practice topics.** **Topic labels** shown on the learner hub (“today’s themes”) **must be produced by the on-device model** in production, then filtered for deduplication, **child-friendly** screening, and policy. A **fixed fallback topic wheel** is **not** a production source; it may exist **only** when dev-seed / offline tooling explicitly allows it (same policy family as §4.1.1; see `LearnerContentPolicy` in the learner app).
+
+**4.1.4 Child-friendly content gate.** All **AI-generated strings** that learners may see — **hub topics**, **task JSON** (every string field in the payload), and **multilingual hint** fields — **must pass** an on-device **child-friendly gate** before SQLite persistence or UI. The gate is **rule-based** (token blocklist, URL/email heuristics, length caps); outputs that fail are **dropped** and generation is retried or skipped. Optional future upgrade: a second lightweight model pass — not required for MVP.
 
 ⸻
 

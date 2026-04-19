@@ -23,6 +23,7 @@ import '../llm/llm_output_filters.dart';
 import '../prompts/prompt_compliance.dart';
 import '../prompts/prompt_composer.dart';
 import '../prompts/prompt_slots.dart';
+import '../safety/child_friendly_content_gate.dart';
 import 'task_content_hash.dart';
 
 /// Pre-fills SQLite with model-generated tasks (TASKS §8.1, §8.6).
@@ -62,6 +63,15 @@ class TaskQueueService {
 
   Future<void> ensureForQuest(Quest quest) async {
     if (quest.topic.isEmpty) return;
+    final topicOk = ChildFriendlyContentGate.evaluateTopicPhrase(quest.topic);
+    if (!topicOk.ok) {
+      lastFillError = 'topic_failed_safety:${topicOk.violations.join(",")}';
+      developer.log(
+        'TaskQueueService: quest topic failed safety — ${topicOk.violations}',
+        name: 'TaskQueueService',
+      );
+      return;
+    }
     try {
       await _fill(quest);
     } on Object catch (e, st) {
@@ -130,6 +140,10 @@ class TaskQueueService {
         return false;
       }
       final payloadJson = jsonEncode(cloze.toJson());
+      if (!_payloadPassesChildSafety(payloadJson)) {
+        await _maybeInsertFallback(quest);
+        return false;
+      }
       final hash = contentHashForClozePayloadJson(payloadJson);
       if (hash != null && await _hashExists(topic, hash)) {
         return false;
@@ -185,6 +199,7 @@ class TaskQueueService {
       final issues = TaskPayloadValidators.validateReadAloud(payload, quest.level);
       if (issues.isNotEmpty) return false;
       final payloadJson = jsonEncode(payload.toJson());
+      if (!_payloadPassesChildSafety(payloadJson)) return false;
       final hash = contentHashForReadAloudPayloadJson(payloadJson);
       if (hash != null && await _hashExists(topic, hash)) return false;
       await _db.into(_db.taskRecords).insert(
@@ -237,6 +252,7 @@ class TaskQueueService {
           TaskPayloadValidators.validatePronunciationIntonation(payload, quest.level);
       if (issues.isNotEmpty) return false;
       final payloadJson = jsonEncode(payload.toJson());
+      if (!_payloadPassesChildSafety(payloadJson)) return false;
       final hash = contentHashForPronunciationPayloadJson(payloadJson);
       if (hash != null && await _hashExists(topic, hash)) return false;
       await _db.into(_db.taskRecords).insert(
@@ -257,6 +273,16 @@ class TaskQueueService {
       lastFillError = '$e';
       return false;
     }
+  }
+
+  bool _payloadPassesChildSafety(String payloadJson) {
+    final v = ChildFriendlyContentGate.evaluateJsonPayloadString(payloadJson);
+    if (v.ok) return true;
+    developer.log(
+      'TaskQueueService: payload failed child-friendly gate → ${v.violations}',
+      name: 'TaskQueueService',
+    );
+    return false;
   }
 
   Future<void> _maybeInsertFallback(Quest quest) async {

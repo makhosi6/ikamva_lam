@@ -14,7 +14,7 @@ This document translates [spec.md](spec.md) and [writeup.md](writeup.md) into co
 |--------|-----------------|--------------|--------|
 | **Learner** | Flutter app (tablet / laptop) | Offline-first; sync when available | Multimodal: tap, read, listen, optional voice |
 | **Teacher/Parent** | Web dashboard (optional) + in-app setup on shared or home device | Low bandwidth when syncing | School teacher or parent; sees summaries and insights, not raw chat |
-| **System** | SQLite + llama.cpp + cache | N/A | Rule-based eval first; AI for generation & hints; **learner-facing questions are AI-generated** (cache holds prior model output, not static banks in production) |
+| **System** | SQLite + llama.cpp + cache | N/A | Rule-based eval first; AI for generation & hints; **learner-facing questions are AI-generated** (cache holds prior model output, not static banks in production); **hub topics are model-generated** in production; **`ChildFriendlyContentGate`** scans topics, task JSON, and hint strings before persist/UI |
 
 ---
 
@@ -52,6 +52,11 @@ flowchart TD
 ```
 
 *Cache entries are pre-generated model outputs; they are not a substitute for fixed offline question packs in production (see [spec.md §4.1.1](spec.md)).*
+
+### 2.2.1 Hub topics & safety (spec §4.1.3–4.1.4)
+
+- **Topics:** the home hub loads a small set of **daily theme strings** from `DailyTopicsService` — **LLM-first**, each string run through **`ChildFriendlyContentGate`** before caching. In **release** builds, if the model never returns enough safe topics, the hub may show **fewer than four** cards or an empty state (no silent fallback to a static word wheel).
+- **Tasks & hints:** every generated **task payload** is scanned before insert; **AI hint** JSON is scanned before the hint sheet opens. Failed rows never reach the learner.
 
 ### 2.3 Core game loop (per task)
 
