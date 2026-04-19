@@ -54,7 +54,7 @@ void main() {
       final q = await repo.getById(kSeedQuestId);
       expect(q, isNotNull);
       expect(q!.topic, 'food');
-      expect(q.maxTasks, 10);
+      expect(q.maxTasks, 24);
     });
 
     test('listActive includes seed quest', () async {
@@ -69,9 +69,10 @@ void main() {
       final repo = TaskRecordRepository(db);
       final tasks = await repo.listByTopic('food');
       expect(tasks, isNotEmpty);
-      expect(tasks.first.id, kSeedTaskId);
-      expect(tasks.first.taskType, TaskType.cloze.storageValue);
-      expect(tasks.first.skillId, SkillId.vocabulary.storageValue);
+      expect(tasks.map((e) => e.id), contains(kSeedTaskId));
+      final cloze = tasks.firstWhere((t) => t.id == kSeedTaskId);
+      expect(cloze.taskType, TaskType.cloze.storageValue);
+      expect(cloze.skillId, SkillId.vocabulary.storageValue);
     });
   });
 

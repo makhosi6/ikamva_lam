@@ -293,15 +293,10 @@ class TaskQueueService {
   }
 
   Future<void> _insertFallback(Quest quest) async {
-    const ids = <String>[
-      kSeedTaskId,
-      kSeedTaskId2,
-      kSeedTaskId3,
-      kSeedTaskD2a,
-      kSeedTaskD2b,
-      kSeedTaskD3,
-    ];
-    final pick = ids[Random().nextInt(ids.length)];
+    final pick =
+        kDevSeedFallbackTemplateTaskIds[Random().nextInt(
+          kDevSeedFallbackTemplateTaskIds.length,
+        )];
     final src = await TaskRecordRepository(_db).getById(pick);
     if (src == null) return;
     final id = 'fb-${_uuid.v4()}';

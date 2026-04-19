@@ -15,5 +15,6 @@ Future<void> main() async {
   final database = IkamvaDatabase(openIkamvaDatabaseFile());
   await ensureDevSeed(database);
   await ensureExtraSeedTaskTypes(database);
+  await ensureMultiTopicQuestSeed(database);
   runApp(IkamvaApp(settings: settings, database: database));
 }

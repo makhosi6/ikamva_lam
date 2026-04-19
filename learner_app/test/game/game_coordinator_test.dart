@@ -14,21 +14,28 @@ void main() {
     test('loadTasksForQuest returns seed task for seed quest topic', () async {
       final db = openMemoryDatabase();
       await ensureDevSeed(db);
+      await ensureMultiTopicQuestSeed(db);
       final quest = await QuestRepository(db).getById(kSeedQuestId);
       expect(quest, isNotNull);
 
       final coord = GameCoordinator(db);
       final tasks = await coord.loadTasksForQuest(quest!);
-      expect(tasks, hasLength(6));
-      expect(tasks.map((t) => t.id).toList(), [
-        kSeedTaskId,
-        kSeedTaskId2,
-        kSeedTaskId3,
-        kSeedTaskD2a,
-        kSeedTaskD2b,
-        kSeedTaskD3,
-      ]);
+      expect(tasks, hasLength(11));
+      final types = tasks.map((t) => TaskType.parse(t.taskType)).toSet();
+      expect(types, TaskType.values.toSet());
       expect(tasks.first.topic, quest.topic);
+      await db.close();
+    });
+
+    test('multi-topic seed quest includes every exercise type', () async {
+      final db = openMemoryDatabase();
+      await ensureDevSeed(db);
+      await ensureMultiTopicQuestSeed(db);
+      final quest = await QuestRepository(db).getById(kSeedQuestSchoolId);
+      expect(quest, isNotNull);
+      final tasks = await GameCoordinator(db).loadTasksForQuest(quest!);
+      final types = tasks.map((t) => TaskType.parse(t.taskType)).toSet();
+      expect(types, TaskType.values.toSet());
       await db.close();
     });
 
@@ -41,18 +48,19 @@ void main() {
         quest,
         maxDifficultyInclusive: 1,
       );
-      expect(easy, hasLength(3));
+      expect(easy, hasLength(8));
       final mid = await coord.loadTasksForQuest(
         quest,
         maxDifficultyInclusive: 2,
       );
-      expect(mid, hasLength(5));
+      expect(mid, hasLength(10));
       await db.close();
     });
 
     test('loadTasksForPractice respects topic and maxTasks', () async {
       final db = openMemoryDatabase();
       await ensureDevSeed(db);
+      await ensureMultiTopicQuestSeed(db);
       final coord = GameCoordinator(db);
       final tasks = await coord.loadTasksForPractice(
         const PracticeTaskConfig(topic: 'food', maxTasks: 1),
