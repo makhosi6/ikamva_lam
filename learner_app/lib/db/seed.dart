@@ -25,6 +25,18 @@ const String kSeedQuestSchoolId = 'seed-quest-school';
 const String kSeedQuestFamilyId = 'seed-quest-family';
 const String kSeedQuestTravelId = 'seed-quest-travel';
 const String kSeedQuestWeatherId = 'seed-quest-weather';
+const String kSeedQuestAnimalsId = 'seed-quest-animals';
+const String kSeedQuestShoppingId = 'seed-quest-shopping';
+const String kSeedQuestHealthId = 'seed-quest-health';
+const String kSeedQuestSportsId = 'seed-quest-sports';
+const String kSeedQuestMusicId = 'seed-quest-music';
+const String kSeedQuestHomeId = 'seed-quest-home';
+const String kSeedQuestFoodId = 'seed-quest-food';
+const String kSeedQuestClothingId = 'seed-quest-clothing';
+const String kSeedQuestTransportationId = 'seed-quest-transportation';
+const String kSeedQuestAccommodationId = 'seed-quest-accommodation';
+const String kSeedQuestEntertainmentId = 'seed-quest-entertainment';
+const String kSeedQuestEducationId = 'seed-quest-education';
 
 /// Template task ids used when cloning dev-seed rows onto another topic
 /// ([TaskQueueService] fallback).
@@ -273,6 +285,521 @@ const String _weatherRead = '{'
     '}';
 
 const String _weatherPronun = r'''{"question":"Which line stresses the word rain?","options":["I hear RAIN.","I HEAR rain.","RAIN I hear.","I hear rain loud."],"correct_index":0,"reference_line":"I hear rain."}''';
+
+// --- Animals ---------------------------------------------------------------
+
+const String _animalsClozeA = '{'
+    '"sentence":"The ___ says meow.",'
+    '"answer":"cat",'
+    '"options":["cat","dog","fish","tree"]'
+    '}';
+
+const String _animalsClozeB = '{'
+    '"sentence":"A dog can ___ .",'
+    '"answer":"bark",'
+    '"options":["bark","read","drive","paint"]'
+    '}';
+
+const String _animalsClozeC = '{'
+    '"sentence":"We see ___ at the zoo.",'
+    '"answer":"animals",'
+    '"options":["animals","cars","chairs","phones"]'
+    '}';
+
+const String _animalsReorder =
+    '{"tokens":["dog","my","likes"],"correct_order":[1,0,2]}';
+
+const String _animalsMatch = '{'
+    '"left":["cat","sheep","fish"],'
+    '"right":["meow","baa","swim"],'
+    '"pairs":[[0,0],[1,1],[2,2]]'
+    '}';
+
+const String _animalsDialogue = '{'
+    '"context":"You see a small hurt bird on the path.",'
+    '"question":"What should you do?",'
+    '"options":[{"id":"a","text":"Tell an adult to help."},{"id":"b","text":"Walk away fast."}],'
+    '"correct_index":0'
+    '}';
+
+const String _animalsRead = '{'
+    '"display_text":"Animals need food and water.",'
+    '"instruction_en":"Read like a kind poster at a park."'
+    '}';
+
+const String _animalsPronun = r'''{"question":"Which line stresses the word zoo?","options":["We go to the ZOO.","WE go to the zoo.","ZOO we go to.","We go zoo the to."],"correct_index":0,"reference_line":"We go to the zoo."}''';
+
+// --- Shopping --------------------------------------------------------------
+
+const String _shoppingClozeA = '{'
+    '"sentence":"We pay at the ___ .",'
+    '"answer":"till",'
+    '"options":["till","roof","moon","lake"]'
+    '}';
+
+const String _shoppingClozeB = '{'
+    '"sentence":"This ___ is too big.",'
+    '"answer":"size",'
+    '"options":["size","sky","week","cloud"]'
+    '}';
+
+const String _shoppingClozeC = '{'
+    '"sentence":"I carry a small ___ .",'
+    '"answer":"bag",'
+    '"options":["bag","hill","star","stone"]'
+    '}';
+
+const String _shoppingReorder =
+    '{"tokens":["milk","I","buy"],"correct_order":[1,2,0]}';
+
+const String _shoppingMatch = '{'
+    '"left":["shop","coin","basket"],'
+    '"right":["store","money","carry"],'
+    '"pairs":[[0,0],[1,1],[2,2]]'
+    '}';
+
+const String _shoppingDialogue = '{'
+    '"context":"You bump into a friend and spill milk in the shop.",'
+    '"question":"What do you say first?",'
+    '"options":[{"id":"a","text":"Sorry about that."},{"id":"b","text":"It is your fault."}],'
+    '"correct_index":0'
+    '}';
+
+const String _shoppingRead = '{'
+    '"display_text":"How much is this apple, please?",'
+    '"instruction_en":"Read like a polite shopper."'
+    '}';
+
+const String _shoppingPronun = r'''{"question":"Which line stresses the word cheap?","options":["This feels CHEAP.","THIS feels cheap.","CHEAP this feels.","This cheap feels good."],"correct_index":0,"reference_line":"This feels cheap."}''';
+
+// --- Health ----------------------------------------------------------------
+
+const String _healthClozeA = '{'
+    '"sentence":"Wash your ___ before food.",'
+    '"answer":"hands",'
+    '"options":["hands","shoes","hat","coat"]'
+    '}';
+
+const String _healthClozeB = '{'
+    '"sentence":"Drink more ___ .",'
+    '"answer":"water",'
+    '"options":["water","sand","paint","oil"]'
+    '}';
+
+const String _healthClozeC = '{'
+    '"sentence":"Sleep helps your ___ .",'
+    '"answer":"body",'
+    '"options":["body","car","desk","shoe"]'
+    '}';
+
+const String _healthReorder =
+    '{"tokens":["tired","feel","I"],"correct_order":[2,1,0]}';
+
+const String _healthMatch = '{'
+    '"left":["tooth","soap","rest"],'
+    '"right":["brush","wash","sleep"],'
+    '"pairs":[[0,0],[1,1],[2,2]]'
+    '}';
+
+const String _healthDialogue = '{'
+    '"context":"Your friend looks very tired at school.",'
+    '"question":"What is a kind thing to say?",'
+    '"options":[{"id":"a","text":"You should rest a little."},{"id":"b","text":"Go away."}],'
+    '"correct_index":0'
+    '}';
+
+const String _healthRead = '{'
+    '"display_text":"Brush your teeth twice a day.",'
+    '"instruction_en":"Read like a short health tip."'
+    '}';
+
+const String _healthPronun = r'''{"question":"Which line stresses the word healthy?","options":["Eat HEALTHY food.","EAT healthy food.","HEALTHY eat food.","Eat food healthy now."],"correct_index":0,"reference_line":"Eat healthy food."}''';
+
+// --- Sports ----------------------------------------------------------------
+
+const String _sportsClozeA = '{'
+    '"sentence":"We pass the ___ in football.",'
+    '"answer":"ball",'
+    '"options":["ball","book","spoon","key"]'
+    '}';
+
+const String _sportsClozeB = '{'
+    '"sentence":"She can ___ very fast.",'
+    '"answer":"run",'
+    '"options":["run","hide","sleep","read"]'
+    '}';
+
+const String _sportsClozeC = '{'
+    '"sentence":"They play in a ___ .",'
+    '"answer":"team",'
+    '"options":["team","boat","cake","cloud"]'
+    '}';
+
+const String _sportsReorder =
+    '{"tokens":["team","our","won"],"correct_order":[1,0,2]}';
+
+const String _sportsMatch = '{'
+    '"left":["run","swim","jump"],'
+    '"right":["fast","water","high"],'
+    '"pairs":[[0,0],[1,1],[2,2]]'
+    '}';
+
+const String _sportsDialogue = '{'
+    '"context":"Your team lost a small match at school.",'
+    '"question":"What is a good sport thing to say?",'
+    '"options":[{"id":"a","text":"Good game, well played."},{"id":"b","text":"I hate you all."}],'
+    '"correct_index":0'
+    '}';
+
+const String _sportsRead = '{'
+    '"display_text":"Play fairly and have fun.",'
+    '"instruction_en":"Read like a friendly coach."'
+    '}';
+
+const String _sportsPronun = r'''{"question":"Which line stresses the word win?","options":["We want to WIN.","WE want to win.","WIN we want to.","We win want to."],"correct_index":0,"reference_line":"We want to win."}''';
+
+// --- Music -----------------------------------------------------------------
+
+const String _musicClozeA = '{'
+    '"sentence":"We sing a ___ .",'
+    '"answer":"song",'
+    '"options":["song","road","chair","cloud"]'
+    '}';
+
+const String _musicClozeB = '{'
+    '"sentence":"This note is ___ .",'
+    '"answer":"high",'
+    '"options":["high","wet","cold","round"]'
+    '}';
+
+const String _musicClozeC = '{'
+    '"sentence":"She plays the ___ .",'
+    '"answer":"piano",'
+    '"options":["piano","table","grass","wall"]'
+    '}';
+
+const String _musicReorder =
+    '{"tokens":["music","I","like"],"correct_order":[1,0,2]}';
+
+const String _musicMatch = '{'
+    '"left":["drum","guitar","song"],'
+    '"right":["sound","strings","words"],'
+    '"pairs":[[0,0],[1,1],[2,2]]'
+    '}';
+
+const String _musicDialogue = '{'
+    '"context":"Music is very loud in the classroom.",'
+    '"question":"What do you say politely?",'
+    '"options":[{"id":"a","text":"Please turn it down a little."},{"id":"b","text":"Shut it off now."}],'
+    '"correct_index":0'
+    '}';
+
+const String _musicRead = '{'
+    '"display_text":"Music can make us happy.",'
+    '"instruction_en":"Read with a warm smile."'
+    '}';
+
+const String _musicPronun = r'''{"question":"Which line stresses the word song?","options":["I love this SONG.","I LOVE this song.","SONG I love this.","I love song this now."],"correct_index":0,"reference_line":"I love this song."}''';
+
+// --- Home ------------------------------------------------------------------
+
+const String _homeClozeA = '{'
+    '"sentence":"We cook in the ___ .",'
+    '"answer":"kitchen",'
+    '"options":["kitchen","street","sky","lake"]'
+    '}';
+
+const String _homeClozeB = '{'
+    '"sentence":"My bed is in the ___ .",'
+    '"answer":"bedroom",'
+    '"options":["bedroom","garden","road","shop"]'
+    '}';
+
+const String _homeClozeC = '{'
+    '"sentence":"Turn off the ___ at night.",'
+    '"answer":"light",'
+    '"options":["light","bird","cat","cloud"]'
+    '}';
+
+const String _homeReorder =
+    '{"tokens":["home","safe","is"],"correct_order":[2,0,1]}';
+
+const String _homeMatch = '{'
+    '"left":["door","key","lamp"],'
+    '"right":["open","lock","light"],'
+    '"pairs":[[0,0],[1,1],[2,2]]'
+    '}';
+
+const String _homeDialogue = '{'
+    '"context":"You forgot your house key.",'
+    '"question":"What do you ask a trusted neighbor?",'
+    '"options":[{"id":"a","text":"Could you help me call home?"},{"id":"b","text":"Break my window."}],'
+    '"correct_index":0'
+    '}';
+
+const String _homeRead = '{'
+    '"display_text":"Please close the door quietly.",'
+    '"instruction_en":"Read like a polite note on a door."'
+    '}';
+
+const String _homePronun = r'''{"question":"Which line stresses the word home?","options":["I walk HOME now.","I WALK home now.","HOME I walk now.","I walk now home slow."],"correct_index":0,"reference_line":"I walk home now."}''';
+
+class _MultiTopicSpec {
+  const _MultiTopicSpec({
+    required this.topic,
+    required this.questId,
+    required this.reorderId,
+    required this.matchId,
+    required this.dialogueId,
+    required this.readId,
+    required this.pronunId,
+    required this.clozeAId,
+    required this.clozeBId,
+    required this.clozeCId,
+    required this.reorderJson,
+    required this.matchJson,
+    required this.dialogueJson,
+    required this.readJson,
+    required this.pronunJson,
+    required this.clozeAJson,
+    required this.clozeBJson,
+    required this.clozeCJson,
+    required this.baseSeconds,
+  });
+
+  final String topic;
+  final String questId;
+  final String reorderId;
+  final String matchId;
+  final String dialogueId;
+  final String readId;
+  final String pronunId;
+  final String clozeAId;
+  final String clozeBId;
+  final String clozeCId;
+  final String reorderJson;
+  final String matchJson;
+  final String dialogueJson;
+  final String readJson;
+  final String pronunJson;
+  final String clozeAJson;
+  final String clozeBJson;
+  final String clozeCJson;
+  final int baseSeconds;
+}
+
+const List<_MultiTopicSpec> _kMultiTopicSpecs = [
+  _MultiTopicSpec(
+    topic: 'school',
+    questId: kSeedQuestSchoolId,
+    reorderId: 'seed-school-reorder',
+    matchId: 'seed-school-match',
+    dialogueId: 'seed-school-dialogue',
+    readId: 'seed-school-read',
+    pronunId: 'seed-school-pronun',
+    clozeAId: 'seed-school-cloze-a',
+    clozeBId: 'seed-school-cloze-b',
+    clozeCId: 'seed-school-cloze-c',
+    reorderJson: _schoolReorder,
+    matchJson: _schoolMatch,
+    dialogueJson: _schoolDialogue,
+    readJson: _schoolRead,
+    pronunJson: _schoolPronun,
+    clozeAJson: _schoolClozeA,
+    clozeBJson: _schoolClozeB,
+    clozeCJson: _schoolClozeC,
+    baseSeconds: 1,
+  ),
+  _MultiTopicSpec(
+    topic: 'family',
+    questId: kSeedQuestFamilyId,
+    reorderId: 'seed-family-reorder',
+    matchId: 'seed-family-match',
+    dialogueId: 'seed-family-dialogue',
+    readId: 'seed-family-read',
+    pronunId: 'seed-family-pronun',
+    clozeAId: 'seed-family-cloze-a',
+    clozeBId: 'seed-family-cloze-b',
+    clozeCId: 'seed-family-cloze-c',
+    reorderJson: _familyReorder,
+    matchJson: _familyMatch,
+    dialogueJson: _familyDialogue,
+    readJson: _familyRead,
+    pronunJson: _familyPronun,
+    clozeAJson: _familyClozeA,
+    clozeBJson: _familyClozeB,
+    clozeCJson: _familyClozeC,
+    baseSeconds: 2,
+  ),
+  _MultiTopicSpec(
+    topic: 'travel',
+    questId: kSeedQuestTravelId,
+    reorderId: 'seed-travel-reorder',
+    matchId: 'seed-travel-match',
+    dialogueId: 'seed-travel-dialogue',
+    readId: 'seed-travel-read',
+    pronunId: 'seed-travel-pronun',
+    clozeAId: 'seed-travel-cloze-a',
+    clozeBId: 'seed-travel-cloze-b',
+    clozeCId: 'seed-travel-cloze-c',
+    reorderJson: _travelReorder,
+    matchJson: _travelMatch,
+    dialogueJson: _travelDialogue,
+    readJson: _travelRead,
+    pronunJson: _travelPronun,
+    clozeAJson: _travelClozeA,
+    clozeBJson: _travelClozeB,
+    clozeCJson: _travelClozeC,
+    baseSeconds: 3,
+  ),
+  _MultiTopicSpec(
+    topic: 'weather',
+    questId: kSeedQuestWeatherId,
+    reorderId: 'seed-weather-reorder',
+    matchId: 'seed-weather-match',
+    dialogueId: 'seed-weather-dialogue',
+    readId: 'seed-weather-read',
+    pronunId: 'seed-weather-pronun',
+    clozeAId: 'seed-weather-cloze-a',
+    clozeBId: 'seed-weather-cloze-b',
+    clozeCId: 'seed-weather-cloze-c',
+    reorderJson: _weatherReorder,
+    matchJson: _weatherMatch,
+    dialogueJson: _weatherDialogue,
+    readJson: _weatherRead,
+    pronunJson: _weatherPronun,
+    clozeAJson: _weatherClozeA,
+    clozeBJson: _weatherClozeB,
+    clozeCJson: _weatherClozeC,
+    baseSeconds: 4,
+  ),
+  _MultiTopicSpec(
+    topic: 'animals',
+    questId: kSeedQuestAnimalsId,
+    reorderId: 'seed-animals-reorder',
+    matchId: 'seed-animals-match',
+    dialogueId: 'seed-animals-dialogue',
+    readId: 'seed-animals-read',
+    pronunId: 'seed-animals-pronun',
+    clozeAId: 'seed-animals-cloze-a',
+    clozeBId: 'seed-animals-cloze-b',
+    clozeCId: 'seed-animals-cloze-c',
+    reorderJson: _animalsReorder,
+    matchJson: _animalsMatch,
+    dialogueJson: _animalsDialogue,
+    readJson: _animalsRead,
+    pronunJson: _animalsPronun,
+    clozeAJson: _animalsClozeA,
+    clozeBJson: _animalsClozeB,
+    clozeCJson: _animalsClozeC,
+    baseSeconds: 5,
+  ),
+  _MultiTopicSpec(
+    topic: 'shopping',
+    questId: kSeedQuestShoppingId,
+    reorderId: 'seed-shopping-reorder',
+    matchId: 'seed-shopping-match',
+    dialogueId: 'seed-shopping-dialogue',
+    readId: 'seed-shopping-read',
+    pronunId: 'seed-shopping-pronun',
+    clozeAId: 'seed-shopping-cloze-a',
+    clozeBId: 'seed-shopping-cloze-b',
+    clozeCId: 'seed-shopping-cloze-c',
+    reorderJson: _shoppingReorder,
+    matchJson: _shoppingMatch,
+    dialogueJson: _shoppingDialogue,
+    readJson: _shoppingRead,
+    pronunJson: _shoppingPronun,
+    clozeAJson: _shoppingClozeA,
+    clozeBJson: _shoppingClozeB,
+    clozeCJson: _shoppingClozeC,
+    baseSeconds: 6,
+  ),
+  _MultiTopicSpec(
+    topic: 'health',
+    questId: kSeedQuestHealthId,
+    reorderId: 'seed-health-reorder',
+    matchId: 'seed-health-match',
+    dialogueId: 'seed-health-dialogue',
+    readId: 'seed-health-read',
+    pronunId: 'seed-health-pronun',
+    clozeAId: 'seed-health-cloze-a',
+    clozeBId: 'seed-health-cloze-b',
+    clozeCId: 'seed-health-cloze-c',
+    reorderJson: _healthReorder,
+    matchJson: _healthMatch,
+    dialogueJson: _healthDialogue,
+    readJson: _healthRead,
+    pronunJson: _healthPronun,
+    clozeAJson: _healthClozeA,
+    clozeBJson: _healthClozeB,
+    clozeCJson: _healthClozeC,
+    baseSeconds: 7,
+  ),
+  _MultiTopicSpec(
+    topic: 'sports',
+    questId: kSeedQuestSportsId,
+    reorderId: 'seed-sports-reorder',
+    matchId: 'seed-sports-match',
+    dialogueId: 'seed-sports-dialogue',
+    readId: 'seed-sports-read',
+    pronunId: 'seed-sports-pronun',
+    clozeAId: 'seed-sports-cloze-a',
+    clozeBId: 'seed-sports-cloze-b',
+    clozeCId: 'seed-sports-cloze-c',
+    reorderJson: _sportsReorder,
+    matchJson: _sportsMatch,
+    dialogueJson: _sportsDialogue,
+    readJson: _sportsRead,
+    pronunJson: _sportsPronun,
+    clozeAJson: _sportsClozeA,
+    clozeBJson: _sportsClozeB,
+    clozeCJson: _sportsClozeC,
+    baseSeconds: 8,
+  ),
+  _MultiTopicSpec(
+    topic: 'music',
+    questId: kSeedQuestMusicId,
+    reorderId: 'seed-music-reorder',
+    matchId: 'seed-music-match',
+    dialogueId: 'seed-music-dialogue',
+    readId: 'seed-music-read',
+    pronunId: 'seed-music-pronun',
+    clozeAId: 'seed-music-cloze-a',
+    clozeBId: 'seed-music-cloze-b',
+    clozeCId: 'seed-music-cloze-c',
+    reorderJson: _musicReorder,
+    matchJson: _musicMatch,
+    dialogueJson: _musicDialogue,
+    readJson: _musicRead,
+    pronunJson: _musicPronun,
+    clozeAJson: _musicClozeA,
+    clozeBJson: _musicClozeB,
+    clozeCJson: _musicClozeC,
+    baseSeconds: 9,
+  ),
+  _MultiTopicSpec(
+    topic: 'home',
+    questId: kSeedQuestHomeId,
+    reorderId: 'seed-home-reorder',
+    matchId: 'seed-home-match',
+    dialogueId: 'seed-home-dialogue',
+    readId: 'seed-home-read',
+    pronunId: 'seed-home-pronun',
+    clozeAId: 'seed-home-cloze-a',
+    clozeBId: 'seed-home-cloze-b',
+    clozeCId: 'seed-home-cloze-c',
+    reorderJson: _homeReorder,
+    matchJson: _homeMatch,
+    dialogueJson: _homeDialogue,
+    readJson: _homeRead,
+    pronunJson: _homePronun,
+    clozeAJson: _homeClozeA,
+    clozeBJson: _homeClozeB,
+    clozeCJson: _homeClozeC,
+    baseSeconds: 10,
+  ),
+];
 
 void _insertTopicExerciseMatrix(
   Batch b,
@@ -610,116 +1137,48 @@ Future<void> ensureExtraSeedTaskTypes(IkamvaDatabase db) async {
   });
 }
 
-/// Idempotent: extra **topics + quests**, each with all six task kinds.
+/// Idempotent: extra **topics + quests** (≥10 besides the main food seed),
+/// each with all six task kinds. Inserts only rows whose [Quest] id is absent.
 Future<void> ensureMultiTopicQuestSeed(IkamvaDatabase db) async {
-  final hit = await (db.select(db.quests)
-        ..where((q) => q.id.equals(kSeedQuestSchoolId)))
-      .getSingleOrNull();
-  if (hit != null) return;
+  final missing = <_MultiTopicSpec>[];
+  for (final spec in _kMultiTopicSpecs) {
+    final hit = await (db.select(db.quests)
+          ..where((q) => q.id.equals(spec.questId)))
+        .getSingleOrNull();
+    if (hit == null) missing.add(spec);
+  }
+  if (missing.isEmpty) return;
 
   final now = DateTime.now().toUtc();
   final questEnd = now.add(const Duration(days: 30));
 
   await db.batch((b) {
-    _insertTopicExerciseMatrix(
-      b,
-      db,
-      topic: 'school',
-      questId: kSeedQuestSchoolId,
-      questStart: now,
-      questEnd: questEnd,
-      reorderId: 'seed-school-reorder',
-      matchId: 'seed-school-match',
-      dialogueId: 'seed-school-dialogue',
-      readId: 'seed-school-read',
-      pronunId: 'seed-school-pronun',
-      clozeAId: 'seed-school-cloze-a',
-      clozeBId: 'seed-school-cloze-b',
-      clozeCId: 'seed-school-cloze-c',
-      reorderJson: _schoolReorder,
-      matchJson: _schoolMatch,
-      dialogueJson: _schoolDialogue,
-      readJson: _schoolRead,
-      pronunJson: _schoolPronun,
-      clozeAJson: _schoolClozeA,
-      clozeBJson: _schoolClozeB,
-      clozeCJson: _schoolClozeC,
-      base: now.add(const Duration(seconds: 1)),
-    );
-    _insertTopicExerciseMatrix(
-      b,
-      db,
-      topic: 'family',
-      questId: kSeedQuestFamilyId,
-      questStart: now,
-      questEnd: questEnd,
-      reorderId: 'seed-family-reorder',
-      matchId: 'seed-family-match',
-      dialogueId: 'seed-family-dialogue',
-      readId: 'seed-family-read',
-      pronunId: 'seed-family-pronun',
-      clozeAId: 'seed-family-cloze-a',
-      clozeBId: 'seed-family-cloze-b',
-      clozeCId: 'seed-family-cloze-c',
-      reorderJson: _familyReorder,
-      matchJson: _familyMatch,
-      dialogueJson: _familyDialogue,
-      readJson: _familyRead,
-      pronunJson: _familyPronun,
-      clozeAJson: _familyClozeA,
-      clozeBJson: _familyClozeB,
-      clozeCJson: _familyClozeC,
-      base: now.add(const Duration(seconds: 2)),
-    );
-    _insertTopicExerciseMatrix(
-      b,
-      db,
-      topic: 'travel',
-      questId: kSeedQuestTravelId,
-      questStart: now,
-      questEnd: questEnd,
-      reorderId: 'seed-travel-reorder',
-      matchId: 'seed-travel-match',
-      dialogueId: 'seed-travel-dialogue',
-      readId: 'seed-travel-read',
-      pronunId: 'seed-travel-pronun',
-      clozeAId: 'seed-travel-cloze-a',
-      clozeBId: 'seed-travel-cloze-b',
-      clozeCId: 'seed-travel-cloze-c',
-      reorderJson: _travelReorder,
-      matchJson: _travelMatch,
-      dialogueJson: _travelDialogue,
-      readJson: _travelRead,
-      pronunJson: _travelPronun,
-      clozeAJson: _travelClozeA,
-      clozeBJson: _travelClozeB,
-      clozeCJson: _travelClozeC,
-      base: now.add(const Duration(seconds: 3)),
-    );
-    _insertTopicExerciseMatrix(
-      b,
-      db,
-      topic: 'weather',
-      questId: kSeedQuestWeatherId,
-      questStart: now,
-      questEnd: questEnd,
-      reorderId: 'seed-weather-reorder',
-      matchId: 'seed-weather-match',
-      dialogueId: 'seed-weather-dialogue',
-      readId: 'seed-weather-read',
-      pronunId: 'seed-weather-pronun',
-      clozeAId: 'seed-weather-cloze-a',
-      clozeBId: 'seed-weather-cloze-b',
-      clozeCId: 'seed-weather-cloze-c',
-      reorderJson: _weatherReorder,
-      matchJson: _weatherMatch,
-      dialogueJson: _weatherDialogue,
-      readJson: _weatherRead,
-      pronunJson: _weatherPronun,
-      clozeAJson: _weatherClozeA,
-      clozeBJson: _weatherClozeB,
-      clozeCJson: _weatherClozeC,
-      base: now.add(const Duration(seconds: 4)),
-    );
+    for (final spec in missing) {
+      _insertTopicExerciseMatrix(
+        b,
+        db,
+        topic: spec.topic,
+        questId: spec.questId,
+        questStart: now,
+        questEnd: questEnd,
+        reorderId: spec.reorderId,
+        matchId: spec.matchId,
+        dialogueId: spec.dialogueId,
+        readId: spec.readId,
+        pronunId: spec.pronunId,
+        clozeAId: spec.clozeAId,
+        clozeBId: spec.clozeBId,
+        clozeCId: spec.clozeCId,
+        reorderJson: spec.reorderJson,
+        matchJson: spec.matchJson,
+        dialogueJson: spec.dialogueJson,
+        readJson: spec.readJson,
+        pronunJson: spec.pronunJson,
+        clozeAJson: spec.clozeAJson,
+        clozeBJson: spec.clozeBJson,
+        clozeCJson: spec.clozeCJson,
+        base: now.add(Duration(seconds: spec.baseSeconds)),
+      );
+    }
   });
 }

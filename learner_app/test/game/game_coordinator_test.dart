@@ -39,6 +39,16 @@ void main() {
       await db.close();
     });
 
+    test('dev seed exposes at least ten distinct quest topics', () async {
+      final db = openMemoryDatabase();
+      await ensureDevSeed(db);
+      await ensureMultiTopicQuestSeed(db);
+      final quests = await QuestRepository(db).listAll();
+      final topics = quests.map((q) => q.topic).toSet();
+      expect(topics.length, greaterThanOrEqualTo(10));
+      await db.close();
+    });
+
     test('loadTasksForQuest respects maxDifficultyInclusive', () async {
       final db = openMemoryDatabase();
       await ensureDevSeed(db);
