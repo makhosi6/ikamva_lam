@@ -62,15 +62,15 @@ const String kSeedClozePayloadJson = '{'
     '}';
 
 const String kSeedCloze2PayloadJson = '{'
-    '"sentence":"We drink ___ in the morning.",'
+    '"sentence":"On a long walk we drink ___ from our bottle.",'
     '"answer":"water",'
-    '"options":["water","milk","tea","juice"]'
+    '"options":["water","bread","sand","salt"]'
     '}';
 
 const String kSeedCloze3PayloadJson = '{'
-    '"sentence":"This is a small ___ .",'
+    '"sentence":"This is a small red ___ on the plate.",'
     '"answer":"apple",'
-    '"options":["apple","banana","bread","plate"]'
+    '"options":["apple","spoon","fork","cup"]'
     '}';
 
 const String kSeedClozeD2aPayloadJson = '{'
@@ -86,9 +86,9 @@ const String kSeedClozeD2bPayloadJson = '{'
     '}';
 
 const String kSeedClozeD3PayloadJson = '{'
-    '"sentence":"We need ___ bread from the shop.",'
-    '"answer":"more",'
-    '"options":["more","many","much","most"]'
+    '"sentence":"We need ___ bread for our big picnic tomorrow.",'
+    '"answer":"extra",'
+    '"options":["extra","old","dry","plain"]'
     '}';
 
 const String kSeedReorderPayloadJson =
@@ -112,14 +112,14 @@ const String kSeedReadAloudPayloadJson = '{'
     '"instruction_en":"Read it politely, like at the school lunch line."'
     '}';
 
-const String kSeedPronunciationPayloadJson = r'''{"question":"Which line puts the strongest stress on the food word?","options":["I like SOME rice.","I LIKE some rice.","I like some RICE.","LIKE I some rice."],"correct_index":2,"reference_line":"I like some rice."}''';
+const String kSeedPronunciationPayloadJson = r'''{"question":"Which line puts the strongest stress on the food word rice?","options":["I like some RICE.","I LIKE some rice.","I like SOME rice.","She likes some rice."],"correct_index":0,"reference_line":"I like some rice."}''';
 
 // --- School topic -----------------------------------------------------------
 
 const String _schoolClozeA = '{'
-    '"sentence":"We sit at a small ___ .",'
+    '"sentence":"We eat our lunch at a small round ___ .",'
     '"answer":"table",'
-    '"options":["table","chair","door","window"]'
+    '"options":["table","floor","roof","path"]'
     '}';
 
 const String _schoolClozeB = '{'
@@ -129,9 +129,9 @@ const String _schoolClozeB = '{'
     '}';
 
 const String _schoolClozeC = '{'
-    '"sentence":"The ___ helps us learn.",'
+    '"sentence":"The ___ writes new words on the board.",'
     '"answer":"teacher",'
-    '"options":["teacher","student","cat","bird"]'
+    '"options":["teacher","desk","eraser","clock"]'
     '}';
 
 const String _schoolReorder =
@@ -155,7 +155,7 @@ const String _schoolRead = '{'
     '"instruction_en":"Say it clearly and slowly."'
     '}';
 
-const String _schoolPronun = r'''{"question":"Which line stresses the word school?","options":["I walk to SCHOOL.","I WALK to school.","SCHOOL I walk to.","I walk school to."],"correct_index":0,"reference_line":"I walk to school."}''';
+const String _schoolPronun = r'''{"question":"Which line stresses the word school?","options":["I walk to SCHOOL.","I WALK to school.","My bag is VERY heavy.","I walk to school slowly."],"correct_index":0,"reference_line":"I walk to school."}''';
 
 // --- Family topic -----------------------------------------------------------
 
@@ -181,8 +181,8 @@ const String _familyReorder =
     '{"tokens":["home","I","like"],"correct_order":[1,0,2]}';
 
 const String _familyMatch = '{'
-    '"left":["sister","brother","baby"],'
-    '"right":["girl","boy","small"],'
+    '"left":["mother","father","baby"],'
+    '"right":["cooks","reads","sleeps"],'
     '"pairs":[[0,0],[1,1],[2,2]]'
     '}';
 
@@ -198,7 +198,7 @@ const String _familyRead = '{'
     '"instruction_en":"Read with a warm, friendly tone."'
     '}';
 
-const String _familyPronun = r'''{"question":"Which line stresses the word family?","options":["I love my FAMILY.","I LOVE my family.","FAMILY I love my.","I love family my."],"correct_index":0,"reference_line":"I love my family."}''';
+const String _familyPronun = r'''{"question":"Which line stresses the word family?","options":["I love my FAMILY.","I LOVE my family.","My phone is VERY new.","I love my family pet."],"correct_index":0,"reference_line":"I love my family."}''';
 
 // --- Travel topic -----------------------------------------------------------
 
@@ -215,9 +215,9 @@ const String _travelClozeB = '{'
     '}';
 
 const String _travelClozeC = '{'
-    '"sentence":"The train is ___ .",'
+    '"sentence":"Our train is ___ by ten minutes today.",'
     '"answer":"late",'
-    '"options":["late","blue","round","sweet"]'
+    '"options":["late","noisy","new","full"]'
     '}';
 
 const String _travelReorder =
@@ -241,7 +241,7 @@ const String _travelRead = '{'
     '"instruction_en":"Read like a polite sign at a stop."'
     '}';
 
-const String _travelPronun = r'''{"question":"Which line stresses the word ticket?","options":["I need a TICKET.","I NEED a ticket.","TICKET I need a.","I need ticket a."],"correct_index":0,"reference_line":"I need a ticket."}''';
+const String _travelPronun = r'''{"question":"Which line stresses the word ticket?","options":["I need a TICKET.","I NEED a ticket.","The bus is FULL now.","I need a ticket please."],"correct_index":0,"reference_line":"I need a ticket."}''';
 
 // --- Weather topic ----------------------------------------------------------
 
@@ -258,9 +258,9 @@ const String _weatherClozeB = '{'
     '}';
 
 const String _weatherClozeC = '{'
-    '"sentence":"The sky is ___ today.",'
+    '"sentence":"After the rain the sky looks ___ .",'
     '"answer":"grey",'
-    '"options":["grey","loud","sharp","fast"]'
+    '"options":["grey","square","metal","hungry"]'
     '}';
 
 const String _weatherReorder =
@@ -284,7 +284,7 @@ const String _weatherRead = '{'
     '"instruction_en":"Read like a calm weather report."'
     '}';
 
-const String _weatherPronun = r'''{"question":"Which line stresses the word rain?","options":["I hear RAIN.","I HEAR rain.","RAIN I hear.","I hear rain loud."],"correct_index":0,"reference_line":"I hear rain."}''';
+const String _weatherPronun = r'''{"question":"Which line stresses the word rain?","options":["I hear RAIN.","I HEAR rain.","The wind is STRONG now.","I hear rain softly."],"correct_index":0,"reference_line":"I hear rain."}''';
 
 // --- Animals ---------------------------------------------------------------
 
@@ -327,7 +327,7 @@ const String _animalsRead = '{'
     '"instruction_en":"Read like a kind poster at a park."'
     '}';
 
-const String _animalsPronun = r'''{"question":"Which line stresses the word zoo?","options":["We go to the ZOO.","WE go to the zoo.","ZOO we go to.","We go zoo the to."],"correct_index":0,"reference_line":"We go to the zoo."}''';
+const String _animalsPronun = r'''{"question":"Which line stresses the word zoo?","options":["We go to the ZOO.","WE go to the zoo.","The park is OPEN today.","We go to the zoo now."],"correct_index":0,"reference_line":"We go to the zoo."}''';
 
 // --- Shopping --------------------------------------------------------------
 
@@ -370,7 +370,7 @@ const String _shoppingRead = '{'
     '"instruction_en":"Read like a polite shopper."'
     '}';
 
-const String _shoppingPronun = r'''{"question":"Which line stresses the word cheap?","options":["This feels CHEAP.","THIS feels cheap.","CHEAP this feels.","This cheap feels good."],"correct_index":0,"reference_line":"This feels cheap."}''';
+const String _shoppingPronun = r'''{"question":"Which line stresses the word cheap?","options":["This feels CHEAP.","THIS feels cheap.","The shop is CLOSED now.","This feels cheap today."],"correct_index":0,"reference_line":"This feels cheap."}''';
 
 // --- Health ----------------------------------------------------------------
 
@@ -413,7 +413,7 @@ const String _healthRead = '{'
     '"instruction_en":"Read like a short health tip."'
     '}';
 
-const String _healthPronun = r'''{"question":"Which line stresses the word healthy?","options":["Eat HEALTHY food.","EAT healthy food.","HEALTHY eat food.","Eat food healthy now."],"correct_index":0,"reference_line":"Eat healthy food."}''';
+const String _healthPronun = r'''{"question":"Which line stresses the word healthy?","options":["Eat HEALTHY food.","EAT healthy food.","Dinner smells GOOD today.","Eat healthy food slowly."],"correct_index":0,"reference_line":"Eat healthy food."}''';
 
 // --- Sports ----------------------------------------------------------------
 
@@ -456,7 +456,7 @@ const String _sportsRead = '{'
     '"instruction_en":"Read like a friendly coach."'
     '}';
 
-const String _sportsPronun = r'''{"question":"Which line stresses the word win?","options":["We want to WIN.","WE want to win.","WIN we want to.","We win want to."],"correct_index":0,"reference_line":"We want to win."}''';
+const String _sportsPronun = r'''{"question":"Which line stresses the word win?","options":["We want to WIN.","WE want to win.","The game is LONG today.","We want to win soon."],"correct_index":0,"reference_line":"We want to win."}''';
 
 // --- Music -----------------------------------------------------------------
 
@@ -467,9 +467,9 @@ const String _musicClozeA = '{'
     '}';
 
 const String _musicClozeB = '{'
-    '"sentence":"This note is ___ .",'
-    '"answer":"high",'
-    '"options":["high","wet","cold","round"]'
+    '"sentence":"A flute sounds ___ than a big drum.",'
+    '"answer":"higher",'
+    '"options":["higher","slower","older","shorter"]'
     '}';
 
 const String _musicClozeC = '{'
@@ -499,7 +499,7 @@ const String _musicRead = '{'
     '"instruction_en":"Read with a warm smile."'
     '}';
 
-const String _musicPronun = r'''{"question":"Which line stresses the word song?","options":["I love this SONG.","I LOVE this song.","SONG I love this.","I love song this now."],"correct_index":0,"reference_line":"I love this song."}''';
+const String _musicPronun = r'''{"question":"Which line stresses the word song?","options":["I love this SONG.","I LOVE this song.","The band is LOUD tonight.","I love this song today."],"correct_index":0,"reference_line":"I love this song."}''';
 
 // --- Home ------------------------------------------------------------------
 
@@ -542,7 +542,7 @@ const String _homeRead = '{'
     '"instruction_en":"Read like a polite note on a door."'
     '}';
 
-const String _homePronun = r'''{"question":"Which line stresses the word home?","options":["I walk HOME now.","I WALK home now.","HOME I walk now.","I walk now home slow."],"correct_index":0,"reference_line":"I walk home now."}''';
+const String _homePronun = r'''{"question":"Which line stresses the word home?","options":["I walk HOME now.","I WALK home now.","The street is DARK tonight.","I walk home now slowly."],"correct_index":0,"reference_line":"I walk home now."}''';
 
 class _MultiTopicSpec {
   const _MultiTopicSpec({
