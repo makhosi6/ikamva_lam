@@ -4,7 +4,7 @@ homepage: https://www.kaggle.com/competitions/gemma-4-good-hackathon/writeups/ik
 repository: https://github.com/makhosi6/ikamva_lam.git
 publish_to: 'none' 
 
-version: 0.9.8+1
+version: 0.9.9+1
 
 environment:
   sdk: ^3.10.1
