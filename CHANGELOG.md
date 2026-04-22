@@ -10,6 +10,7 @@
 - **Model delivery (no APK weights):** Gemma **`.task`** files are **not** bundled under `assets/`. Production mobile builds use **`FlutterGemma.installModel`…`fromNetwork`** with compile-time **`IKAMVA_MODEL_DOWNLOAD_URL`** (and optional **`IKAMVA_HF_TOKEN`**). See `learner_app/assets/models/OBTAINING_MODELS.txt`, repo-root **`.env.example`**, and README “Models”.
 - **Persistence & recovery:** After a successful download, the plugin keeps the model on disk; **`getActiveModel`** is preferred on load. **`FlutterGemmaLlmEngine.ensureLoaded`** tries open → purge stale ids → re-download if needed (same when **`LlmService.generate` / `tryOpenGenerateStream` / `ensureReady`** runs, e.g. hub, task queue, settings warm-up). **`LlmService.ensureReady`** timeout increased to **600s** for large downloads.
 - **Cold start / prepare:** **`probeFlutterGemmaActiveModelReady`** verifies the engine can open the active model (with **`model.close()`** errors ignored). **`SplashScreen`** sends users to **`/model-prepare`** when the prepare flag is false **or** the probe fails (clears stale prefs). **`ModelPrepareScreen`** requires a non-empty download URL, shows progress, tries **`getActiveModel`** before downloading, and handles **LiteRT “zip archive”** style failures with **`purgeGemmaPluginInstallCandidates`** + clear messaging. Layout: no **`Spacer`** inside scrollable **`ConstrainedContent`** (uses fixed spacing); **`ConstrainedContent(scrollable: false)`** on **Developer** stats where a **`ListView`** is the primary scroller.
+- **Prepare-state robustness:** model prepare persistence now stores **done flag + prepared URL + prepared timestamp**. When compile-time **`IKAMVA_MODEL_DOWNLOAD_URL`** changes, the app forces re-prepare/re-verify instead of reusing stale state from a previous model URL.
 - **Initialization:** **`main.dart`** calls **`FlutterGemma.initialize(huggingFaceToken: …)`** from **`ModelPrepareConfig`** when set, and wraps **`initialize`** in **`try/catch`** so a rare early plugin failure does not crash the whole app.
 - **Purge ids:** **`purgeGemmaPluginInstallCandidates`** uninstalls ids derived from the configured URL plus legacy **`bundled_gemma.task`** for upgrades from older builds.
 - **`StubLlmEngine`:** Still selected for **`IKAMVA_USE_STUB_LLM=1`** (process **environment**, not `--dart-define`) or non-mobile hosts / `flutter test`.
@@ -23,11 +24,13 @@
 ### UI / diagnostics
 
 - **Developer (`/dev/stats`):** Shows **`IKAMVA_MODEL_DOWNLOAD_URL`** preview (configured / empty), **Probe active Gemma model** button (uses **`probeFlutterGemmaActiveModelReady`**), **Invalidate LLM** / **Reset model prepare**; removed bundled-asset byte probe.
+- **Developer (`/dev/stats`) multi-page:** tabbed diagnostics (`Overview`, `Model`, `Event Log`) with verbose model telemetry (probe/open/install/retry/purge) and copyable JSON timeline for troubleshooting.
 - **Settings:** Copy updated for HTTP-only weights; warm-up error snackbar points to download URL / prepare flow.
 
 ### Documentation
 
 - **`README.md`**, **`TASKS.md`**, **`spec.md`**, **`writeup.md`**, **`docs/flutter_gemma_migration_scope.md`**, **`docs/flutter_gemma_migration_tasks.md`**, **`notebooks/hackathon_overview.ipynb`**, and **`CHANGELOG.md`** aligned with HTTP-only delivery, CI secrets, and behaviour above. Scope **§7 / §8 / §9** updated where they previously assumed bundled weights.
+- Added tests: `model_prepare_prefs_test.dart`, `model_diagnostics_test.dart`, and `flutter_gemma_error_classification_test.dart` to harden download/load state and error classification regressions.
 
 ### Repository
 

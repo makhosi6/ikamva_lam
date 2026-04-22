@@ -5,6 +5,7 @@ import 'package:flutter_gemma/flutter_gemma.dart';
 
 import '../state/settings_store.dart';
 import 'gemma_model_config.dart';
+import 'model_diagnostics.dart';
 import 'llm_engine.dart';
 import 'llm_exceptions.dart';
 import 'llm_generate_request.dart';
@@ -49,6 +50,12 @@ Future<void> purgeGemmaPluginInstallCandidates() async {
     if (id.isEmpty) continue;
     try {
       await FlutterGemma.uninstallModel(id);
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'purge_uninstall',
+        message: 'Uninstalled model candidate',
+        data: <String, Object?>{'id': id},
+      );
       debugPrint('purgeGemmaPluginInstallCandidates: uninstalled $id');
     } on Object {
       // Not registered under this id — ignore.
@@ -64,12 +71,20 @@ Future<void> purgeGemmaPluginInstallCandidates() async {
 Future<bool> probeFlutterGemmaActiveModelReady(SettingsStore settings) async {
   if (!shouldUseFlutterGemmaEngine) return true;
   if (!ModelPrepareConfig.hasNetworkModelUrl) return false;
-  if (GemmaModelConfig.mobileModelUrlBlockedReason(ModelPrepareConfig.networkUrl) !=
+  if (GemmaModelConfig.mobileModelUrlBlockedReason(
+        ModelPrepareConfig.networkUrl,
+      ) !=
       null) {
     return false;
   }
   Future<bool> probe(PreferredBackend backend) async {
     try {
+      ModelDiagnostics.instance.log(
+        area: 'probe',
+        action: 'open_attempt',
+        message: 'Trying to open active model',
+        data: <String, Object?>{'backend': backend.name},
+      );
       final model = await FlutterGemma.getActiveModel(
         maxTokens: settings.lowRamProfile ? 512 : 1024,
         preferredBackend: backend,
@@ -77,10 +92,18 @@ Future<bool> probeFlutterGemmaActiveModelReady(SettingsStore settings) async {
       try {
         await model.close();
       } on Object catch (e) {
-        debugPrint('probeFlutterGemmaActiveModelReady: model.close() ignored: $e');
+        debugPrint(
+          'probeFlutterGemmaActiveModelReady: model.close() ignored: $e',
+        );
       }
       return true;
     } on Object catch (e) {
+      ModelDiagnostics.instance.log(
+        area: 'probe',
+        action: 'open_failed',
+        message: 'Failed to open active model',
+        data: <String, Object?>{'backend': backend.name, 'error': '$e'},
+      );
       debugPrint('probeFlutterGemmaActiveModelReady ($backend): $e');
       return false;
     }
@@ -103,8 +126,8 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   FlutterGemmaLlmEngine({
     required SettingsStore settings,
     void Function(int installPercent)? onInstallProgress,
-  })  : _settings = settings,
-        _onInstallProgress = onInstallProgress;
+  }) : _settings = settings,
+       _onInstallProgress = onInstallProgress;
 
   final SettingsStore _settings;
   final void Function(int)? _onInstallProgress;
@@ -113,8 +136,7 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   bool _loaded = false;
   bool _disposed = false;
 
-  int get _contextMaxTokens =>
-      _settings.lowRamProfile ? 512 : 1024;
+  int get _contextMaxTokens => _settings.lowRamProfile ? 512 : 1024;
 
   PreferredBackend get _preferredBackend =>
       _settings.lowRamProfile ? PreferredBackend.cpu : PreferredBackend.gpu;
@@ -135,22 +157,34 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       );
     }
 
-    var builder = FlutterGemma.installModel(
-      modelType: GemmaModelConfig.modelType,
-      fileType: ModelPrepareConfig.fileTypeForInstallSource(url),
-    ).fromNetwork(
-      url,
-      token: ModelPrepareConfig.hfToken.isEmpty
-          ? null
-          : ModelPrepareConfig.hfToken,
-    );
+    var builder =
+        FlutterGemma.installModel(
+          modelType: GemmaModelConfig.modelType,
+          fileType: ModelPrepareConfig.fileTypeForInstallSource(url),
+        ).fromNetwork(
+          url,
+          token: ModelPrepareConfig.hfToken.isEmpty
+              ? null
+              : ModelPrepareConfig.hfToken,
+        );
 
     if (_onInstallProgress != null) {
       builder = builder.withProgress(_onInstallProgress);
     }
 
     try {
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'install_start',
+        message: 'Installing model from network',
+        data: <String, Object?>{'url': url},
+      );
       await builder.install();
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'install_ok',
+        message: 'Model install finished',
+      );
     } on Object catch (e) {
       final msg = e.toString().toLowerCase();
       if (msg.contains('space') ||
@@ -161,12 +195,24 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
           'Free space and try again.',
         );
       }
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'install_failed',
+        message: 'Model install failed',
+        data: <String, Object?>{'error': '$e'},
+      );
       throw LlmUnavailableException('Could not download Gemma model: $e');
     }
   }
 
   Future<InferenceModel> _openActiveModel() async {
     try {
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'open_attempt',
+        message: 'Opening active model',
+        data: <String, Object?>{'backend': _preferredBackend.name},
+      );
       return await FlutterGemma.getActiveModel(
         maxTokens: _contextMaxTokens,
         preferredBackend: _preferredBackend,
@@ -182,6 +228,15 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
           preferredBackend: PreferredBackend.cpu,
         );
       }
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'open_failed',
+        message: 'Open active model failed',
+        data: <String, Object?>{
+          'backend': _preferredBackend.name,
+          'error': '$e',
+        },
+      );
       rethrow;
     }
   }
@@ -211,6 +266,11 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     try {
       _model = await _openActiveModel();
       _loaded = true;
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'ensure_loaded',
+        message: 'Active model opened without reinstall',
+      );
       return;
     } on Object catch (e) {
       _model = null;
@@ -225,6 +285,11 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       await Future<void>.delayed(const Duration(milliseconds: 400));
       _model = await _openActiveModel();
       _loaded = true;
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'ensure_loaded_retry_ok',
+        message: 'Second open attempt succeeded',
+      );
       return;
     } on Object catch (e) {
       _model = null;
@@ -238,6 +303,11 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
 
     try {
       _model = await _openActiveModel();
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'ensure_loaded_after_install',
+        message: 'Open succeeded after reinstall',
+      );
     } on Object catch (e) {
       _model = null;
       debugPrint(
@@ -248,6 +318,11 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       await _installFromNetwork();
       try {
         _model = await _openActiveModel();
+        ModelDiagnostics.instance.log(
+          area: 'engine',
+          action: 'ensure_loaded_second_reinstall_ok',
+          message: 'Open succeeded after second reinstall',
+        );
       } on Object catch (e2) {
         _model = null;
         if (gemmaErrorLooksLikeInvalidTaskArchive(e2)) {

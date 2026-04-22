@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../llm/flutter_gemma_llm_engine.dart';
 import '../llm/gemma_model_config.dart';
 import '../llm/llm_service.dart';
+import '../llm/model_diagnostics.dart';
 import '../llm/model_prepare_config.dart';
 import '../llm/model_prepare_prefs.dart';
 import '../state/settings_scope.dart';
@@ -90,8 +91,13 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
   }
 
   Future<void> _start() async {
+    ModelDiagnostics.instance.log(
+      area: 'prepare_screen',
+      action: 'start',
+      message: 'Entered model prepare flow',
+    );
     if (!shouldUseFlutterGemmaEngine) {
-      await ModelPreparePrefs.setPrepareDone(true);
+      await ModelPreparePrefs.markPrepareDoneForCurrentConfig();
       if (mounted) context.go('/home');
       return;
     }
@@ -126,10 +132,15 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
       return;
     }
 
-    if (await ModelPreparePrefs.isPrepareDone()) {
+    if (!await ModelPreparePrefs.shouldPrepareForCurrentConfig()) {
       final stillReady = await probeFlutterGemmaActiveModelReady(settings);
       if (!mounted) return;
       if (stillReady) {
+        ModelDiagnostics.instance.log(
+          area: 'prepare_screen',
+          action: 'reuse_existing_install',
+          message: 'Prepared model is still healthy',
+        );
         context.go('/home');
         return;
       }
@@ -156,10 +167,7 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
       });
     }
 
-    if (!_ignoreStorageCheck &&
-        free != null &&
-        free < required &&
-        mounted) {
+    if (!_ignoreStorageCheck && free != null && free < required && mounted) {
       setState(() {
         _phase = _Phase.lowStorage;
         _status =
@@ -181,7 +189,12 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
     try {
       await _openActiveModelVerifyThenClose(settings);
       LlmService.instance.invalidateCachedEngine();
-      await ModelPreparePrefs.setPrepareDone(true);
+      await ModelPreparePrefs.markPrepareDoneForCurrentConfig();
+      ModelDiagnostics.instance.log(
+        area: 'prepare_screen',
+        action: 'verify_existing_ok',
+        message: 'Existing model opened successfully',
+      );
       if (!mounted) return;
       setState(() {
         _phase = _Phase.success;
@@ -204,17 +217,18 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
     });
 
     try {
-      var builder = FlutterGemma.installModel(
-        modelType: ModelPrepareConfig.modelType,
-        fileType: ModelPrepareConfig.fileTypeForInstallSource(
-          ModelPrepareConfig.networkUrl,
-        ),
-      ).fromNetwork(
-        ModelPrepareConfig.networkUrl,
-        token: ModelPrepareConfig.hfToken.isEmpty
-            ? null
-            : ModelPrepareConfig.hfToken,
-      );
+      var builder =
+          FlutterGemma.installModel(
+            modelType: ModelPrepareConfig.modelType,
+            fileType: ModelPrepareConfig.fileTypeForInstallSource(
+              ModelPrepareConfig.networkUrl,
+            ),
+          ).fromNetwork(
+            ModelPrepareConfig.networkUrl,
+            token: ModelPrepareConfig.hfToken.isEmpty
+                ? null
+                : ModelPrepareConfig.hfToken,
+          );
 
       builder = builder
           .withProgress((p) {
@@ -223,10 +237,20 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
           .withCancelToken(_cancelToken!);
 
       await builder.install();
+      ModelDiagnostics.instance.log(
+        area: 'prepare_screen',
+        action: 'download_ok',
+        message: 'Model download completed',
+      );
 
       await _openActiveModelVerifyThenClose(settings);
       LlmService.instance.invalidateCachedEngine();
-      await ModelPreparePrefs.setPrepareDone(true);
+      await ModelPreparePrefs.markPrepareDoneForCurrentConfig();
+      ModelDiagnostics.instance.log(
+        area: 'prepare_screen',
+        action: 'verify_after_download_ok',
+        message: 'Downloaded model opened successfully',
+      );
 
       if (!mounted) return;
       setState(() {
@@ -237,6 +261,12 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
       await Future<void>.delayed(const Duration(milliseconds: 600));
       if (mounted) context.go('/home');
     } on Object catch (e) {
+      ModelDiagnostics.instance.log(
+        area: 'prepare_screen',
+        action: 'download_or_verify_failed',
+        message: 'Prepare flow failed',
+        data: <String, Object?>{'error': '$e'},
+      );
       if (CancelToken.isCancel(e)) {
         if (mounted) {
           setState(() {
@@ -257,16 +287,16 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
         _phase = _Phase.error;
         _error = gemmaErrorLooksLikeInvalidTaskArchive(e)
             ? 'The model file could not be loaded (invalid or incomplete '
-                '.task archive — LiteRT zip open failed). Stale copies were '
-                'removed. Verify `IKAMVA_MODEL_DOWNLOAD_URL` and optional '
-                '`IKAMVA_HF_TOKEN`, then tap Retry.\n\nTechnical: $e'
+                  '.task archive — LiteRT zip open failed). Stale copies were '
+                  'removed. Verify `IKAMVA_MODEL_DOWNLOAD_URL` and optional '
+                  '`IKAMVA_HF_TOKEN`, then tap Retry.\n\nTechnical: $e'
             : gemmaErrorLooksLikeGpuMetalDelegateFailure(e)
-                ? 'GPU acceleration failed (common on iOS Simulator or some '
-                    'devices). The download is usually fine.\n\n'
-                    'Turn on Low RAM profile in Settings to prefer the CPU '
-                    'backend, then return to Preparing AI, or tap Retry.\n\n'
-                    'Technical: $e'
-                : '$e';
+            ? 'GPU acceleration failed (common on iOS Simulator or some '
+                  'devices). The download is usually fine.\n\n'
+                  'Turn on Low RAM profile in Settings to prefer the CPU '
+                  'backend, then return to Preparing AI, or tap Retry.\n\n'
+                  'Technical: $e'
+            : '$e';
       });
     }
   }
@@ -297,11 +327,7 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.psychology_outlined,
-                  size: 56,
-                  color: cs.primary,
-                ),
+                Icon(Icons.psychology_outlined, size: 56, color: cs.primary),
                 const SizedBox(height: 16),
                 Text(
                   'Getting Gemma ready',
@@ -344,7 +370,8 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
                     ),
                   const SizedBox(height: 20),
                 ],
-                if (_phase == _Phase.installing || _phase == _Phase.success) ...[
+                if (_phase == _Phase.installing ||
+                    _phase == _Phase.success) ...[
                   LinearProgressIndicator(
                     value: (_progress.clamp(0, 100)) / 100.0,
                     minHeight: 10,

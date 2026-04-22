@@ -180,6 +180,7 @@ Spec §3.3 pre-generation + §8 data flow.
 - [x] **8.7** **AI hub topics + child-friendly gate:** `DailyTopicsService` uses **model-only** topics in release; prefs bump `hub_daily_topics_v2`; gate rejects unsafe topic strings. **(P0)** — *See [spec.md §4.1.3](spec.md).*
 - [x] **8.8** Run **`ChildFriendlyContentGate`** on all **generated task payloads** before insert; on **Teacher/Parent** quest save validate **topic**; on **AI hint** JSON validate hint fields; on **InsightJob** output before **InsightCard** insert. Gate = **rules + Gemma JSON sentiment** on consolidated strings (stub in CI). **(P0)** — *See [spec.md §4.1.4](spec.md).*
 - [x] **8.5** Expose **debug panel** (dev only): cache size, last error, tokens/sec, model path. **(P1)**
+- [x] **8.9** Expand debug diagnostics into multi-page/tabs with verbose model lifecycle timeline (prepare/probe/open/install/retry/purge) and copyable event export for bug reports. **(P1)**
 
 **Acceptance:** Airplane mode: new session still receives **AI-cached** tasks without blocking UI; **8.6** satisfied in release configuration (no static-bank dequeue for learners).
 

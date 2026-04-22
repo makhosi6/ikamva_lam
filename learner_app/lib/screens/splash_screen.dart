@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../llm/flutter_gemma_llm_engine.dart';
 import '../llm/llm_service.dart';
+import '../llm/model_diagnostics.dart';
 import '../llm/model_prepare_prefs.dart';
 import '../state/settings_scope.dart';
 import '../theme/ikamva_colors.dart';
@@ -26,10 +27,10 @@ class _SplashScreenState extends State<SplashScreen>
     parent: _controller,
     curve: Curves.easeOut,
   );
-  late final Animation<double> _scale = Tween<double>(begin: 0.92, end: 1)
-      .animate(
-        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-      );
+  late final Animation<double> _scale = Tween<double>(
+    begin: 0.92,
+    end: 1,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
   static const _dwell = Duration(milliseconds: 2000);
 
@@ -44,20 +45,36 @@ class _SplashScreenState extends State<SplashScreen>
       context.go('/home');
       return;
     }
-    final donePrepare = await ModelPreparePrefs.isPrepareDone();
+    final shouldPrepare =
+        await ModelPreparePrefs.shouldPrepareForCurrentConfig();
     if (!mounted) return;
-    if (!donePrepare) {
+    if (shouldPrepare) {
+      ModelDiagnostics.instance.log(
+        area: 'splash',
+        action: 'prepare_required',
+        message: 'Routing to prepare screen',
+      );
       context.go('/model-prepare');
       return;
     }
     final modelOk = await probeFlutterGemmaActiveModelReady(settings);
     if (!mounted) return;
     if (modelOk) {
+      ModelDiagnostics.instance.log(
+        area: 'splash',
+        action: 'model_ready',
+        message: 'Model probe succeeded, routing home',
+      );
       context.go('/home');
     } else {
       await ModelPreparePrefs.setPrepareDone(false);
       if (!mounted) return;
       LlmService.instance.invalidateCachedEngine();
+      ModelDiagnostics.instance.log(
+        area: 'splash',
+        action: 'model_probe_failed',
+        message: 'Model probe failed, rerouting to prepare',
+      );
       context.go('/model-prepare');
     }
   }
@@ -107,8 +124,9 @@ class _SplashScreenState extends State<SplashScreen>
                       TextSpan(
                         text: 'practice that works offline.',
                         style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.72),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.72,
+                          ),
                         ),
                       ),
                     ],

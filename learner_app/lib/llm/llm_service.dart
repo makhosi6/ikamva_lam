@@ -4,6 +4,7 @@ import 'llm_engine.dart';
 import 'llm_exceptions.dart';
 import 'llm_generate_request.dart';
 import 'llm_limits.dart';
+import 'model_diagnostics.dart';
 import 'streaming_llm_capability.dart';
 
 /// App-wide access to on-device LLM (TASKS §6.4–6.8).
@@ -30,12 +31,23 @@ class LlmService {
   }) async {
     _settings = settings;
     _onModelInstallProgress = onModelInstallProgress;
+    ModelDiagnostics.instance.log(
+      area: 'service',
+      action: 'configure',
+      message: 'Configured LLM service',
+      data: <String, Object?>{'lowRam': settings.lowRamProfile},
+    );
   }
 
   /// Validates engine + on-disk model (re-downloads via HTTP if needed).
   Future<void> ensureReady() async {
     _throwIfDisposed();
     final engine = _engine ??= _createEngine();
+    ModelDiagnostics.instance.log(
+      area: 'service',
+      action: 'ensure_ready',
+      message: 'Ensuring model is ready',
+    );
     await engine.ensureLoaded().timeout(
       const Duration(seconds: 600),
       onTimeout: () => throw LlmResourceException(
@@ -64,18 +76,28 @@ class LlmService {
     );
 
     final engine = _engine ??= _createEngine();
-    await engine.ensureLoaded();
-    return engine.generate(resolved).timeout(
-      const Duration(seconds: 180),
-      onTimeout: () => throw LlmResourceException(
-        'Generation timed out. Try Low RAM mode in Settings or a shorter activity.',
-      ),
+    ModelDiagnostics.instance.log(
+      area: 'service',
+      action: 'generate',
+      message: 'Run one-shot generation',
+      data: <String, Object?>{'maxTokens': maxNew, 'context': ctx},
     );
+    await engine.ensureLoaded();
+    return engine
+        .generate(resolved)
+        .timeout(
+          const Duration(seconds: 180),
+          onTimeout: () => throw LlmResourceException(
+            'Generation timed out. Try Low RAM mode in Settings or a shorter activity.',
+          ),
+        );
   }
 
   /// Streaming path for [spec.md](../../../spec.md) §7.3 when the active engine
   /// implements [StreamingLlmCapability]. Otherwise returns `null` — use [generate].
-  Future<Stream<String>?> tryOpenGenerateStream(LlmGenerateRequest request) async {
+  Future<Stream<String>?> tryOpenGenerateStream(
+    LlmGenerateRequest request,
+  ) async {
     _throwIfDisposed();
     final lowRam = _settings?.lowRamProfile ?? false;
     final ctx = LlmLimits.clampContext(
@@ -93,6 +115,12 @@ class LlmService {
     );
 
     final engine = _engine ??= _createEngine();
+    ModelDiagnostics.instance.log(
+      area: 'service',
+      action: 'generate_stream_open',
+      message: 'Open stream generation',
+      data: <String, Object?>{'maxTokens': maxNew, 'context': ctx},
+    );
     await engine.ensureLoaded();
     if (engine is StreamingLlmCapability) {
       return (engine as StreamingLlmCapability).generateChunkStream(resolved);
@@ -115,6 +143,11 @@ class LlmService {
 
   /// Call after profile knobs that affect context size / backend choice change.
   void invalidateCachedEngine() {
+    ModelDiagnostics.instance.log(
+      area: 'service',
+      action: 'invalidate_cache',
+      message: 'Invalidated engine cache',
+    );
     _engine?.dispose();
     _engine = null;
   }

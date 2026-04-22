@@ -10,11 +10,13 @@ import '../game/task_queue_service.dart';
 import '../llm/flutter_gemma_llm_engine.dart';
 import '../llm/gemma_model_config.dart';
 import '../llm/llm_service.dart';
+import '../llm/model_diagnostics.dart';
 import '../llm/model_prepare_config.dart';
 import '../llm/model_prepare_prefs.dart';
 import '../metrics/metrics_store.dart';
 import '../state/database_scope.dart';
 import '../state/settings_scope.dart';
+import '../state/settings_store.dart';
 import '../sync/sync_outbox_flush_service.dart';
 import '../version.dart';
 import '../widgets/constrained_content.dart';
@@ -39,6 +41,8 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
   bool _busy = false;
   bool? _activeModelProbeOk;
   String? _activeModelProbeDetail;
+  DateTime? _preparedAt;
+  String? _preparedUrl;
 
   String get _resolvedEngineLabel {
     if (shouldUseFlutterGemmaEngine) {
@@ -58,8 +62,19 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
     if (!mounted) return;
     setState(() {
       _activeModelProbeOk = ok;
-      _activeModelProbeDetail =
-          ok ? 'getActiveModel + close succeeded' : 'getActiveModel failed (see console)';
+      _activeModelProbeDetail = ok
+          ? 'getActiveModel + close succeeded'
+          : 'getActiveModel failed (see console)';
+    });
+  }
+
+  Future<void> _loadPrepareState() async {
+    final preparedAt = await ModelPreparePrefs.preparedAt();
+    final preparedUrl = await ModelPreparePrefs.preparedModelUrl();
+    if (!mounted) return;
+    setState(() {
+      _preparedAt = preparedAt;
+      _preparedUrl = preparedUrl;
     });
   }
 
@@ -75,7 +90,10 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
     messenger.showSnackBar(
-      SnackBar(content: Text('$label copied'), behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text('$label copied'),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -83,7 +101,9 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _probeActiveModel();
+      if (!mounted) return;
+      _probeActiveModel();
+      _loadPrepareState();
     });
   }
 
@@ -91,7 +111,9 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
   Widget build(BuildContext context) {
     if (!kDebugMode) {
       return const Scaffold(
-        body: Center(child: Text('Debug panel is only available in debug builds.')),
+        body: Center(
+          child: Text('Debug panel is only available in debug builds.'),
+        ),
       );
     }
 
@@ -100,279 +122,365 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
     final db = DatabaseScope.of(context);
     final settings = SettingsScope.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const IkamvaAppBarTitle(title: 'Developer', logoHeight: 28),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: _busy
-                ? null
-                : () {
-                    setState(() {
-                      _refreshToken++;
-                      _probeActiveModel();
-                    });
-                  },
-            icon: const Icon(Icons.refresh),
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const IkamvaAppBarTitle(title: 'Developer', logoHeight: 28),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Overview'),
+              Tab(text: 'Model'),
+              Tab(text: 'Event Log'),
+            ],
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: ConstrainedContent(
-          scrollable: false,
-          child: FutureBuilder<Map<String, dynamic>>(
-            key: ValueKey(_refreshToken),
-            future: MetricsStore.load(),
-            builder: (context, snap) {
-              final metrics = snap.data ?? {};
-              final metricsPretty = const JsonEncoder.withIndent('  ').convert(metrics);
-
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                children: [
-                  Text(
-                    'Diagnostics',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Debug builds only (release shows a single-line notice). '
-                    'Nothing here is learner-facing in production.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  _Section(
-                    title: 'Runtime',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _kv(context, 'App version', kAppVersion),
-                        _kv(context, 'Build', _buildModeLabel()),
-                        _kv(context, 'Target', defaultTargetPlatform.name),
-                        if (!kIsWeb)
-                          _kv(context, 'OS', Platform.operatingSystem),
-                      ],
-                    ),
-                  ),
-
-                  _Section(
-                    title: 'On-device LLM',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _kv(context, 'Resolved engine', _resolvedEngineLabel),
-                        _kv(
-                          context,
-                          'IKAMVA_MODEL_DOWNLOAD_URL',
-                          ModelPrepareConfig.hasNetworkModelUrl
-                              ? _downloadUrlPreview()
-                              : '(not set)',
-                        ),
-                        _kv(
-                          context,
-                          'ModelType',
-                          GemmaModelConfig.modelType.name,
-                        ),
-                        ListenableBuilder(
-                          listenable: settings,
-                          builder: (context, _) {
-                            return _kv(
-                              context,
-                              'Low RAM profile',
-                              '${settings.lowRamProfile}',
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        if (_activeModelProbeOk != null)
-                          _kv(
-                            context,
-                            'Active model probe',
-                            _activeModelProbeOk!
-                                ? 'OK — $_activeModelProbeDetail'
-                                : 'FAIL — $_activeModelProbeDetail',
-                          ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: _busy ? null : _probeActiveModel,
-                          icon: const Icon(Icons.memory_outlined, size: 20),
-                          label: const Text('Probe active Gemma model'),
-                        ),
-                        const SizedBox(height: 8),
-                        FilledButton.tonalIcon(
-                          onPressed: _busy
-                              ? null
-                              : () {
-                                  LlmService.instance.invalidateCachedEngine();
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('LLM engine cache cleared.'),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  }
-                                },
-                          icon: const Icon(Icons.memory_outlined, size: 20),
-                          label: const Text('Invalidate LLM engine cache'),
-                        ),
-                        const SizedBox(height: 8),
-                        OutlinedButton.icon(
-                          onPressed: _busy
-                              ? null
-                              : () async {
-                                  await ModelPreparePrefs.clearPrepareDone();
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Model prepare flag cleared — '
-                                          'restart the app to see the prepare screen.',
-                                        ),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  }
-                                },
-                          icon: const Icon(Icons.restart_alt_outlined, size: 20),
-                          label: const Text('Reset model prepare (next launch)'),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  _Section(
-                    title: 'Task queue',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SelectableText(
-                          TaskQueueService.lastFillError ?? '—',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  _Section(
-                    title: 'Metrics',
-                    trailing: TextButton(
-                      onPressed: () => _copyToClipboard('Metrics', metricsPretty),
-                      child: const Text('Copy'),
-                    ),
-                    child: snap.connectionState == ConnectionState.waiting
-                        ? const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        : Theme(
-                            data: theme.copyWith(
-                              splashColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                            ),
-                            child: ExpansionTile(
-                              tilePadding: EdgeInsets.zero,
-                              childrenPadding: const EdgeInsets.only(bottom: 8),
-                              title: Text(
-                                '${metrics.length} keys',
-                                style: theme.textTheme.titleSmall,
-                              ),
-                              children: [
-                                DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: cs.surfaceContainerHighest.withValues(
-                                      alpha: 0.35,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    padding: const EdgeInsets.all(12),
-                                    child: SelectableText(
-                                      metricsPretty,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        fontFamily: 'monospace',
-                                        fontFamilyFallback: const ['monospace'],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                  ),
-
-                  _Section(
-                    title: 'Actions',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        FilledButton.icon(
-                          onPressed: _busy
-                              ? null
-                              : () async {
-                                  setState(() => _busy = true);
-                                  try {
-                                    final json =
-                                        await ExportSummaryService(db).buildSummaryJson();
-                                    await _copyToClipboard('Export summary', json);
-                                  } finally {
-                                    if (mounted) setState(() => _busy = false);
-                                  }
-                                },
-                          icon: _busy
-                              ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: cs.onPrimary,
-                                  ),
-                                )
-                              : const Icon(Icons.copy_all_outlined, size: 20),
-                          label: Text(_busy ? 'Working…' : 'Copy export summary JSON'),
-                        ),
-                        const SizedBox(height: 8),
-                        OutlinedButton.icon(
-                          onPressed: _busy
-                              ? null
-                              : () async {
-                                  final messenger = ScaffoldMessenger.of(context);
-                                  setState(() => _busy = true);
-                                  try {
-                                    final n =
-                                        await SyncOutboxFlushService(db).flushPending();
-                                    if (!mounted) return;
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Flushed $n outbox row(s) (if sync URL set).',
-                                        ),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  } finally {
-                                    if (mounted) setState(() => _busy = false);
-                                  }
-                                },
-                          icon: const Icon(Icons.cloud_upload_outlined, size: 20),
-                          label: const Text('Try sync outbox flush'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
+          actions: [
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: _busy
+                  ? null
+                  : () {
+                      setState(() {
+                        _refreshToken++;
+                        _probeActiveModel();
+                      });
+                      _loadPrepareState();
+                    },
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: ConstrainedContent(
+            child: TabBarView(
+              children: [
+                _buildOverviewTab(theme, cs, db),
+                _buildModelTab(theme, settings),
+                _buildEventLogTab(theme, cs),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildOverviewTab(ThemeData theme, ColorScheme cs, dynamic db) {
+    return FutureBuilder<Map<String, dynamic>>(
+      key: ValueKey(_refreshToken),
+      future: MetricsStore.load(),
+      builder: (context, snap) {
+        final metrics = snap.data ?? {};
+        final metricsPretty = const JsonEncoder.withIndent(
+          '  ',
+        ).convert(metrics);
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            Text(
+              'Diagnostics',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Debug builds only (release shows a single-line notice).',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            _Section(
+              title: 'Runtime',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _kv(context, 'App version', kAppVersion),
+                  _kv(context, 'Build', _buildModeLabel()),
+                  _kv(context, 'Target', defaultTargetPlatform.name),
+                  if (!kIsWeb) _kv(context, 'OS', Platform.operatingSystem),
+                ],
+              ),
+            ),
+            _Section(
+              title: 'Task queue',
+              child: SelectableText(
+                TaskQueueService.lastFillError ?? '—',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+            _Section(
+              title: 'Metrics',
+              trailing: TextButton(
+                onPressed: () => _copyToClipboard('Metrics', metricsPretty),
+                child: const Text('Copy'),
+              ),
+              child: snap.connectionState == ConnectionState.waiting
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : SelectableText(
+                      metricsPretty,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
+                        fontFamilyFallback: const ['monospace'],
+                      ),
+                    ),
+            ),
+            _Section(
+              title: 'Actions',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () async {
+                            setState(() => _busy = true);
+                            try {
+                              final json = await ExportSummaryService(
+                                db,
+                              ).buildSummaryJson();
+                              await _copyToClipboard('Export summary', json);
+                            } finally {
+                              if (mounted) setState(() => _busy = false);
+                            }
+                          },
+                    icon: const Icon(Icons.copy_all_outlined, size: 20),
+                    label: Text(
+                      _busy ? 'Working…' : 'Copy export summary JSON',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            setState(() => _busy = true);
+                            try {
+                              final n = await SyncOutboxFlushService(
+                                db,
+                              ).flushPending();
+                              if (!mounted) return;
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Flushed $n outbox row(s) (if sync URL set).',
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            } finally {
+                              if (mounted) setState(() => _busy = false);
+                            }
+                          },
+                    icon: const Icon(Icons.cloud_upload_outlined, size: 20),
+                    label: const Text('Try sync outbox flush'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildModelTab(ThemeData theme, SettingsStore settings) {
+    final shouldPrepareFuture =
+        ModelPreparePrefs.shouldPrepareForCurrentConfig();
+    return FutureBuilder<bool>(
+      future: shouldPrepareFuture,
+      builder: (context, shouldPrepareSnap) {
+        final shouldPrepare = shouldPrepareSnap.data;
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            _Section(
+              title: 'On-device LLM',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _kv(context, 'Resolved engine', _resolvedEngineLabel),
+                  _kv(
+                    context,
+                    'IKAMVA_MODEL_DOWNLOAD_URL',
+                    ModelPrepareConfig.hasNetworkModelUrl
+                        ? _downloadUrlPreview()
+                        : '(not set)',
+                  ),
+                  _kv(context, 'ModelType', GemmaModelConfig.modelType.name),
+                  _kv(
+                    context,
+                    'Prepare required now',
+                    '${shouldPrepare ?? 'loading…'}',
+                  ),
+                  _kv(context, 'Prepared URL (last)', _preparedUrl ?? '(none)'),
+                  _kv(
+                    context,
+                    'Prepared at',
+                    _preparedAt?.toIso8601String() ?? '(never)',
+                  ),
+                  ListenableBuilder(
+                    listenable: settings,
+                    builder: (context, _) => _kv(
+                      context,
+                      'Low RAM profile',
+                      '${settings.lowRamProfile}',
+                    ),
+                  ),
+                  if (_activeModelProbeOk != null)
+                    _kv(
+                      context,
+                      'Active model probe',
+                      _activeModelProbeOk!
+                          ? 'OK — $_activeModelProbeDetail'
+                          : 'FAIL — $_activeModelProbeDetail',
+                    ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _probeActiveModel,
+                    icon: const Icon(Icons.memory_outlined, size: 20),
+                    label: const Text('Probe active Gemma model'),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton.tonalIcon(
+                    onPressed: _busy
+                        ? null
+                        : () {
+                            LlmService.instance.invalidateCachedEngine();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('LLM engine cache cleared.'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.memory_outlined, size: 20),
+                    label: const Text('Invalidate LLM engine cache'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () async {
+                            await ModelPreparePrefs.clearPrepareDone();
+                            await _loadPrepareState();
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Model prepare state cleared — restart the app to re-run prepare.',
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.restart_alt_outlined, size: 20),
+                    label: const Text('Reset model prepare state'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildEventLogTab(ThemeData theme, ColorScheme cs) {
+    return ValueListenableBuilder<List<ModelDiagnosticEvent>>(
+      valueListenable: ModelDiagnostics.instance.events,
+      builder: (context, events, _) {
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            _Section(
+              title: 'Model event timeline',
+              trailing: Wrap(
+                spacing: 8,
+                children: [
+                  TextButton(
+                    onPressed: () => _copyToClipboard(
+                      'Model events',
+                      ModelDiagnostics.instance.asPrettyJson(),
+                    ),
+                    child: const Text('Copy'),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(ModelDiagnostics.instance.clear),
+                    child: const Text('Clear'),
+                  ),
+                ],
+              ),
+              child: events.isEmpty
+                  ? Text(
+                      'No model events captured yet.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: events.reversed.map((event) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: cs.surfaceContainerHighest.withValues(
+                                alpha: 0.25,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${event.timestamp.toIso8601String()}  ${event.area}/${event.action}',
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(
+                                          fontFamily: 'monospace',
+                                          fontFamilyFallback: const [
+                                            'monospace',
+                                          ],
+                                        ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    event.message,
+                                    style: theme.textTheme.bodyMedium,
+                                  ),
+                                  if (event.data.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    SelectableText(
+                                      const JsonEncoder.withIndent(
+                                        '  ',
+                                      ).convert(event.data),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            fontFamily: 'monospace',
+                                            fontFamilyFallback: const [
+                                              'monospace',
+                                            ],
+                                          ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -394,10 +502,7 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
             ),
           ),
           Expanded(
-            child: SelectableText(
-              value,
-              style: theme.textTheme.bodyMedium,
-            ),
+            child: SelectableText(value, style: theme.textTheme.bodyMedium),
           ),
         ],
       ),
@@ -406,11 +511,7 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.child,
-    this.trailing,
-  });
+  const _Section({required this.title, required this.child, this.trailing});
 
   final String title;
   final Widget child;

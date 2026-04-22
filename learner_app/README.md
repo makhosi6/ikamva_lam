@@ -27,3 +27,11 @@ bash tool/fetch_kokoro_models.sh
 ## On-device LLM (Gemma)
 
 Gemma weights are **not** in the Flutter asset bundle: configure **`IKAMVA_MODEL_DOWNLOAD_URL`** (and optional **`IKAMVA_HF_TOKEN`**) at compile time — see the repository root **`README.md`** (section *Models* and *VS Code, `.env`, and CI*), **`.env.example`**, and **`assets/models/OBTAINING_MODELS.txt`**. For behaviour, cold start, prepare screen, and recovery semantics, see root **`CHANGELOG.md`** (*Unreleased*).
+
+### Debugging model issues
+
+- Use `/dev/stats` in debug builds:
+  - `Overview`: runtime + metrics + export/sync actions.
+  - `Model`: resolved engine, prepare-state metadata, active-model probe, cache invalidation.
+  - `Event Log`: verbose lifecycle timeline for model prepare/probe/load/reinstall events.
+- The app persists the last successfully prepared model URL and timestamp; if the compile-time URL changes, prepare is required again.

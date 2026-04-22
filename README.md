@@ -71,11 +71,13 @@ Requires **macOS** system fonts (*Arial Rounded Bold*, *Arial*). On Linux, point
 
 - **Production (Android / iOS):** weights are **not** in the APK. Set **`IKAMVA_MODEL_DOWNLOAD_URL`** at compile time (HTTPS link to a **native** artifact: **`.litertlm`** for Gemma 4, or a mobile **`.task`** for older families — **never** a **`*-web.task`** URL on iOS/Android; those are Web-only and cause LiteRT “zip archive” errors). Use repo-root **`.env`** with `--dart-define-from-file=.env` (see `.env.example`) or your CI equivalent. Optional **`IKAMVA_HF_TOKEN`** for gated Hugging Face files. Full checklist: `learner_app/assets/models/OBTAINING_MODELS.txt`.
 - **Persistence:** after the first successful download, `flutter_gemma` keeps the model on device; cold starts re-open it. If the file is missing or corrupt, the prepare flow or **`LlmService.ensureReady` / `generate`** triggers a **re-download**.
+- **Cross-session correctness:** prepare state is tracked with both a success flag and the last prepared model URL. If `IKAMVA_MODEL_DOWNLOAD_URL` changes between builds, the app automatically routes back to prepare/verify so stale model artifacts are not reused.
 - **Default target:** Gemma 3 **1B**–class mobile `.task` from [litert-community](https://huggingface.co/litert-community) or similar (team choice in `docs/flutter_gemma_migration_scope.md`).
 - **Pin:** `flutter_gemma` version is pinned in `learner_app/pubspec.yaml`; run `pod install` under `learner_app/ios` after upgrades.
 - **Stub / CI:** `IKAMVA_USE_STUB_LLM=1` or `flutter test` on a desktop host uses **`StubLlmEngine`** (no download).
 - **Privacy:** all **LLM inference is on-device**; the download URL is only used to fetch weights to the device. Optional non-LLM network (e.g. sync) is separate—see `docs/api_sync_contract.md`.
 - **Optional sync:** compile with `--dart-define=IKAMVA_SYNC_URL=https://example.com/v1/summaries` to exercise outbox flush (see `docs/api_sync_contract.md`).
+- **Debug diagnostics:** in debug builds, `/dev/stats` is now tabbed (`Overview`, `Model`, `Event Log`). The `Event Log` captures verbose model lifecycle events (probe/open/install/retry/purge) and supports copy-to-clipboard for bug reports.
 
 ### VS Code, `.env`, and CI
 
