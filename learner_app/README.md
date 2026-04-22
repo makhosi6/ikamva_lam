@@ -23,3 +23,7 @@ To refresh those files from upstream (e.g. after changing the bundled voice), fr
 ```bash
 bash tool/fetch_kokoro_models.sh
 ```
+
+## On-device LLM (Gemma)
+
+Gemma weights are **not** in the Flutter asset bundle: configure **`IKAMVA_MODEL_DOWNLOAD_URL`** (and optional **`IKAMVA_HF_TOKEN`**) at compile time — see the repository root **`README.md`** (section *Models* and *VS Code, `.env`, and CI*), **`.env.example`**, and **`assets/models/OBTAINING_MODELS.txt`**. For behaviour, cold start, prepare screen, and recovery semantics, see root **`CHANGELOG.md`** (*Unreleased*).

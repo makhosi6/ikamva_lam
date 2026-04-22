@@ -4,6 +4,7 @@ import '../hub/daily_quest_ids.dart';
 import '../llm/llm_generate_request.dart';
 import '../llm/llm_output_filters.dart';
 import '../llm/llm_service.dart';
+import '../llm/model_prepare_config.dart';
 import '../prompts/prompt_compliance.dart';
 
 /// Result of on-device **child-appropriate** screening (spec §4.1.4).
@@ -21,11 +22,15 @@ class ContentSafetyVerdict {
 ///
 /// Covers: hub topics, quest topics, **all string fields** in task JSON,
 /// multilingual hint maps, and Teacher/Parent insight text.
+///
+/// When [ModelPrepareConfig.hasNetworkModelUrl] is false (e.g. `flutter test`
+/// without `--dart-define-from-file`), the Gemma **sentiment** pass is skipped
+/// and only rule-based screening runs.
 abstract final class ChildFriendlyContentGate {
   static const int maxTopicLength = 48;
   static const int maxTopicWords = 5;
 
-  /// Marker matched by [StubLlmEngine] for deterministic CI output.
+  /// Marker in the Gemma sentiment sub-prompt (`_sentimentLlm`).
   static const sentimentTaskMarker = 'TASK: child_content_sentiment_check';
 
   static const Set<String> _blockedWholeWords = {
@@ -185,6 +190,9 @@ abstract final class ChildFriendlyContentGate {
     if (normalizedTopics.isEmpty) {
       return const ContentSafetyVerdict(ok: true);
     }
+    if (!ModelPrepareConfig.hasNetworkModelUrl) {
+      return const ContentSafetyVerdict(ok: true);
+    }
     final encoded = jsonEncode(normalizedTopics);
     return _sentimentLlm(
       'hub_topic_batch',
@@ -232,6 +240,9 @@ abstract final class ChildFriendlyContentGate {
     if (!rules.ok) return rules;
     final m = material.trim();
     if (m.isEmpty) return rules;
+    if (!ModelPrepareConfig.hasNetworkModelUrl) {
+      return rules;
+    }
     final cap = m.length > 2200 ? '${m.substring(0, 2200)}\n…' : m;
     final sent = await _sentimentLlm(kind, cap);
     if (sent.ok) return rules;
@@ -261,15 +272,15 @@ or
 If unsure, prefer safe=false.
 ''';
       final raw = await LlmService.instance.generate(
-        LlmGenerateRequest(prompt: prompt, maxTokens: 96),
+        LlmGenerateRequest(prompt: ModelBoundPrompt(prompt), maxTokens: 96),
       );
-      if (isEmptyComplianceObject(raw)) {
+      if (isEmptyComplianceObject(raw.text)) {
         return const ContentSafetyVerdict(
           ok: false,
           violations: ['gemma_sentiment:model_refused'],
         );
       }
-      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw.trim());
+      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw.text.trim());
       final decoded = jsonDecode(span);
       if (decoded is! Map<String, dynamic>) {
         return const ContentSafetyVerdict(

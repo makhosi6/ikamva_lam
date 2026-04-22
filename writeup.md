@@ -100,7 +100,7 @@ This allows teachers and parents to:
 
 The key innovation is using Gemma 4 locally, not in the cloud.
 
-We will run inference with `llama.cpp`, which is a strong fit for an innovative Gemma 4 deployment on resource-constrained hardware. Most learners use older or modest devices; efficient CPU/GPU paths in `llama.cpp` plus quantised models help keep the experience usable where cloud GPUs and new phones are not realistic.
+We run inference with **`flutter_gemma`** (MediaPipe / LiteRT-LM) so Gemma stays **fully on-device** on phones and tablets—no cloud LLM, no runtime download of weights. Bundled `.task` models and a **Low RAM** profile keep the experience usable on modest hardware.
 
 This enables:
 
@@ -123,7 +123,7 @@ Generation stays bounded: short outputs, tight token budgets, curriculum-aligned
 
 - Flutter learner client (tablet / low-end laptop friendly) with a lightweight game layer
 - Local persistence (e.g. SQLite) for progress, cache, and templates
-- On-device inference via `llama.cpp` + quantised Gemma 4 (e.g. smaller GGUF builds on the weakest devices, larger where RAM allows)
+- On-device inference via `flutter_gemma` + quantised Gemma `.task` downloaded over HTTPS once per device (smaller builds on the weakest devices, larger where storage/RAM allows)
 - Structured prompting (not open chat), focused on:
   - Game generation
   - Hint generation

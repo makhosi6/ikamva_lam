@@ -22,9 +22,9 @@ abstract final class AnswerNormalisationService {
       learnerText: trimmed,
     );
     final raw = await LlmService.instance.generate(
-      LlmGenerateRequest(prompt: prompt, maxTokens: 96),
+      LlmGenerateRequest(prompt: ModelBoundPrompt(prompt), maxTokens: 96),
     );
-    final slice = LlmOutputFilters.takeThroughFirstBalancedJson(raw);
+    final slice = LlmOutputFilters.takeThroughFirstBalancedJson(raw.text);
     try {
       final decoded = jsonDecode(slice);
       if (decoded is! Map) return null;

@@ -10,7 +10,7 @@ Work against this file in order within each phase unless a task notes a dependen
 
 **Content policy:** Learner-facing **questions and task payloads** must be **AI-generated** for uniqueness (including items served from cache that were model-written when cached). See [spec.md §4.1.1](spec.md). Bundled static tasks are **tests / dev UI only**, not the production learner path.
 
-**Topics & safety (spec §4.1.3–4.1.4):** Hub **topic labels** are **model-generated** in production (prefs key `hub_daily_topics_v2`). A **child-friendly gate** (`learner_app/lib/safety/child_friendly_content_gate.dart`) filters topics, task JSON string fields, hint strings, and **Teacher/Parent insight** card text before persist or UI.
+**Topics & safety (spec §4.1.3–4.1.4):** Hub **topic labels** are **model-generated** in production (prefs key `hub_daily_topics_v4`). A **child-friendly gate** (`learner_app/lib/safety/child_friendly_content_gate.dart`) filters topics, task JSON string fields, hint strings, and **Teacher/Parent insight** card text before persist or UI.
 
 ---
 
@@ -21,16 +21,15 @@ Work against this file in order within each phase unless a task notes a dependen
 | **P0** | Blocks demo or core loop |
 | **P1** | Important for hackathon judging / writeup claims |
 | **P2** | Polish or stretch |
-| **FFI** | Native `llama.cpp` bridge (Dart ↔ C) |
+| **FFI** | Legacy shorthand for native bridges; production LLM uses **`flutter_gemma`** |
 | **MVP** | Minimum slice for “learner plays cloze offline with hints” |
 
 **Suggested repo layout (adjust if you prefer monorepo):**
 
 ```text
 /branding/             # logo.svg, logo.png, cover.png, launcher_icon.png
-/learner_app/          # Flutter
+/learner_app/          # Flutter (Gemma via flutter_gemma; HTTP download for weights)
 /teacher_web/          # optional: Flutter web, or React/Vite
-/native/               # llama.cpp build scripts + CMake
 /docs/                 # optional: move design/spec copies
 TASKS.md
 spec.md
@@ -42,11 +41,11 @@ writeup.md
 
 ## Phase 0 — Repository & engineering baseline
 
-- [x] **0.1** Create root README with: project pitch, how to run learner app, where the GGUF lives (or download script), device RAM notes. **(P0)**
+- [x] **0.1** Create root README with: project pitch, how to run learner app, **HTTP Gemma `.task`** / `IKAMVA_MODEL_DOWNLOAD_URL` notes, device RAM notes. **(P0)**
 - [x] **0.2** Add `LICENSE` appropriate to hackathon / team. **(P2)**
 - [x] **0.3** Pin toolchain versions: Flutter SDK channel, Dart version, Android NDK / Xcode if building FFI. Document in README. **(P0)**
 - [x] **0.4** CI stub (optional): `flutter analyze`, `flutter test` on push. **(P1)**
-- [x] **0.5** `.gitignore`: exclude `*.gguf`, build artifacts, `native/build`, local DB files if any committed by mistake. **(P0)**
+- [x] **0.5** `.gitignore`: exclude large model binaries if gitignored locally, build artifacts, local DB files if any committed by mistake. **(P0)**
 
 **Acceptance:** New clone can follow README to open `learner_app` and run on emulator or device.
 
@@ -132,22 +131,22 @@ Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 
 ---
 
-## Phase 6 — llama.cpp + Gemma integration (FFI)
+## Phase 6 — On-device Gemma (`flutter_gemma`)
 
-**Core differentiator** — allocate focused time here.
+**Core differentiator** — inference runs **only** on-device via the **`flutter_gemma`** plugin (no `llama-cli` / GGUF subprocess path).
 
-- [x] **6.1** Choose integration strategy: **`dart:ffi`** to bundled `libllama` **or** subprocess to small native CLI **or** platform channel to Kotlin/Swift wrapper. Document tradeoffs in `native/README.md`. **(P0)**
-- [x] **6.2** Script **building llama.cpp** for target platforms (macOS dev, Android arm64, Windows if needed); pin commit hash. **(P0)**
-- [x] **6.3** Bundle **Gemma 4 GGUF** `Q4_K_M` (E2B for weak devices, E4B for demo machine); document download location & checksum. **(P0)**
-- [x] **6.4** Implement **model load once** at app start (or lazy on first AI feature) with clear loading UI; handle OOM gracefully with user message. **(P0)**
-- [x] **6.5** Inference API: `generate({required String prompt, int maxTokens, List<int> stopSequences, int contextSize})` returning string or stream. **(P0)**
-- [x] **6.6** Apply spec **context limits** (512–1024 tokens) and **max new tokens** (~120); use stop at first complete JSON `}` where applicable. **(P0)**
-- [x] **6.7** **Threading:** run inference on background isolate / native thread; never block UI isolate. **(P0)**
-- [x] **6.8** **Memory:** reuse context across calls; avoid reload per task; expose `dispose` for shutdown. **(P1)**
-- [x] **6.9** Device profile flag: `lowRam` selects E2B + smaller context; `standard` uses E4B. **(P1)**
-- [x] **6.10** **Standalone CLI harness** to exercise **llama.cpp / `llama-cli` outside the Flutter app** (e.g. shell script under `native/scripts/` or a tiny Dart/Go CLI): reads `IKAMVA_LLAMA_CLI` + `IKAMVA_GGUF` (or flags), runs one or more fixed prompts (JSON-only smoke), prints stdout and wall time, exits non-zero on OOM/parse failure — usable from CI and local terminals without `flutter run`. Document in `native/README.md`. **(P1)**
+- [x] **6.1** Integrate **`flutter_gemma`** (pinned in `learner_app/pubspec.yaml`); call **`FlutterGemma.initialize`** in `main.dart`. **(P0)**
+- [x] **6.2** **HTTP-only** mobile **`.task`** (or supported): no weights in APK; document `IKAMVA_MODEL_DOWNLOAD_URL` in `assets/models/OBTAINING_MODELS.txt`. **(P0)**
+- [x] **6.3** Implement **`FlutterGemmaLlmEngine`**: `installModel` → **`fromNetwork`**, **`getActiveModel`**, per-request **`createSession`** + **`getResponse`**; apply **`LlmOutputFilters.takeThroughFirstBalancedJson`** and stop sequences; re-download if open fails. **(P0)**
+- [x] **6.4** **Lazy prepare:** `ensureReady` / settings “warm up” surface copy/install time; handle missing asset and low storage with clear errors. **(P0)**
+- [x] **6.5** Inference API: `LlmService.generate` / optional **`tryOpenGenerateStream`** when the engine implements **`StreamingLlmCapability`**. **(P0)**
+- [x] **6.6** Apply spec **context limits** (512–1024 tokens) and **max new tokens** (~120); JSON extraction unchanged. **(P0)**
+- [x] **6.7** **Threading:** plugin runs native work off the UI isolate; do not block `build()`. **(P0)**
+- [x] **6.8** **Lifecycle:** `dispose` / **`invalidateCachedEngine`** closes the **`InferenceModel`**. **(P1)**
+- [x] **6.9** Device profile: **`lowRamProfile`** → smaller **`maxTokens`** for `getActiveModel` + CPU backend preference. **(P1)**
+- [x] **6.10** **CI / tests:** `IKAMVA_USE_STUB_LLM=1` or non-mobile **`flutter test`** hosts use **`StubLlmEngine`** without weights. **(P1)**
 
-**Acceptance:** On demo hardware, a test prompt returns stable output in a few seconds; app remains responsive. Optional: **6.10** passes against the same binary + GGUF the app uses.
+**Acceptance:** Android/iOS device or emulator with a **valid** download URL completes a sample JSON prompt; CI **`flutter test`** stays green with stub; production uses **`fromNetwork`** once per device for weights.
 
 ---
 
@@ -286,7 +285,7 @@ Spec §7, §9.
 ## Phase 16 — Demo, video & submission
 
 - [x] **16.1** **Scripted demo**: 90s — Teacher/Parent assigns quest → learner plays 3 tasks (wrong once → hint) → session summary → Teacher/Parent insight. **(P0)**
-- [ ] **16.2** Record **video** with voiceover hitting all tracks: main system, education structure, equity offline, llama.cpp efficiency. **(P0)** — *Human step: cannot be automated here.*
+- [ ] **16.2** Record **video** with voiceover hitting all tracks: main system, education structure, equity offline, on-device Gemma efficiency. **(P0)** — *Human step: cannot be automated here.*
 - [x] **16.3** Update [writeup.md](writeup.md) submission links table with repo, demo URL, video URL. **(P0)**
 - [x] **16.4** **Kaggle notebook** (if required): summarize architecture + link to code; optional smoke test cells (no huge model in notebook). **(P1)**
 
@@ -299,11 +298,11 @@ Spec §7, §9.
 **Scope note:** Implements remaining **spec / positioning** gaps that are still code or measurable docs. **Out of scope here:** TASKS **§16.2** (demo video), and a **production Teacher/Parent web app** beyond the existing contract + learner outbox (see [teacher_web/README.md](teacher_web/README.md)).
 
 - [ ] **17.1** **README benchmark table:** capture real numbers per root README procedure (device model, OS, commit, cold start, model ready, first-token / full completion, queue fill); link or paste evidence for writeup. **(P1)**
-- [ ] **17.2** **Streaming output ([spec.md](spec.md) §7.3):** implement [StreamingLlmCapability](learner_app/lib/llm/streaming_llm_capability.dart) on the chosen backend; consume via [LlmService.tryOpenGenerateStream](learner_app/lib/llm/llm_service.dart); add UI hook (e.g. debug panel or hint “typing” line) with **fallback** to batch [generate](learner_app/lib/llm/llm_service.dart). **(P1)**
-- [ ] **17.3** **FFI / `libllama` ([spec.md](spec.md) §3.2):** follow [native/README.md — FFI migration checklist](native/README.md); ship one ABI first; gate with `--dart-define` or runtime flag; keep subprocess path for CI. **(P1)**
+- [ ] **17.2** **Streaming output ([spec.md](spec.md) §7.3):** [StreamingLlmCapability](learner_app/lib/llm/streaming_llm_capability.dart) is implemented on **`FlutterGemmaLlmEngine`**; remaining work is a **UI hook** (e.g. hint “typing” line) with **fallback** to batch [generate](learner_app/lib/llm/llm_service.dart). **(P1)**
+- [x] **17.3** **~~FFI / libllama~~** — **Superseded:** production inference is **`flutter_gemma`**; the old `native/` + `llama-cli` path was removed. **(P1)**
 - [ ] **17.4** **Open decisions log:** close “Drift vs raw sqflite” and “Desktop target for judges” rows once the team locks choices. **(P2)**
 
-**Acceptance:** README table no longer all TBD on at least one reference device; streaming either works in debug or is explicitly deferred with issue link; FFI doc checklist reflects what was built or consciously skipped for the submission.
+**Acceptance:** README table no longer all TBD on at least one reference device; streaming UI is wired or explicitly deferred with issue link; Phase 6 reflects **`flutter_gemma`** (no separate FFI checklist).
 
 ---
 
@@ -311,7 +310,7 @@ Spec §7, §9.
 
 - **0 → 1 → 2 → 3 → 4 → 10:** Foundation through playable static tasks and game UI.
 - **5 (adaptive)** depends on **4** (attempts and session stats).
-- **6 (FFI) → 7 (prompts):** Model bridge then templates; both need **2–3** for persistence and validation.
+- **6 (flutter_gemma) → 7 (prompts):** Model bridge then templates; both need **2–3** for persistence and validation.
 - **8 (cache / pre-gen)** depends on **6–7** and **3**.
 - **9 (hints)** depends on **4**, **6–8**.
 - **11 (analytics)** depends on **4**; insight JSON optionally **7**.
@@ -319,7 +318,7 @@ Spec §7, §9.
 - **13 (Teacher/Parent in-app)** depends on **2**, **11**.
 - **14 (web / sync)** depends on **11** and **2** (outbox); can be last.
 - **15–16** run alongside; **16** assumes **10** and preferably **13** or **14**.
-- **17** (spec parity) can follow **6**/**8**; **17.2** streaming depends on a backend that can emit partials; **17.3** FFI replaces or parallels **6** subprocess.
+- **17** (spec parity) can follow **6**/**8**; **17.2** streaming UI builds on **`FlutterGemmaLlmEngine`** token streams.
 
 
 ---
@@ -341,7 +340,7 @@ Defer: dialogue game, web dashboard, voice commands, cloud sync.
 
 | Decision | Options | Choice | Date |
 |----------|---------|--------|------|
-| FFI vs subprocess | dart:ffi / CLI / platform channel | Subprocess `llama-cli` first (stub when paths unset); FFI later | 2026-04-17 |
+| On-device LLM | flutter_gemma / other | **`flutter_gemma`** + HTTP `.task`; stub for CI | 2026-04-20 |
 | State management | Riverpod / Bloc / Provider | Inherited `DatabaseScope` + `SettingsScope` + `SettingsStore` listenable | 2026-04-17 |
 | Drift vs raw sqflite | Drift / raw sqflite | **Drift** (see `learner_app/` + migrations) | 2026-04-19 |
 | Desktop target for judges | macOS / Windows / neither | **macOS** (toolchain + entitlements in repo; Windows optional) | 2026-04-19 |

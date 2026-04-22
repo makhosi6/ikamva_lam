@@ -4,6 +4,10 @@
 	<dict>
 		<key>CADisableMinimumFrameDurationOnPhone</key>
 		<true/>
+		<key>UIFileSharingEnabled</key>
+		<true/>
+		<key>NSLocalNetworkUsageDescription</key>
+		<string>This app uses on-device AI; local network access may be used by development tooling only.</string>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>

@@ -34,9 +34,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await LlmService.instance.ensureReady().timeout(
-            const Duration(seconds: 45),
+            const Duration(seconds: 120),
             onTimeout: () => throw LlmResourceException(
-              'Model load timed out. Try a smaller GGUF or enable Low RAM.',
+              'Model preparation timed out. Plug in power, free storage, '
+              'or enable Low RAM and retry.',
             ),
           );
       if (!mounted) return;
@@ -46,7 +47,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } on LlmUnavailableException catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('${e.message} Using stub until paths are set.')),
+        SnackBar(
+          content: Text(
+            '${e.message} On mobile, set IKAMVA_MODEL_DOWNLOAD_URL and use '
+            'Preparing AI (or Retry there) to download weights.',
+          ),
+        ),
       );
     } on LlmResourceException catch (e) {
       if (!mounted) return;
@@ -70,13 +76,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final out = await LlmService.instance
           .generate(
             const LlmGenerateRequest(
-              prompt: '{"TASK":"ping","LEVEL":"A1"}',
+              prompt: ModelBoundPrompt('{"TASK":"ping","LEVEL":"A1"}'),
             ),
           )
           .timeout(const Duration(seconds: 60));
       if (!mounted) return;
       final pretty = const JsonEncoder.withIndent('  ').convert(
-        jsonDecode(out) as Object,
+        jsonDecode(out.text) as Object,
       );
       await showDialog<void>(
         context: context,
@@ -196,7 +202,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Low RAM profile'),
                     subtitle: const Text(
-                      'Smaller context window (512) for weaker devices — pair with a smaller GGUF (e.g. E2B).',
+                      'Smaller context (512) and CPU backend preference for weaker devices.',
                     ),
                     value: settings.lowRamProfile,
                     onChanged: (v) async {
@@ -206,8 +212,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Set IKAMVA_GGUF and optionally IKAMVA_LLAMA_CLI, or build '
-                    'native/build/bin/llama-cli — see native/README.md.',
+                    'Gemma weights are not in the APK: set compile-time '
+                    'IKAMVA_MODEL_DOWNLOAD_URL (see assets/models/OBTAINING_MODELS.txt).',
                     style: theme.textTheme.bodySmall,
                   ),
                   const SizedBox(height: 12),

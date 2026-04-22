@@ -25,9 +25,9 @@ class AiHintCoordinator {
       wrongAnswer: wrongAnswerJson,
     );
     final raw = await LlmService.instance.generate(
-      LlmGenerateRequest(prompt: prompt),
+      LlmGenerateRequest(prompt: ModelBoundPrompt(prompt)),
     );
-    final parsed = AiMultilingualHint.tryParse(raw);
+    final parsed = AiMultilingualHint.tryParse(raw.text);
     if (!context.mounted) return;
     if (parsed != null) {
       final gate = await ChildFriendlyContentGate.evaluateJsonValue({

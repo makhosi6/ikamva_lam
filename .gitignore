@@ -6,7 +6,6 @@
 **/pubspec.lock.bak
 
 # Native / llama.cpp
-native/build/
 **/*.gguf
 cmake-build-*/
 
@@ -22,6 +21,7 @@ Thumbs.db
 # Local / secrets
 .env
 .env.*
+!.env.example
 *.jks
 *.keystore
 

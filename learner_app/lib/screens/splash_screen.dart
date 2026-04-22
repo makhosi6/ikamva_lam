@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../llm/flutter_gemma_llm_engine.dart';
+import '../llm/llm_service.dart';
+import '../llm/model_prepare_prefs.dart';
+import '../state/settings_scope.dart';
 import '../theme/ikamva_colors.dart';
 import '../widgets/ikamva_logo.dart';
 
@@ -29,14 +33,40 @@ class _SplashScreenState extends State<SplashScreen>
 
   static const _dwell = Duration(milliseconds: 2000);
 
+  Future<void> _goNext() async {
+    if (!mounted) return;
+    final settings = SettingsScope.of(context);
+    if (!settings.onboardingComplete) {
+      context.go('/welcome');
+      return;
+    }
+    if (!shouldUseFlutterGemmaEngine) {
+      context.go('/home');
+      return;
+    }
+    final donePrepare = await ModelPreparePrefs.isPrepareDone();
+    if (!mounted) return;
+    if (!donePrepare) {
+      context.go('/model-prepare');
+      return;
+    }
+    final modelOk = await probeFlutterGemmaActiveModelReady(settings);
+    if (!mounted) return;
+    if (modelOk) {
+      context.go('/home');
+    } else {
+      await ModelPreparePrefs.setPrepareDone(false);
+      if (!mounted) return;
+      LlmService.instance.invalidateCachedEngine();
+      context.go('/model-prepare');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _controller.forward();
-    Future<void>.delayed(_dwell).then((_) {
-      if (!mounted) return;
-      context.go('/home');
-    });
+    Future<void>.delayed(_dwell).then((_) => _goNext());
   }
 
   @override

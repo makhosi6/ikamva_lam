@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../screens/debug_stats_screen.dart';
+import '../screens/model_prepare_screen.dart';
 import '../screens/game_shell_screen.dart';
 import '../screens/home_hub_screen.dart';
 import '../screens/session_summary_screen.dart';
@@ -71,6 +72,10 @@ GoRouter createAppRouter(SettingsStore settings) {
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/model-prepare',
+        builder: (context, state) => const ModelPrepareScreen(),
       ),
       GoRoute(
         path: '/home',

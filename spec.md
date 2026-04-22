@@ -22,10 +22,10 @@ Digital Equity & Inclusivity
 	•	Supports multilingual scaffolding
 	•	Runs on low-end hardware
 
-llama.cpp Track
-	•	Optimised local inference pipeline
-	•	Quantised Gemma 4
-	•	Efficient memory + token usage
+On-device Gemma (flutter_gemma)
+	•	MediaPipe / LiteRT-LM inference via the `flutter_gemma` plugin
+	•	**`.task` weights via HTTPS** at first use (`IKAMVA_MODEL_DOWNLOAD_URL` compile-time); **not** shipped in the APK; plugin **persists** files on device; **re-download** if missing or corrupt (prepare screen or `LlmService` load path)
+	•	Efficient memory + token usage (quantised mobile builds); optional **`IKAMVA_HF_TOKEN`** for gated Hugging Face URLs
 
 **1.1 Adult guide (Teacher/Parent).** The adult who assigns quests and reviews summaries may be a **school teacher** or a **parent** (shared classroom tablet or home device). Specs, design, and **user-visible app copy** use **Teacher/Parent** for that role. Schema names such as `paired_teacher_code` remain shorthand for the paired adult unless a future migration renames them.
 
@@ -39,7 +39,7 @@ llama.cpp Track
     |-- UI (Flutter)
     |-- Game Engine
     |-- Local DB (SQLite)
-    |-- AI Runtime (llama.cpp + Gemma 4 E2B/E4B)
+    |-- AI Runtime (flutter_gemma + HTTP-downloaded Gemma `.task`, persisted on device)
     |-- Content Cache + Prompt Templates + Child-friendly gate (on-device)
     |
 [ Optional Sync Layer ]
@@ -80,17 +80,15 @@ Why:
 
 ⸻
 
-3.2 llama.cpp Integration (CRITICAL FOR PRIZE)
+3.2 flutter_gemma integration (on-device inference)
 
 Runtime stack
 
-Flutter App
+Flutter App (`LlmService` → `FlutterGemmaLlmEngine`)
    ↓
-FFI Bridge (C bindings)
+`flutter_gemma` plugin (Android / iOS)
    ↓
-llama.cpp runtime
-   ↓
-Gemma 4 GGUF (4-bit quantised)
+Gemma `.task` on disk (downloaded once via HTTPS from `IKAMVA_MODEL_DOWNLOAD_URL`; not in `assets/` — see `OBTAINING_MODELS.txt`)
 
 
 ⸻
@@ -246,7 +244,7 @@ Runs on-device:
 
 ⸻
 
-⚡ 7. Performance Engineering (llama.cpp Focus)
+⚡ 7. Performance Engineering (on-device Gemma)
 
 Target Device Profile
 	•	RAM: 4–8GB
@@ -324,7 +322,7 @@ For Inclusivity
 	•	Works without internet
 	•	Multilingual hints
 
-For llama.cpp Prize
+For on-device Gemma / efficiency track
 	•	Real edge AI system
 	•	Efficient quantised inference
 	•	Practical deployment

@@ -38,9 +38,9 @@ class InsightJob {
         jsonEncode(stats),
       );
       final raw = await LlmService.instance.generate(
-        LlmGenerateRequest(prompt: prompt),
+        LlmGenerateRequest(prompt: ModelBoundPrompt(prompt)),
       );
-      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw.trim());
+      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw.text.trim());
       final map = jsonDecode(span);
       if (map is! Map<String, dynamic>) return;
       final issue = _stringField(map, 'issue', 'Practice focus');
@@ -74,7 +74,7 @@ class InsightJob {
         ),
       );
     } on Object {
-      // Offline / stub LLM: skip silently
+      // Unavailable model, timeout, bad JSON, or gate failure: skip silently
     }
   }
 

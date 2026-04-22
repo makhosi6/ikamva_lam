@@ -1,2 +1,2 @@
 /// Single source for marketing version (keep in sync with `pubspec.yaml`).
-const String kAppVersion = '0.9.8+1';
+const String kAppVersion = '0.9.9+1';

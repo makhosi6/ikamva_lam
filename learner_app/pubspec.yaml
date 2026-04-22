@@ -1,5 +1,5 @@
 name: ikamva_lam
-description: Ikamva Lam learner app — offline-first English practice (Gemma + llama.cpp).
+description: Ikamva Lam learner app — offline-first English practice (on-device Gemma via flutter_gemma).
 homepage: https://www.kaggle.com/competitions/gemma-4-good-hackathon/writeups/ikamva-lam
 repository: https://github.com/makhosi6/ikamva_lam.git
 publish_to: 'none' 
@@ -27,6 +27,8 @@ dependencies:
   kokoro_tts_flutter: ^0.2.0+1
   just_audio: ^0.10.5
   speech_to_text: ^7.0.0
+  flutter_gemma: 0.13.5
+  disk_space: ^0.2.1
 
 dev_dependencies:
   flutter_test:
@@ -75,3 +77,5 @@ flutter:
     - assets/us_silver.json
     - assets/gb_gold.json
     - assets/gb_silver.json
+    # Gemma: HTTP download only (see assets/models/OBTAINING_MODELS.txt).
+    - assets/models/OBTAINING_MODELS.txt

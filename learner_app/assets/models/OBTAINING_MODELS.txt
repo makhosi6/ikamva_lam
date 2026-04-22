@@ -1,0 +1,57 @@
+Gemma on-device weights (HTTP only — not in the APK)
+======================================================
+
+The learner app does **not** bundle weight files (keeps download / APK size down).
+On **Android** and **iOS**, the model is downloaded **once** over HTTPS and kept
+in the plugin’s on-device storage; later launches re-open it. If the file is
+missing or corrupt, the app downloads again (prepare screen or first LLM use).
+
+!!! CRITICAL: do NOT use *-web.task* on iOS or Android !!!
+----------------------------------------------------------
+The `flutter_gemma` README’s platform matrix lists **`*-web.task`** as **Web
+only**. If you set `IKAMVA_MODEL_DOWNLOAD_URL` to a `…-web.task` file (e.g.
+`gemma-4-E2B-it-web.task`), **iOS/Android LiteRT** will often fail with:
+
+  Unable to open zip archive / failedToInitializeEngine
+
+That is **not** a random corrupt download — the archive format is for the
+**browser** runtime, not native mobile.
+
+**Gemma 4 (E2B / E4B) on iOS & Android:** use a **`.litertlm`** URL from the same
+Hugging Face model card, for example:
+
+  …/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm
+
+(`ModelFileType.task` in code covers both `.task` and `.litertlm` per plugin.)
+
+**Older families** (Gemma 3, Gemma3n, etc.) may ship a mobile **`.task`** that
+is **not** named `-web` — those are valid for mobile per the same matrix.
+
+---
+
+1. Open the model card on Hugging Face (e.g. litert-community Gemma 4 or Gemma 3).
+2. Copy the **direct HTTPS** link to the **native** artifact (`.litertlm` for
+   Gemma 4, or mobile `.task` where documented — never `*-web.task` for iOS/Android).
+3. At **build or run** time, pass compile-time defines (repo-root `.env` with
+   `--dart-define-from-file`, or CI secrets written to `.env`):
+
+     IKAMVA_MODEL_DOWNLOAD_URL=https://huggingface.co/…/your-model.litertlm
+     IKAMVA_HF_TOKEN=hf_…          # optional; required for some gated repos
+
+   Optional tuning (defaults are in `lib/llm/model_prepare_config.dart`):
+
+     IKAMVA_MODEL_ESTIMATED_MB=900
+     IKAMVA_MODEL_HEADROOM_MB=256
+     IKAMVA_MODEL_MIN_FREE_MB=2048
+
+4. If you already downloaded a **`-web.task`** on a device: change the URL to a
+   valid native file, then **uninstall the app** or use **Developer → Reset model
+   prepare** so the bad copy is cleared before retrying.
+
+5. **CI / desktop:** `flutter test` without `IKAMVA_MODEL_DOWNLOAD_URL` does not load
+   weights; generation APIs throw until the URL is compiled in (see `README.md`).
+
+6. **Privacy:** inference stays on-device; the URL is only used to download
+   weights to the device.
+
+See also: repository `README.md` (Models section).

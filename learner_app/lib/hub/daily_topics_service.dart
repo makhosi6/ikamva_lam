@@ -21,8 +21,8 @@ class HubTopicOffer {
 /// Picks practice topics for the hub: **model-generated** in production, with
 /// [ChildFriendlyContentGate] on every string. Cached per calendar day.
 abstract final class DailyTopicsService {
-  /// Bump when topic policy changes (invalidates prefs cache).
-  static const _prefsKey = 'hub_daily_topics_v3';
+  /// Bump when topic policy or on-device model era changes (invalidates prefs cache).
+  static const _prefsKey = 'hub_daily_topics_v4';
   static const _topicCount = 8;
 
   /// Dev-only fallback when LLM unavailable (see [LearnerContentPolicy.allowDevSeed]).
@@ -166,19 +166,22 @@ abstract final class DailyTopicsService {
 
   static Future<List<String>?> _tryLlmTopics() async {
     try {
-      const prompt =
-          'Return only a JSON array of exactly 8 different strings. '
-          'Each string is one short English-learning **topic title** for children '
-          'ages about 8–14 in a South African classroom (wholesome, no romance, '
-          'no violence, no drugs, no politics, no religion debates, no brands, '
-          'no URLs). Use lowercase letters and single spaces only, max 5 words '
-          'per string. Example shape: '
-          '["food","travel","family","school","weather","music","sports","home"]. '
-          'No markdown, no commentary, no extra keys.';
       final raw = await LlmService.instance.generate(
-        LlmGenerateRequest(prompt: prompt, maxTokens: 220),
+        LlmGenerateRequest(
+          prompt: const ModelBoundPrompt(
+            'Return only a JSON array of exactly 8 different strings. '
+            'Each string is one short English-learning **topic title** for children '
+            'ages about 8–14 in a South African classroom (wholesome, no romance, '
+            'no violence, no drugs, no politics, no religion debates, no brands, '
+            'no URLs). Use lowercase letters and single spaces only, max 5 words '
+            'per string. Example shape: '
+            '["food","travel","family","school","weather","music","sports","home"]. '
+            'No markdown, no commentary, no extra keys.',
+          ),
+          maxTokens: 220,
+        ),
       );
-      final slice = _extractJsonArray(raw) ?? raw.trim();
+      final slice = _extractJsonArray(raw.text) ?? raw.text.trim();
       final decoded = jsonDecode(slice);
       if (decoded is! List) return null;
       final out = <String>[];

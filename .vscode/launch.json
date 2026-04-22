@@ -6,7 +6,23 @@
       "cwd": "${workspaceFolder}/learner_app",
       "request": "launch",
       "type": "dart",
-      "program": "lib/main.dart"
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=${workspaceFolder}/.env"
+      ]
+    },
+    {
+      "name": "ikamva_lam (debug, example HF URL in launch)",
+      "cwd": "${workspaceFolder}/learner_app",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=${workspaceFolder}/.env",
+        "--dart-define=IKAMVA_MODEL_DOWNLOAD_URL=https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+        "--dart-define=IKAMVA_MODEL_ESTIMATED_MB=1200",
+        "--dart-define=IKAMVA_MODEL_MIN_FREE_MB=1536"
+      ]
     },
     {
       "name": "ikamva_lam (profile)",
@@ -14,7 +30,10 @@
       "request": "launch",
       "type": "dart",
       "flutterMode": "profile",
-      "program": "lib/main.dart"
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=${workspaceFolder}/.env"
+      ]
     },
     {
       "name": "ikamva_lam (release)",
@@ -22,7 +41,10 @@
       "request": "launch",
       "type": "dart",
       "flutterMode": "release",
-      "program": "lib/main.dart"
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=${workspaceFolder}/.env"
+      ]
     }
   ]
 }

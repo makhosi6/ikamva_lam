@@ -116,13 +116,13 @@ class TaskQueueService {
         slots,
       );
       final raw = await LlmService.instance.generate(
-        LlmGenerateRequest(prompt: prompt),
+        LlmGenerateRequest(prompt: ModelBoundPrompt(prompt)),
       );
-      if (isEmptyComplianceObject(raw)) {
+      if (isEmptyComplianceObject(raw.text)) {
         await _maybeInsertFallback(quest);
         return false;
       }
-      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw);
+      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw.text);
       final map = _normalizer.normalizeJson(TaskType.cloze, span);
       if (map == null) {
         await _maybeInsertFallback(quest);
@@ -185,10 +185,10 @@ class TaskQueueService {
         slots,
       );
       final raw = await LlmService.instance.generate(
-        LlmGenerateRequest(prompt: prompt),
+        LlmGenerateRequest(prompt: ModelBoundPrompt(prompt)),
       );
-      if (isEmptyComplianceObject(raw)) return false;
-      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw);
+      if (isEmptyComplianceObject(raw.text)) return false;
+      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw.text);
       final map = _normalizer.normalizeJson(TaskType.readAloud, span);
       if (map == null) return false;
       late final ReadAloudPayload payload;
@@ -237,10 +237,10 @@ class TaskQueueService {
         slots,
       );
       final raw = await LlmService.instance.generate(
-        LlmGenerateRequest(prompt: prompt),
+        LlmGenerateRequest(prompt: ModelBoundPrompt(prompt)),
       );
-      if (isEmptyComplianceObject(raw)) return false;
-      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw);
+      if (isEmptyComplianceObject(raw.text)) return false;
+      final span = LlmOutputFilters.takeThroughFirstBalancedJson(raw.text);
       final map = _normalizer.normalizeJson(TaskType.pronunciationIntonation, span);
       if (map == null) return false;
       late final PronunciationIntonationPayload payload;

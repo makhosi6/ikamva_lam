@@ -582,7 +582,7 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                         const SizedBox(height: 8),
                         TextButton(
                           onPressed: () => context.push('/dev/stats'),
-                          child: const Text('Debug stats (dev)'),
+                          child: const Text('Developer tools (dev)'),
                         ),
                       ],
                     ],

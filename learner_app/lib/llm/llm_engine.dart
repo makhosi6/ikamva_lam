@@ -9,7 +9,7 @@ abstract class LlmEngine {
   Future<void> ensureLoaded();
 
   /// Returns model text (often JSON) for one completion.
-  Future<String> generate(LlmGenerateRequest request);
+  Future<ModelBoundCompletion> generate(LlmGenerateRequest request);
 
   /// Releases native resources or cached handles.
   void dispose();
