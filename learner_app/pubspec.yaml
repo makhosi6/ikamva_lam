@@ -28,7 +28,7 @@ dependencies:
   just_audio: ^0.10.5
   speech_to_text: ^7.0.0
   flutter_gemma: 0.13.5
-  disk_space: ^0.2.1
+  disk_space_2: ^1.0.12
 
 dev_dependencies:
   flutter_test:

@@ -1,15 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <!-- Optional GPU / OpenCL (flutter_gemma / MediaPipe); not required for CPU-only. -->
-    <uses-native-library
-        android:name="libOpenCL.so"
-        android:required="false" />
-    <uses-native-library
-        android:name="libOpenCL-car.so"
-        android:required="false" />
-    <uses-native-library
-        android:name="libOpenCL-pixel.so"
-        android:required="false" />
+    <!-- OpenCL is optional for LiteRT GPU; declaring <uses-native-library> here
+         broke AAPT on some AGP stacks. CPU inference and many GPU paths still work. -->
     <application
         android:label="Ikamva Lam"
         android:name="${applicationName}"

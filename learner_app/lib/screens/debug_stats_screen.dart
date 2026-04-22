@@ -11,6 +11,7 @@ import '../llm/flutter_gemma_llm_engine.dart';
 import '../llm/gemma_model_config.dart';
 import '../llm/llm_service.dart';
 import '../llm/model_diagnostics.dart';
+import '../llm/model_local_cache.dart';
 import '../llm/model_prepare_config.dart';
 import '../llm/model_prepare_prefs.dart';
 import '../metrics/metrics_store.dart';
@@ -313,6 +314,23 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                         : '(not set)',
                   ),
                   _kv(context, 'ModelType', GemmaModelConfig.modelType.name),
+                  FutureBuilder<String>(
+                    future: ModelLocalCache.localWeightsFile().then(
+                      (f) => f.path,
+                    ),
+                    builder: (context, snap) {
+                      return _kv(
+                        context,
+                        'Local weights path',
+                        snap.data ?? 'resolving…',
+                      );
+                    },
+                  ),
+                  _kv(
+                    context,
+                    'Plugin model id (from cache file)',
+                    ModelLocalCache.pluginModelId,
+                  ),
                   _kv(
                     context,
                     'Prepare required now',

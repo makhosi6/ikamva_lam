@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
+import 'dart:math' as math;
 
-import 'package:disk_space/disk_space.dart';
+import 'package:disk_space_2/disk_space_2.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
@@ -17,6 +18,14 @@ import '../state/settings_scope.dart';
 import '../state/settings_store.dart';
 import '../widgets/constrained_content.dart';
 import '../widgets/ikamva_app_bar_title.dart';
+
+/// Formats a size in megabytes for UI as gigabytes (1 GB = 1024 MB).
+String _formatGbFromMb(num mb) {
+  final gb = mb / 1024;
+  if (gb >= 100) return '${gb.toStringAsFixed(0)} GB';
+  if (gb >= 10) return '${gb.toStringAsFixed(1)} GB';
+  return '${gb.toStringAsFixed(2)} GB';
+}
 
 /// First launch (and recovery): download Gemma weights (**.litertlm** or
 /// mobile **`.task`**, not **`-web.task`**) over HTTPS
@@ -59,8 +68,9 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
   }
 
   int _requiredFreeMbForDownload() {
-    return ModelPrepareConfig.estimatedDownloadMb +
+    final sizePlusHeadroom = ModelPrepareConfig.estimatedDownloadMb +
         ModelPrepareConfig.headroomMb;
+    return math.max(sizePlusHeadroom, ModelPrepareConfig.minFreeDiskMb);
   }
 
   /// Opens the active model like [FlutterGemmaLlmEngine] will, then **always**

@@ -9,8 +9,9 @@ import 'streaming_llm_capability.dart';
 
 /// App-wide access to on-device LLM (TASKS §6.4–6.8).
 ///
-/// Always uses [FlutterGemmaLlmEngine]: **`fromNetwork`** once per device
-/// (`IKAMVA_MODEL_DOWNLOAD_URL`); weights are **not** shipped in the APK.
+/// Always uses [FlutterGemmaLlmEngine]: HTTP fetch into a **fixed cache file**
+/// (`ModelLocalCache`) then **`FlutterGemma.installModel`…`fromFile`**; weights
+/// are **not** shipped in the APK.
 /// [ensureLoaded] re-opens the saved model or re-downloads if it is missing
 /// or corrupt. Call [configure] with [SettingsStore] before generation.
 ///

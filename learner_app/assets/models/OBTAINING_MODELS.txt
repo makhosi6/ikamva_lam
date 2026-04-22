@@ -42,7 +42,7 @@ is **not** named `-web` — those are valid for mobile per the same matrix.
 
      IKAMVA_MODEL_ESTIMATED_MB=900
      IKAMVA_MODEL_HEADROOM_MB=256
-     IKAMVA_MODEL_MIN_FREE_MB=2048
+     IKAMVA_MODEL_MIN_FREE_MB=2048   # floor (MB); prepare uses max(ESTIMATED+HEADROOM, this)
 
 4. If you already downloaded a **`-web.task`** on a device: change the URL to a
    valid native file, then **uninstall the app** or use **Developer → Reset model

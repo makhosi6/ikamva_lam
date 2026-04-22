@@ -37,7 +37,8 @@ abstract final class ModelPrepareConfig {
     defaultValue: 256,
   );
 
-  /// Minimum free disk space (MB) before we warn / block installs.
+  /// Lower bound (MB) for the prepare-screen free-space check: we require at
+  /// least `max(estimatedDownloadMb + headroomMb, minFreeDiskMb)` free.
   static const int minFreeDiskMb = int.fromEnvironment(
     'IKAMVA_MODEL_MIN_FREE_MB',
     defaultValue: 1024 * 2,
