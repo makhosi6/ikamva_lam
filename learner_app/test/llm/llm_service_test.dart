@@ -10,36 +10,56 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues({});
 
-  test('generate throws LlmUnavailableException when model URL is not compiled in', () async {
-    if (ModelPrepareConfig.hasNetworkModelUrl) {
-      // Local/CI builds with --dart-define-from-file may set URL; skip assertion.
-      return;
-    }
-    final settings = SettingsStore();
-    await settings.load();
+  setUp(() {
     LlmService.instance.invalidateCachedEngine();
-    await LlmService.instance.configure(settings);
-    await expectLater(
-      LlmService.instance.generate(
-        const LlmGenerateRequest(prompt: ModelBoundPrompt('hello')),
-      ),
-      throwsA(isA<LlmUnavailableException>()),
-    );
   });
 
-  test('tryOpenGenerateStream throws when model URL is not compiled in', () async {
-    if (ModelPrepareConfig.hasNetworkModelUrl) {
-      return;
-    }
-    final settings = SettingsStore();
-    await settings.load();
+  tearDown(() {
+    // This singleton is global in app runtime; avoid leaking state across tests.
     LlmService.instance.invalidateCachedEngine();
-    await LlmService.instance.configure(settings);
-    await expectLater(
-      LlmService.instance.tryOpenGenerateStream(
-        const LlmGenerateRequest(prompt: ModelBoundPrompt('hello')),
-      ),
-      throwsA(isA<LlmUnavailableException>()),
-    );
+  });
+
+  test(
+    'generate throws LlmUnavailableException when model URL is not compiled in',
+    () async {
+      if (ModelPrepareConfig.hasNetworkModelUrl) {
+        // Local/CI builds with --dart-define-from-file may set URL; skip assertion.
+        return;
+      }
+      final settings = SettingsStore();
+      await settings.load();
+      LlmService.instance.invalidateCachedEngine();
+      await LlmService.instance.configure(settings);
+      await expectLater(
+        LlmService.instance.generate(
+          const LlmGenerateRequest(prompt: ModelBoundPrompt('hello')),
+        ),
+        throwsA(isA<LlmUnavailableException>()),
+      );
+    },
+  );
+
+  test(
+    'tryOpenGenerateStream throws when model URL is not compiled in',
+    () async {
+      if (ModelPrepareConfig.hasNetworkModelUrl) {
+        return;
+      }
+      final settings = SettingsStore();
+      await settings.load();
+      LlmService.instance.invalidateCachedEngine();
+      await LlmService.instance.configure(settings);
+      await expectLater(
+        LlmService.instance.tryOpenGenerateStream(
+          const LlmGenerateRequest(prompt: ModelBoundPrompt('hello')),
+        ),
+        throwsA(isA<LlmUnavailableException>()),
+      );
+    },
+  );
+
+  test('invalidateCachedEngine is safe and idempotent', () async {
+    LlmService.instance.invalidateCachedEngine();
+    LlmService.instance.invalidateCachedEngine();
   });
 }
