@@ -187,8 +187,8 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
       setState(() {
         _phase = _Phase.lowStorage;
         _status =
-            'This device reports about ${free.toStringAsFixed(0)} MB free. '
-            'We recommend at least $required MB for this download.';
+            'This device reports about ${_formatGbFromMb(free)} free. '
+            'We recommend at least ${_formatGbFromMb(required)} for this download.';
       });
       return;
     }
@@ -363,13 +363,13 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
                 if (_freeMb != null || _requiredMb != null) ...[
                   Text(
                     _freeMb != null
-                        ? 'Free space (about): ${_freeMb!.toStringAsFixed(0)} MB'
+                        ? 'Free space (about): ${_formatGbFromMb(_freeMb!)}'
                         : 'Free space: unknown',
                     style: theme.textTheme.bodySmall,
                   ),
                   if (_requiredMb != null)
                     Text(
-                      'Recommended free: at least $_requiredMb MB for this step.',
+                      'Recommended free: at least ${_formatGbFromMb(_requiredMb!)} for this step.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: cs.onSurfaceVariant,
                       ),
