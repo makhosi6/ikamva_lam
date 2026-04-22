@@ -145,6 +145,7 @@ Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 - [x] **6.8** **Lifecycle:** `dispose` / **`invalidateCachedEngine`** closes the **`InferenceModel`**. **(P1)**
 - [x] **6.9** Device profile: **`lowRamProfile`** → smaller **`maxTokens`** for `getActiveModel` + CPU backend preference. **(P1)**
 - [x] **6.10** **CI / tests:** `IKAMVA_USE_STUB_LLM=1` or non-mobile **`flutter test`** hosts use **`StubLlmEngine`** without weights. **(P1)**
+- [x] **6.11** **iOS Simulator:** after **GPU** `getActiveModel` fails (including `failedToInitializeEngine` / TFLite graph build), retry with **CPU** on prepare + engine open paths. **(P1)**
 
 **Acceptance:** Android/iOS device or emulator with a **valid** download URL completes a sample JSON prompt; CI **`flutter test`** stays green with stub; production uses **`fromNetwork`** once per device for weights.
 

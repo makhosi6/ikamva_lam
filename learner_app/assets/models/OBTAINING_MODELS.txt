@@ -51,7 +51,11 @@ is **not** named `-web` — those are valid for mobile per the same matrix.
 5. **CI / desktop:** `flutter test` without `IKAMVA_MODEL_DOWNLOAD_URL` does not load
    weights; generation APIs throw until the URL is compiled in (see `README.md`).
 
-6. **Privacy:** inference stays on-device; the URL is only used to download
+6. **iOS Simulator:** LiteRT often cannot build the GPU graph there; the app retries
+   **`getActiveModel`** with the **CPU** backend after a GPU failure. If prepare still
+   fails, use **Settings → Low RAM profile** (CPU-first) or a **physical iPhone**.
+
+7. **Privacy:** inference stays on-device; the URL is only used to download
    weights to the device.
 
 See also: repository `README.md` (Models section).

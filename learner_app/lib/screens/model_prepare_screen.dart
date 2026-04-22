@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:disk_space/disk_space.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +10,7 @@ import '../llm/flutter_gemma_llm_engine.dart';
 import '../llm/gemma_model_config.dart';
 import '../llm/llm_service.dart';
 import '../llm/model_diagnostics.dart';
+import '../llm/model_local_cache.dart';
 import '../llm/model_prepare_config.dart';
 import '../llm/model_prepare_prefs.dart';
 import '../state/settings_scope.dart';
@@ -19,8 +22,9 @@ import '../widgets/ikamva_app_bar_title.dart';
 /// mobile **`.task`**, not **`-web.task`**) over HTTPS
 /// (`IKAMVA_MODEL_DOWNLOAD_URL`), verify with `getActiveModel`, then persist.
 ///
-/// Weights are **not** bundled in the APK; the plugin keeps the install on
-/// disk between sessions. If the model is missing or corrupt, this flow (or
+/// Weights are **not** bundled in the APK; bytes are saved under a **fixed
+/// app support path** ([ModelLocalCache.localWeightsFile]) then registered with
+/// the plugin. If the model is missing or corrupt, this flow (or
 /// [FlutterGemmaLlmEngine.ensureLoaded]) downloads again.
 class ModelPrepareScreen extends StatefulWidget {
   const ModelPrepareScreen({super.key});
@@ -80,8 +84,10 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
     try {
       await openAndClose(primary);
     } on Object catch (e) {
-      if (primary == PreferredBackend.gpu &&
-          gemmaErrorLooksLikeGpuMetalDelegateFailure(e)) {
+      // iOS Simulator (and some devices) fail GPU/LiteRT graph init with
+      // `failedToInitializeEngine` / "Error building tflite model" — not only
+      // Metal delegate strings. Always retry CPU when the first attempt was GPU.
+      if (primary == PreferredBackend.gpu && Platform.isIOS) {
         debugPrint('ModelPrepareScreen: GPU verify failed, trying CPU: $e');
         await openAndClose(PreferredBackend.cpu);
         return;
@@ -217,30 +223,30 @@ class _ModelPrepareScreenState extends State<ModelPrepareScreen> {
     });
 
     try {
-      var builder =
-          FlutterGemma.installModel(
-            modelType: ModelPrepareConfig.modelType,
-            fileType: ModelPrepareConfig.fileTypeForInstallSource(
-              ModelPrepareConfig.networkUrl,
-            ),
-          ).fromNetwork(
-            ModelPrepareConfig.networkUrl,
-            token: ModelPrepareConfig.hfToken.isEmpty
-                ? null
-                : ModelPrepareConfig.hfToken,
-          );
+      final url = ModelPrepareConfig.networkUrl;
+      final localPath = (await ModelLocalCache.localWeightsFile()).path;
 
-      builder = builder
-          .withProgress((p) {
-            if (mounted) setState(() => _progress = p.clamp(0, 100));
-          })
-          .withCancelToken(_cancelToken!);
+      await ModelLocalCache.ensureLocalFileForUrl(
+        url: url,
+        token: ModelPrepareConfig.hfToken.isEmpty
+            ? null
+            : ModelPrepareConfig.hfToken,
+        onProgress: (p) {
+          if (mounted) setState(() => _progress = p.clamp(0, 100));
+        },
+        cancelToken: _cancelToken,
+      );
 
-      await builder.install();
+      await FlutterGemma.installModel(
+        modelType: ModelPrepareConfig.modelType,
+        fileType: ModelPrepareConfig.fileTypeForInstallSource(url),
+      ).fromFile(localPath).withCancelToken(_cancelToken!).install();
+
       ModelDiagnostics.instance.log(
         area: 'prepare_screen',
         action: 'download_ok',
-        message: 'Model download completed',
+        message: 'Model bytes cached and plugin install finished',
+        data: <String, Object?>{'path': localPath},
       );
 
       await _openActiveModelVerifyThenClose(settings);

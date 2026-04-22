@@ -10,6 +10,7 @@ import 'llm_engine.dart';
 import 'llm_exceptions.dart';
 import 'llm_generate_request.dart';
 import 'llm_output_filters.dart';
+import 'model_local_cache.dart';
 import 'model_prepare_config.dart';
 import 'streaming_llm_capability.dart';
 
@@ -41,9 +42,11 @@ bool gemmaErrorLooksLikeInvalidTaskArchive(Object error) {
 /// derived from [ModelPrepareConfig.networkUrl] and legacy bundled artifact
 /// names from older app versions.
 Future<void> purgeGemmaPluginInstallCandidates() async {
+  await ModelLocalCache.deleteLocalCache();
   final url = ModelPrepareConfig.networkUrl;
   final ids = <String>{
     ...GemmaModelConfig.pluginUninstallCandidateIdsFor(url),
+    ModelLocalCache.pluginModelId,
     'bundled_gemma.task',
   };
   for (final id in ids) {
@@ -119,9 +122,11 @@ Future<bool> probeFlutterGemmaActiveModelReady(SettingsStore settings) async {
   return false;
 }
 
-/// On-device inference via [flutter_gemma]. Models are **downloaded once** via
-/// HTTP ([ModelPrepareConfig.networkUrl]) and kept in local plugin storage;
-/// [ensureLoaded] re-opens the active model or re-downloads if open fails.
+/// On-device inference via [flutter_gemma]. Weights are **downloaded once** via
+/// HTTP ([ModelPrepareConfig.networkUrl]) into a **fixed app support path**
+/// ([ModelLocalCache.localWeightsFile]), then registered with
+/// `installModel(…).fromFile`. [ensureLoaded] re-opens the active model or
+/// re-downloads if open fails.
 class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   FlutterGemmaLlmEngine({
     required SettingsStore settings,
@@ -157,16 +162,51 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       );
     }
 
-    var builder =
-        FlutterGemma.installModel(
-          modelType: GemmaModelConfig.modelType,
-          fileType: ModelPrepareConfig.fileTypeForInstallSource(url),
-        ).fromNetwork(
-          url,
-          token: ModelPrepareConfig.hfToken.isEmpty
-              ? null
-              : ModelPrepareConfig.hfToken,
+    final localPath = (await ModelLocalCache.localWeightsFile()).path;
+    try {
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'cache_ensure_start',
+        message: 'Ensuring model bytes at fixed cache path',
+        data: <String, Object?>{'url': url, 'path': localPath},
+      );
+      await ModelLocalCache.ensureLocalFileForUrl(
+        url: url,
+        token: ModelPrepareConfig.hfToken.isEmpty
+            ? null
+            : ModelPrepareConfig.hfToken,
+        onProgress: _onInstallProgress,
+      );
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'cache_ensure_ok',
+        message: 'Model bytes ready on disk',
+        data: <String, Object?>{'path': localPath},
+      );
+    } on Object catch (e) {
+      if (CancelToken.isCancel(e)) rethrow;
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('space') ||
+          msg.contains('storage') ||
+          msg.contains('enospc')) {
+        throw LlmResourceException(
+          'Not enough storage to download the on-device model. '
+          'Free space and try again.',
         );
+      }
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'cache_ensure_failed',
+        message: 'Could not download model to cache path',
+        data: <String, Object?>{'error': '$e'},
+      );
+      throw LlmUnavailableException('Could not download Gemma model: $e');
+    }
+
+    var builder = FlutterGemma.installModel(
+      modelType: GemmaModelConfig.modelType,
+      fileType: ModelPrepareConfig.fileTypeForInstallSource(url),
+    ).fromFile(localPath);
 
     if (_onInstallProgress != null) {
       builder = builder.withProgress(_onInstallProgress);
@@ -176,8 +216,8 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'install_start',
-        message: 'Installing model from network',
-        data: <String, Object?>{'url': url},
+        message: 'Registering model from local cache path',
+        data: <String, Object?>{'path': localPath},
       );
       await builder.install();
       ModelDiagnostics.instance.log(
@@ -218,8 +258,10 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
         preferredBackend: _preferredBackend,
       );
     } on Object catch (e) {
-      if (_preferredBackend == PreferredBackend.gpu &&
-          gemmaErrorLooksLikeGpuMetalDelegateFailure(e)) {
+      // Match prepare-screen behavior: on iOS, any GPU open failure can be a
+      // LiteRT / TFLite graph issue (Simulator is especially common), not only
+      // delegate strings we classify as Metal.
+      if (_preferredBackend == PreferredBackend.gpu && Platform.isIOS) {
         debugPrint(
           'FlutterGemmaLlmEngine: GPU backend failed, opening with CPU: $e',
         );
