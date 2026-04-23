@@ -3,7 +3,7 @@
 Companion to [flutter_gemma_migration_scope.md](./flutter_gemma_migration_scope.md).  
 Execute in order where dependencies apply; parallelize platform spikes where marked.
 
-**Branch mandates (see scope):** remove **`./native`**, **on-device Gemma** as the **only** inference path (**no server-side or cloud LLM**), **model weights via HTTPS** (`IKAMVA_MODEL_DOWNLOAD_URL`, persisted on device — **not** in the APK), **`ChildFriendlyContentGate` on every generated surface**, **caching** to avoid repeat inference, and **structured prompts** for all generation tasks.
+**Branch mandates (see scope):** remove **`./native`**, **on-device Gemma** as the **only** inference path (**no server-side or cloud LLM**), **model weights bundled** in the app (**`pubspec.yaml`** assets → **`fromAsset`**), **`ChildFriendlyContentGate` on every generated surface**, **caching** to avoid repeat inference, and **structured prompts** for all generation tasks.
 
 ### Implementation status (2026-04-20)
 
@@ -15,13 +15,13 @@ Legend: **Done** = merged in this repo pass · **Partial** = started / docs only
 | **Partial** | **A.5–A.8** (policy/gate/cache matrix not fully tabulated in docs), **A.10** (analytics events not wired), **D.1** (progress callback on `configure`; no determinate UI bar yet), **E.2** (device smoke — manual), **E.5** (matrix below), **H.6** (benchmark table still TBD), **I.1** / **I.5** (light review; no formal sign-off doc), **J.3** (CI had no `native/` build steps; job unchanged) |
 | **Later / out of scope** | **B.4** Web, **B.5** Desktop, **E.4** golden prompts, **H.4** single-flight, **H.5** cancel-on-dispose, **I.4** debug last-error row, **G.\*** |
 
-> **Rolling doc:** the repository root [`CHANGELOG.md`](../CHANGELOG.md) section **Unreleased** is the canonical checklist of implementation + documentation updates (HTTP-only model, `.env` / VS Code / CI, splash & prepare flows, engine recovery, UI fixes, etc.). This task file’s tables above are aligned where noted; minor wording may still say “bundle” in historical rows — prefer **CHANGELOG** for “what shipped”.
+> **Rolling doc:** the repository root [`CHANGELOG.md`](../CHANGELOG.md) section **Unreleased** is the canonical checklist of implementation + documentation updates (bundled model, `.env` / VS Code / CI, splash & prepare flows, engine recovery, UI fixes, etc.). This task file’s tables above are aligned where noted; prefer **CHANGELOG** for “what shipped”.
 
 **Manual QA matrix (E.5)** — expected UX:
 
-1. **Airplane mode after first successful download:** inference still works (model on disk); no new download until recovery.  
-2. **Missing URL or corrupt install:** `ensureReady` / warm-up shows clear error; on mobile fix URL or re-download from prepare screen; stub only when host is non-mobile or `IKAMVA_USE_STUB_LLM=1`.  
-3. **Low storage on first download:** user sees storage-related error string from engine path.  
+1. **Airplane mode after first successful prepare:** inference still works (model on disk); recovery re-installs from the bundled asset.  
+2. **Missing manifest entry or corrupt install:** `ensureReady` / warm-up shows clear error; on mobile add asset to **`pubspec.yaml`** / manifest or retry prepare; stub only when host is non-mobile or `IKAMVA_USE_STUB_LLM=1`.  
+3. **Low storage on first prepare:** user sees storage-related error string from engine path.  
 4. **Gate fail after generation:** existing per-feature retry / safe empty behavior (verify hub + task queue paths manually).
 
 ---
@@ -30,8 +30,8 @@ Legend: **Done** = merged in this repo pass · **Partial** = started / docs only
 
 | ID | Task | Output / done when |
 |----|------|---------------------|
-| A.1 | Pick **default inference model** (size, `ModelType`, file format) balancing **quality vs download size**; record **HTTPS artifact URL** (`IKAMVA_MODEL_DOWNLOAD_URL`) and optional gated-repo token story. | Documented in `OBTAINING_MODELS.txt` + README; URL compile-time only. |
-| A.2 | **No APK weights:** do **not** declare `.task` under **`pubspec.yaml` `assets`**; ship only docs (`OBTAINING_MODELS.txt`). APK stays small; first run downloads. | `flutter build` succeeds without weight assets; production uses **`fromNetwork`**. |
+| A.1 | Pick **default inference model** (size, `ModelType`, file format) balancing **quality vs APK/IPA size**; record **bundled asset path** and obtain/replace flow. | Documented in `OBTAINING_MODELS.txt` + `model_delivery.md` + README. |
+| A.2 | **APK weights:** declare **`.litertlm`** (or supported format) under **`pubspec.yaml` `assets`**; first run **`fromAsset`** copies into plugin storage. | `flutter build` includes weight asset; production uses **`fromAsset`**. |
 | A.3 | Confirm **target platforms** for this milestone (Android + iOS minimum; web/desktop yes/no). | List in scope ticket. |
 | A.4 | **Remove `ProcessLlmEngine` / `llama-cli` / GGUF** from the app: production uses **`FlutterGemmaLlmEngine`** only; **`StubLlmEngine`** for tests/CI via `IKAMVA_USE_STUB_LLM` (or test doubles). | `LlmService._createEngine` documents precedence; no production path references `native/build`. |
 | A.5 | List **exceptions** to “all content from Gemma” (UI chrome, legal, fixed IDs, etc.); everything else planned as **generate → gate → cache → show**. | Short table in scope or ADR. |
@@ -52,8 +52,8 @@ Legend: **Done** = merged in this repo pass · **Partial** = started / docs only
 | B.3 | **Android:** Add **OpenCL** `uses-native-library` entries if using GPU; confirm **ProGuard** if release fails. | Release build note or config committed. |
 | B.4 | **Web (if in scope):** Add **MediaPipe / plugin** script tags to `web/index.html`; set `WebStorageMode` if large models. | `flutter run -d chrome` smoke with plugin init only. |
 | B.5 | **Desktop (if in scope):** macOS `setup_desktop.sh` build phase, entitlements; Windows/Linux deps per readme. | Build passes on one desktop target. |
-| B.6 | Add **`FlutterGemma.initialize`** in `main.dart` with optional **`huggingFaceToken`** from compile-time **`IKAMVA_HF_TOKEN`** when URLs are gated. | `main.dart` matches plugin + gated-download needs. |
-| B.7 | **Secrets / defines:** document **`.env`**, **`--dart-define-from-file`**, VS Code **`launch.json`**, and GitHub **`secrets.IKAMVA_MODEL_DOWNLOAD_URL`** / **`IKAMVA_HF_TOKEN`** for release builds — not git-stored binaries. | README + workflow + `.env.example`. |
+| B.6 | Add **`FlutterGemma.initialize`** in `main.dart` without HuggingFace token (weights are not HF-downloaded in production). | `main.dart` matches bundle-only delivery. |
+| B.7 | **Defines:** document **`.env`** (optional empty file for **`--dart-define-from-file`**), VS Code **`launch.json`**, and optional **`IKAMVA_MODEL_*`** hints for prepare UI — **no** model URL/token secrets for weights. | README + workflow. |
 
 ---
 
@@ -61,7 +61,7 @@ Legend: **Done** = merged in this repo pass · **Partial** = started / docs only
 
 | ID | Task | Output / done when |
 |----|------|---------------------|
-| C.1 | Create **`FlutterGemmaLlmEngine`**: production uses **`installModel`…`fromNetwork`** (`IKAMVA_MODEL_DOWNLOAD_URL`); then `getActiveModel`, **`createSession`** per `generate`; re-download if active model missing; map `maxTokens` / context from `LlmGenerateRequest` and `LlmLimits`. | Class compiles; **no** bundled weights in APK. |
+| C.1 | Create **`FlutterGemmaLlmEngine`**: production uses **`installModel`…`fromAsset`** (bundled path); then `getActiveModel`, **`createSession`** per `generate`; re-install from asset if active model missing; map `maxTokens` / context from `LlmGenerateRequest` and `LlmLimits`. | Class compiles; weights listed in **`pubspec.yaml`**. |
 | C.2 | Reuse **`LlmOutputFilters.takeThroughFirstBalancedJson`** (and stop-sequence loop) so JSON consumers unchanged. | Parity with `ProcessLlmEngine` post-process behavior. |
 | C.3 | Wire **`dispose`** to close plugin model/session to avoid leaks; align with **`invalidateCachedEngine`**. | No double-close errors; settings refresh still works. |
 | C.4 | Update **`LlmService._createEngine()`**: **Flutter Gemma** when model ready; **stub** for CI/dev flag only; **delete `ProcessLlmEngine`** and related env (`IKAMVA_GGUF`, `IKAMVA_LLAMA_CLI`) from production logic. | Precedence table in code comment; grep clean. |
@@ -74,8 +74,8 @@ Legend: **Done** = merged in this repo pass · **Partial** = started / docs only
 
 | ID | Task | Output / done when |
 |----|------|---------------------|
-| D.1 | **First-run “prepare model” UX:** HTTP download with **progress %**, cancel token, storage check, errors (including corrupt archive purge + retry). | `model_prepare_screen.dart` + prefs. |
-| D.2 | **`ensureReady`** / **`generate`** await **`ensureLoaded`** (open or re-download) with long timeout (**600s** in `LlmService` for big files). | Timeouts / error strings reviewed. |
+| D.1 | **First-run model UX:** **`fromAsset`** install with **progress %** on the home hub via **`ensureReady`**, storage errors, corrupt-archive purge + retry. | `home_hub_screen.dart` + `flutter_gemma_llm_engine.dart` + prefs. |
+| D.2 | **`ensureReady`** / **`generate`** await **`ensureLoaded`** (open or re-install from asset) with long timeout (**600s** in `LlmService` for big files). | Timeouts / error strings reviewed. |
 | D.3 | Document **compile-time URL** + HF token for maintainers (`OBTAINING_MODELS.txt`, README, CHANGELOG). | Maintainer onboarding matches repo. |
 
 ---
@@ -97,8 +97,8 @@ Legend: **Done** = merged in this repo pass · **Partial** = started / docs only
 | ID | Task | Output / done when |
 |----|------|---------------------|
 | H.1 | **Timeouts:** align defaults across call sites for **inference**; document max wait. | No indefinite hangs; user-visible feedback. |
-| H.2 | **Degraded UX:** error states when **download / open** fails (zip archive, missing URL, etc.); purge + actionable copy. | Prepare screen + engine exceptions. |
-| H.3 | **Storage:** catch plugin errors if device full during **download**; user-facing message. | Engine maps ENOSPC-style errors to resource message. |
+| H.2 | **Degraded UX:** error states when **install / open** fails (zip archive, missing asset, etc.); purge + actionable copy. | Prepare screen + engine exceptions. |
+| H.3 | **Storage:** catch plugin errors if device full during **asset copy / unpack**; user-facing message. | Engine maps ENOSPC-style errors to resource message. |
 | H.4 | **Single-flight / dedupe:** same cache key in flight → one generation (optional but recommended for hub-sized features). | Code or small helper; no duplicate GPU jobs for identical request. |
 | H.5 | **Lifecycle:** cancel or ignore results when widget/route disposed during generation; use `Stop`/plugin cancel where supported. | No UI updates after dispose. |
 | H.6 | **Performance smoke:** cold start + one representative generation on **reference** and **low-end** device; tune `maxTokens` / backend if needed. | Notes in PR; `LlmLimits` updated if justified. |
@@ -110,10 +110,10 @@ Legend: **Done** = merged in this repo pass · **Partial** = started / docs only
 | ID | Task | Output / done when |
 |----|------|---------------------|
 | I.1 | **Logging:** structured logs for engine state, cache hit/miss, errors; **redact** learner-generated text in release builds unless explicitly approved. | Code review checklist. |
-| I.2 | **Disclosures:** App Store / Play privacy + in-app **About** — **weights downloaded once to device**; **all LLM inference on-device**; prompts/outputs **not** sent for server-side inference; optional non-LLM network called out only if true. | Copy reviewed vs `spec` / README. |
-| I.3 | **Provenance:** document **HTTPS URL choice**, CI secrets, checksums if upstream publishes them; compile-time defines **are** the shipped “pointer” to weights (not the bytes). | `OBTAINING_MODELS.txt` + README. |
+| I.2 | **Disclosures:** App Store / Play privacy + in-app **About** — **weights ship in the app bundle**; **all LLM inference on-device**; prompts/outputs **not** sent for server-side inference; optional non-LLM network called out only if true. | Copy reviewed vs `spec` / README. |
+| I.3 | **Provenance:** document **where the `.litertlm` comes from**, checksums if upstream publishes them; binary may be git-ignored locally but documented for maintainers. | `OBTAINING_MODELS.txt` + README. |
 | I.4 | **Debug settings (optional):** dev-only last error / cache version for support. | Gated behind `kDebugMode` or flavor. |
-| I.5 | **Architecture audit:** confirm **no** remote **LLM / chat-completion** APIs; **`fromNetwork`** is **only** for **weight bytes** to device, not inference; generation is **`LlmService` → on-device** (or test stub). | Documented sign-off or PR checklist. |
+| I.5 | **Architecture audit:** confirm **no** remote **LLM / chat-completion** APIs; **no** HTTP fetch of model weights; generation is **`LlmService` → on-device** (or test stub). | Documented sign-off or PR checklist. |
 
 ---
 
@@ -132,9 +132,9 @@ Legend: **Done** = merged in this repo pass · **Partial** = started / docs only
 
 | ID | Task | Output / done when |
 |----|------|---------------------|
-| F.1 | Update **root `README.md`**: **HTTP-downloaded** on-device Gemma via `flutter_gemma`; **`.env` / CI** defines; **remove** `llama-cli` / GGUF / bundled-weight story. | Onboarding matches new engine. |
+| F.1 | Update **root `README.md`**: **bundled** on-device Gemma via `flutter_gemma`; **`.env` / CI** for launch defines only; **remove** `llama-cli` / GGUF / HTTP-weight story. | Onboarding matches new engine. |
 | F.2 | **Delete `./native`** (scripts, refs, `LLAMA_CPP_REF`, smoke harness tied to subprocess). Update **`.gitignore`** only if entries referenced `native/` artifacts uniquely. | Directory gone; `git grep native` only hits intentional strings (e.g. “native code” in Flutter sense) or is clean. |
-| F.3 | Update **`TASKS.md`**, **`spec.md`**, **`writeup.md`**, **`CHANGELOG.md`**, CI/workflow, **`notebooks/`**, and **`learner_app/README.md`** for **`native/`** removal + **HTTP-only** weights + probe/prepare behaviour. | Docs consistent with scope + CHANGELOG *Unreleased*. |
+| F.3 | Update **`TASKS.md`**, **`spec.md`**, **`writeup.md`**, **`CHANGELOG.md`**, CI/workflow, **`notebooks/`**, and **`learner_app/README.md`** for **`native/`** removal + **bundled** weights + probe/prepare behaviour. | Docs consistent with scope + CHANGELOG *Unreleased*. |
 | F.4 | **CHANGELOG** or release notes entry for the migration (if project keeps one). | User-visible summary. |
 
 ---

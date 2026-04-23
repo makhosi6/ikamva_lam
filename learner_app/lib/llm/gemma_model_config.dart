@@ -1,37 +1,23 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter_gemma/core/utils/file_name_utils.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:path/path.dart' as p;
 
-/// On-device Gemma identity for **`flutter_gemma`** (network install only — no
-/// weights are shipped inside the APK/IPA).
+/// On-device Gemma identity for **`flutter_gemma`**.
 ///
-/// See `assets/models/OBTAINING_MODELS.txt` for how to pick a `.litertlm` /
-/// mobile `.task` URL and compile with `--dart-define=IKAMVA_MODEL_DOWNLOAD_URL=…`.
+/// Weights are **only** loaded from **`bundledGemma4E2bLitertlmAsset`** via
+/// **`installModel`…`fromAsset`** (see `pubspec.yaml` and `OBTAINING_MODELS.txt`).
 abstract final class GemmaModelConfig {
   static const ModelType modelType = ModelType.gemmaIt;
 
+  /// Default on-device weights (Gemma 4 E2B Instruct, LiteRT LM `.litertlm`).
+  static const String bundledGemma4E2bLitertlmAsset =
+      'assets/models/gemma-4-E2B-it.litertlm';
+
   /// **`-web.task`** files are **Web-only** per the `flutter_gemma` README
-  /// compatibility matrix; iOS/Android LiteRT fails with “Unable to open zip
-  /// archive” if you download them for native.
+  /// compatibility matrix (not for native `.litertlm` workflows).
   static bool isWebOnlyMediaPipeTaskUrl(String url) {
     final lower = url.toLowerCase().split('?').first;
     return lower.contains('-web.task');
-  }
-
-  /// Explains why [url] cannot be used on Android/iOS, or `null` if allowed.
-  static String? mobileModelUrlBlockedReason(String url) {
-    if (kIsWeb) return null;
-    if (!Platform.isAndroid && !Platform.isIOS) return null;
-    if (!isWebOnlyMediaPipeTaskUrl(url)) return null;
-    return 'IKAMVA_MODEL_DOWNLOAD_URL points to a **-web.task** file, which is '
-        '**Web-only** in flutter_gemma (not valid on iOS/Android). Use a '
-        '**.litertlm** link for Gemma 4 (e.g. `…/gemma-4-E2B-it.litertlm` on the '
-        'same Hugging Face repo) or a mobile **.task** for Gemma 3 / older '
-        'families. Then delete the bad install: uninstall the app or use '
-        'Developer → reset model prepare. See assets/models/OBTAINING_MODELS.txt.';
   }
 
   /// Filename / artifact id derived from a URL or path (used for purge ids).

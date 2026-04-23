@@ -77,5 +77,7 @@ flutter:
     - assets/us_silver.json
     - assets/gb_gold.json
     - assets/gb_silver.json
-    # Gemma: HTTP download only (see assets/models/OBTAINING_MODELS.txt).
+    # Gemma 4 E2B (LiteRT `.litertlm`) — bundled for reliable first launch.
+    - assets/models/
+    - assets/models/gemma-4-E2B-it.litertlm
     - assets/models/OBTAINING_MODELS.txt

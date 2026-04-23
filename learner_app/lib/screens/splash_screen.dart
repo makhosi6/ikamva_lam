@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../llm/flutter_gemma_llm_engine.dart';
-import '../llm/llm_service.dart';
-import '../llm/model_diagnostics.dart';
-import '../llm/model_prepare_prefs.dart';
 import '../state/settings_scope.dart';
 import '../theme/ikamva_colors.dart';
 import '../widgets/ikamva_logo.dart';
@@ -41,42 +37,7 @@ class _SplashScreenState extends State<SplashScreen>
       context.go('/welcome');
       return;
     }
-    if (!shouldUseFlutterGemmaEngine) {
-      context.go('/home');
-      return;
-    }
-    final shouldPrepare =
-        await ModelPreparePrefs.shouldPrepareForCurrentConfig();
-    if (!mounted) return;
-    if (shouldPrepare) {
-      ModelDiagnostics.instance.log(
-        area: 'splash',
-        action: 'prepare_required',
-        message: 'Routing to prepare screen',
-      );
-      context.go('/model-prepare');
-      return;
-    }
-    final modelOk = await probeFlutterGemmaActiveModelReady(settings);
-    if (!mounted) return;
-    if (modelOk) {
-      ModelDiagnostics.instance.log(
-        area: 'splash',
-        action: 'model_ready',
-        message: 'Model probe succeeded, routing home',
-      );
-      context.go('/home');
-    } else {
-      await ModelPreparePrefs.setPrepareDone(false);
-      if (!mounted) return;
-      LlmService.instance.invalidateCachedEngine();
-      ModelDiagnostics.instance.log(
-        area: 'splash',
-        action: 'model_probe_failed',
-        message: 'Model probe failed, rerouting to prepare',
-      );
-      context.go('/model-prepare');
-    }
+    context.go('/home');
   }
 
   @override

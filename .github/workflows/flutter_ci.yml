@@ -1,7 +1,6 @@
-# Learner app: `flutter_gemma` on Android/iOS; `flutter test` runs without loading real weights
-# unless compile-time IKAMVA_MODEL_DOWNLOAD_URL is set. No repo-native/ llama.cpp build steps.
-# Optional secrets written to repo-root `.env` for `--dart-define-from-file`:
-# `IKAMVA_HF_TOKEN`, `IKAMVA_MODEL_DOWNLOAD_URL` (HTTPS `.task` link for release builds).
+# Learner app: `flutter_gemma` on Android/iOS; `flutter test` does not load real weights on desktop.
+# Gemma weights are bundled via `pubspec.yaml` only (no HTTP model download in app code).
+# Repo-root `.env` exists so `--dart-define-from-file` succeeds (may be empty).
 name: Flutter CI
 
 on:
@@ -41,16 +40,9 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - name: Write repo-root .env for dart-define-from-file
+      - name: Ensure repo-root .env for dart-define-from-file
         working-directory: ${{ github.workspace }}
-        run: |
-          {
-            printf 'IKAMVA_HF_TOKEN=%s\n' "${IKAMVA_HF_TOKEN}"
-            printf 'IKAMVA_MODEL_DOWNLOAD_URL=%s\n' "${IKAMVA_MODEL_DOWNLOAD_URL}"
-          } > .env
-        env:
-          IKAMVA_HF_TOKEN: ${{ secrets.IKAMVA_HF_TOKEN }}
-          IKAMVA_MODEL_DOWNLOAD_URL: ${{ secrets.IKAMVA_MODEL_DOWNLOAD_URL }}
+        run: touch .env
       - run: flutter pub get
       - run: flutter build apk --dart-define-from-file="${{ github.workspace }}/.env"
       - run: flutter build ios --release --no-codesign --dart-define-from-file="${{ github.workspace }}/.env"

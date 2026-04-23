@@ -9,11 +9,10 @@ import 'streaming_llm_capability.dart';
 
 /// App-wide access to on-device LLM (TASKS §6.4–6.8).
 ///
-/// Always uses [FlutterGemmaLlmEngine]: HTTP fetch into a **fixed cache file**
-/// (`ModelLocalCache`) then **`FlutterGemma.installModel`…`fromFile`**; weights
-/// are **not** shipped in the APK.
-/// [ensureLoaded] re-opens the saved model or re-downloads if it is missing
-/// or corrupt. Call [configure] with [SettingsStore] before generation.
+/// Always uses [FlutterGemmaLlmEngine] with **bundled** `.litertlm` only
+/// (**`installModel`…`fromAsset`**). [ensureLoaded] re-opens the saved model or
+/// re-installs from assets if it is missing or corrupt. Call [configure] with
+/// [SettingsStore] before generation.
 ///
 /// Removed: `ProcessLlmEngine` / `llama-cli` / GGUF / `native/build` paths.
 class LlmService {
@@ -24,14 +23,24 @@ class LlmService {
   LlmEngine? _engine;
   bool _disposed = false;
   void Function(int installPercent)? _onModelInstallProgress;
+  void Function(String phase, String message, int? percent)? _onModelLifecycle;
 
-  /// Optional: receive 0–100 progress while downloading/installing the model.
-  Future<void> configure(
+  /// Optional: [onModelInstallProgress] 0–100 during bytes transfer;
+  /// [onModelLifecycle] verbose steps for UI (phase label + message + optional %).
+  ///
+  /// When either callback is non-null, the cached engine is **discarded** so the
+  /// next load uses these hooks (e.g. home hub attaching a status log).
+  void configure(
     SettingsStore settings, {
     void Function(int installPercent)? onModelInstallProgress,
-  }) async {
+    void Function(String phase, String message, int? percent)? onModelLifecycle,
+  }) {
     _settings = settings;
     _onModelInstallProgress = onModelInstallProgress;
+    _onModelLifecycle = onModelLifecycle;
+    if (onModelInstallProgress != null || onModelLifecycle != null) {
+      invalidateCachedEngine();
+    }
     ModelDiagnostics.instance.log(
       area: 'service',
       action: 'configure',
@@ -40,7 +49,7 @@ class LlmService {
     );
   }
 
-  /// Validates engine + on-disk model (re-downloads via HTTP if needed).
+  /// Validates engine + on-disk model (reinstalls from bundled assets if needed).
   Future<void> ensureReady() async {
     _throwIfDisposed();
     final engine = _engine ??= _createEngine();
@@ -139,6 +148,7 @@ class LlmService {
     return FlutterGemmaLlmEngine(
       settings: settings,
       onInstallProgress: _onModelInstallProgress,
+      onLifecycle: _onModelLifecycle,
     );
   }
 

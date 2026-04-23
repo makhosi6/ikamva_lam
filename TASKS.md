@@ -41,7 +41,7 @@ writeup.md
 
 ## Phase 0 — Repository & engineering baseline
 
-- [x] **0.1** Create root README with: project pitch, how to run learner app, **HTTP Gemma `.task`** / `IKAMVA_MODEL_DOWNLOAD_URL` notes, device RAM notes. **(P0)**
+- [x] **0.1** Create root README with: project pitch, how to run learner app, **bundled Gemma `.litertlm`** / asset manifest notes, device RAM notes. **(P0)**
 - [x] **0.2** Add `LICENSE` appropriate to hackathon / team. **(P2)**
 - [x] **0.3** Pin toolchain versions: Flutter SDK channel, Dart version, Android NDK / Xcode if building FFI. Document in README. **(P0)**
 - [x] **0.4** CI stub (optional): `flutter analyze`, `flutter test` on push. **(P1)**
@@ -136,8 +136,8 @@ Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 **Core differentiator** — inference runs **only** on-device via the **`flutter_gemma`** plugin (no `llama-cli` / GGUF subprocess path).
 
 - [x] **6.1** Integrate **`flutter_gemma`** (pinned in `learner_app/pubspec.yaml`); call **`FlutterGemma.initialize`** in `main.dart`. **(P0)**
-- [x] **6.2** **HTTP-only** mobile **`.task`** (or supported): no weights in APK; document `IKAMVA_MODEL_DOWNLOAD_URL` in `assets/models/OBTAINING_MODELS.txt`. **(P0)**
-- [x] **6.3** Implement **`FlutterGemmaLlmEngine`**: `installModel` → **`fromNetwork`**, **`getActiveModel`**, per-request **`createSession`** + **`getResponse`**; apply **`LlmOutputFilters.takeThroughFirstBalancedJson`** and stop sequences; re-download if open fails. **(P0)**
+- [x] **6.2** **Bundled** mobile **`.litertlm`**: weights in **`pubspec.yaml`** assets; document obtain/replace flow in `assets/models/OBTAINING_MODELS.txt` + `docs/model_delivery.md`. **(P0)**
+- [x] **6.3** Implement **`FlutterGemmaLlmEngine`**: `installModel` → **`fromAsset`**, **`getActiveModel`**, per-request **`createSession`** + **`getResponse`**; apply **`LlmOutputFilters.takeThroughFirstBalancedJson`** and stop sequences; re-install from asset if open fails. **(P0)**
 - [x] **6.4** **Lazy prepare:** `ensureReady` / settings “warm up” surface copy/install time; handle missing asset and low storage with clear errors. **(P0)**
 - [x] **6.5** Inference API: `LlmService.generate` / optional **`tryOpenGenerateStream`** when the engine implements **`StreamingLlmCapability`**. **(P0)**
 - [x] **6.6** Apply spec **context limits** (512–1024 tokens) and **max new tokens** (~120); JSON extraction unchanged. **(P0)**
@@ -147,7 +147,7 @@ Spec §4.2: &gt;80% → harder; &lt;50% → more support.
 - [x] **6.10** **CI / tests:** `IKAMVA_USE_STUB_LLM=1` or non-mobile **`flutter test`** hosts use **`StubLlmEngine`** without weights. **(P1)**
 - [x] **6.11** **iOS Simulator:** after **GPU** `getActiveModel` fails (including `failedToInitializeEngine` / TFLite graph build), retry with **CPU** on prepare + engine open paths. **(P1)**
 
-**Acceptance:** Android/iOS device or emulator with a **valid** download URL completes a sample JSON prompt; CI **`flutter test`** stays green with stub; production uses **`fromNetwork`** once per device for weights.
+**Acceptance:** Android/iOS device or emulator with the **bundled** `.litertlm` in **`pubspec.yaml`** completes a sample JSON prompt after prepare; CI **`flutter test`** stays green with stub; production uses **`fromAsset`** once per install (copy into plugin storage).
 
 ---
 

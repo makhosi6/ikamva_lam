@@ -23,4 +23,11 @@ void main() {
     expect(ModelPrepareConfig.headroomMb, greaterThan(0));
     expect(ModelPrepareConfig.minFreeDiskMb, greaterThan(0));
   });
+
+  test('modelInstallFingerprint is bundle-only', () {
+    expect(
+      ModelPrepareConfig.modelInstallFingerprint,
+      'bundle:${ModelPrepareConfig.bundledModelAssetPath}',
+    );
+  });
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -7,8 +9,12 @@ import '../db/app_database.dart';
 import '../db/seed.dart';
 import '../hub/daily_topics_service.dart';
 import '../hub/hub_daily_topic_progress.dart';
+import '../llm/flutter_gemma_llm_engine.dart';
+import '../llm/llm_service.dart';
+import '../router/route_observers.dart';
 import '../state/database_scope.dart';
 import '../state/game_pause_store.dart';
+import '../state/settings_scope.dart';
 import '../theme/ikamva_colors.dart';
 import '../widgets/ikamva_app_bar_title.dart';
 
@@ -42,10 +48,11 @@ class HomeHubScreen extends StatefulWidget {
   State<HomeHubScreen> createState() => _HomeHubScreenState();
 }
 
-class _HomeHubScreenState extends State<HomeHubScreen> {
+class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
   late final Future<GamePauseSnapshot?> _pauseFuture = GamePauseStore.load();
   Future<_HubPayload>? _hubPayload;
   late final PageController _pageController;
+  late final ScrollController _modelLogScroll;
 
   int _pageIndex = 0;
 
@@ -53,24 +60,150 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
   int _carouselTopicsPerPage = 2;
   bool _carouselSyncScheduled = false;
 
+  bool _hubLlmCallbacksBound = false;
+  PageRoute<dynamic>? _routeSubscription;
+  bool _resumeModelBusy = false;
+
+  final List<String> _modelInitLog = <String>[];
+  int? _modelInitPercent;
+
+  static const int _maxModelLogLines = 40;
+
   String get _todayKey => DailyTopicsService.calendarDayKeyLocal();
+
+  void _appendModelLog(String line) {
+    _modelInitLog.add(line);
+    while (_modelInitLog.length > _maxModelLogLines) {
+      _modelInitLog.removeAt(0);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_modelLogScroll.hasClients) return;
+      final max = _modelLogScroll.position.maxScrollExtent;
+      _modelLogScroll.jumpTo(max);
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 1);
+    _modelLogScroll = ScrollController();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _hubPayload ??= _fetchHub(DatabaseScope.of(context));
+    final route = ModalRoute.of(context);
+    if (_routeSubscription == null && route is PageRoute<dynamic>) {
+      _routeSubscription = route;
+      ikamvaRouteObserver.subscribe(this, route);
+    }
+    if (!_hubLlmCallbacksBound) {
+      _hubLlmCallbacksBound = true;
+      final settings = SettingsScope.of(context);
+      LlmService.instance.configure(
+        settings,
+        onModelInstallProgress: (p) {
+          if (!mounted) return;
+          setState(() => _modelInitPercent = p.clamp(0, 100));
+        },
+        onModelLifecycle: (phase, message, percent) {
+          if (!mounted) return;
+          setState(() {
+            final pct = percent != null ? ' (${percent.clamp(0, 100)}%)' : '';
+            _appendModelLog('[$phase]$pct $message');
+            if (percent != null) {
+              _modelInitPercent = percent.clamp(0, 100);
+            }
+          });
+        },
+      );
+    }
+    _hubPayload ??= _warmModelThenFetchHub(DatabaseScope.of(context));
   }
 
   @override
   void dispose() {
+    if (_routeSubscription != null) {
+      ikamvaRouteObserver.unsubscribe(this);
+    }
+    _modelLogScroll.dispose();
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    unawaited(_recheckModelAfterReturningToHub());
+  }
+
+  Future<void> _recheckModelAfterReturningToHub() async {
+    if (!shouldUseFlutterGemmaEngine || !mounted) return;
+    setState(() {
+      _resumeModelBusy = true;
+      _modelInitPercent = null;
+      _appendModelLog('[home] Back on hub — verifying on-device model…');
+    });
+    try {
+      await LlmService.instance.ensureReady();
+      if (!mounted) return;
+      setState(() {
+        _resumeModelBusy = false;
+        _modelInitPercent = 100;
+        _appendModelLog('[home] Model is ready.');
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _resumeModelBusy = false;
+        _appendModelLog('[home] Model check failed: $e');
+        _appendModelLog(
+          '[home] Try Settings → Warm up model or free storage and return here.',
+        );
+      });
+    }
+  }
+
+  Future<_HubPayload> _warmModelThenFetchHub(IkamvaDatabase db) async {
+    if (shouldUseFlutterGemmaEngine) {
+      if (mounted) {
+        setState(() {
+          _modelInitLog
+            ..clear()
+            ..add('[init] Warming on-device Gemma (first launch can take a few minutes)…');
+          _modelInitPercent = null;
+        });
+        _scheduleModelLogScroll();
+      }
+      try {
+        await LlmService.instance.ensureReady();
+        if (mounted) {
+          setState(() {
+            _modelInitLog.add('[init] Gemma is ready for today\'s topics.');
+            _modelInitPercent = 100;
+          });
+          _scheduleModelLogScroll();
+        }
+      } on Object catch (e) {
+        if (mounted) {
+          setState(() {
+            _modelInitLog.add('[init] Could not finish model setup: $e');
+            _modelInitLog.add(
+              '[init] You can open Settings → Warm up model, or retry after freeing storage.',
+            );
+          });
+          _scheduleModelLogScroll();
+        }
+      }
+    }
+    return _fetchHub(db);
+  }
+
+  void _scheduleModelLogScroll() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_modelLogScroll.hasClients) return;
+      _modelLogScroll.jumpTo(_modelLogScroll.position.maxScrollExtent);
+    });
   }
 
   Future<_HubPayload> _fetchHub(IkamvaDatabase db) async {
@@ -281,6 +414,129 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                 ),
               ),
             ),
+            if (shouldUseFlutterGemmaEngine && _resumeModelBusy)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  _hubTextGutter,
+                  0,
+                  _hubTextGutter,
+                  8,
+                ),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: _hubMaxContentWidth,
+                    ),
+                    child: Card(
+                      elevation: 0,
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.35,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Loading / verifying on-device Gemma',
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            if (_modelInitPercent != null)
+                              Text(
+                                'Progress: '
+                                '${_modelInitPercent!.clamp(0, 100)}%',
+                                style: theme.textTheme.labelMedium,
+                              ),
+                            const SizedBox(height: 6),
+                            if (_modelInitPercent != null)
+                              LinearProgressIndicator(
+                                minHeight: 6,
+                                borderRadius: BorderRadius.circular(4),
+                                value: _modelInitPercent!.clamp(0, 100) / 100.0,
+                              )
+                            else
+                              LinearProgressIndicator(
+                                minHeight: 6,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Verbose log',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            SizedBox(
+                              height: 120,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme
+                                      .surfaceContainerHighest
+                                      .withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: theme.colorScheme.outline
+                                        .withValues(alpha: 0.15),
+                                  ),
+                                ),
+                                child: _modelInitLog.isEmpty
+                                    ? Center(
+                                        child: Text(
+                                          'Waiting…',
+                                          style: theme.textTheme.bodySmall,
+                                        ),
+                                      )
+                                    : ListView.builder(
+                                        controller: _modelLogScroll,
+                                        padding: const EdgeInsets.all(8),
+                                        itemCount: _modelInitLog.length,
+                                        itemBuilder: (context, i) {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 6,
+                                            ),
+                                            child: SelectableText(
+                                              _modelInitLog[i],
+                                              style: theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                fontFamily: 'monospace',
+                                                fontFamilyFallback: const [
+                                                  'monospace',
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             const SizedBox(height: 12),
             Expanded(
               child: FutureBuilder<_HubPayload>(
@@ -288,7 +544,146 @@ class _HomeHubScreenState extends State<HomeHubScreen> {
                 builder: (context, snap) {
                   if (_hubPayload == null ||
                       snap.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    if (!shouldUseFlutterGemmaEngine) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const CircularProgressIndicator(),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Loading your quests… On-device Gemma runs on '
+                                'Android and iOS; this build still loads hub '
+                                'content.',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: _hubTextGutter,
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: _hubMaxContentWidth,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                'Loading on-device Gemma',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'The model is copied from the app bundle into '
+                                'plugin storage; detailed engine steps are below.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.75),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              if (_modelInitPercent != null)
+                                LinearProgressIndicator(
+                                  minHeight: 8,
+                                  borderRadius: BorderRadius.circular(6),
+                                  value: _modelInitPercent!.clamp(0, 100) /
+                                      100.0,
+                                )
+                              else
+                                LinearProgressIndicator(
+                                  minHeight: 8,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              const SizedBox(height: 10),
+                              Text(
+                                _modelInitPercent != null
+                                    ? 'Bundle → device copy: '
+                                          '${_modelInitPercent!.clamp(0, 100)}% '
+                                          '(and open / verify steps in log)'
+                                    : 'Progress: preparing… (see log for phase)',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 12),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Verbose log',
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Expanded(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme
+                                        .surfaceContainerHighest
+                                        .withValues(alpha: 0.45),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.2),
+                                    ),
+                                  ),
+                                  child: _modelInitLog.isEmpty
+                                      ? Center(
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(16),
+                                            child: Text(
+                                              'Waiting for engine status…',
+                                              style:
+                                                  theme.textTheme.bodySmall,
+                                            ),
+                                          ),
+                                        )
+                                      : ListView.builder(
+                                          controller: _modelLogScroll,
+                                          padding: const EdgeInsets.all(12),
+                                          itemCount: _modelInitLog.length,
+                                          itemBuilder: (context, i) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 6,
+                                              ),
+                                              child: SelectableText(
+                                                _modelInitLog[i],
+                                                style: theme
+                                                    .textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  fontFamily: 'monospace',
+                                                  fontFamilyFallback: const [
+                                                    'monospace',
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
                   }
                   if (snap.hasError ||
                       !snap.hasData ||

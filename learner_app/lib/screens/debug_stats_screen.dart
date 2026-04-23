@@ -11,7 +11,6 @@ import '../llm/flutter_gemma_llm_engine.dart';
 import '../llm/gemma_model_config.dart';
 import '../llm/llm_service.dart';
 import '../llm/model_diagnostics.dart';
-import '../llm/model_local_cache.dart';
 import '../llm/model_prepare_config.dart';
 import '../llm/model_prepare_prefs.dart';
 import '../metrics/metrics_store.dart';
@@ -43,7 +42,7 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
   bool? _activeModelProbeOk;
   String? _activeModelProbeDetail;
   DateTime? _preparedAt;
-  String? _preparedUrl;
+  String? _preparedFingerprint;
 
   String get _resolvedEngineLabel {
     if (shouldUseFlutterGemmaEngine) {
@@ -71,19 +70,12 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
 
   Future<void> _loadPrepareState() async {
     final preparedAt = await ModelPreparePrefs.preparedAt();
-    final preparedUrl = await ModelPreparePrefs.preparedModelUrl();
+    final fingerprint = await ModelPreparePrefs.preparedInstallFingerprint();
     if (!mounted) return;
     setState(() {
       _preparedAt = preparedAt;
-      _preparedUrl = preparedUrl;
+      _preparedFingerprint = fingerprint;
     });
-  }
-
-  String _downloadUrlPreview() {
-    final u = ModelPrepareConfig.networkUrl;
-    if (u.isEmpty) return '(empty)';
-    if (u.length <= 56) return u;
-    return '${u.substring(0, 56)}…';
   }
 
   Future<void> _copyToClipboard(String label, String text) async {
@@ -153,6 +145,7 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
         ),
         body: SafeArea(
           child: ConstrainedContent(
+            scrollable: false,
             child: TabBarView(
               children: [
                 _buildOverviewTab(theme, cs, db),
@@ -308,35 +301,25 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                   _kv(context, 'Resolved engine', _resolvedEngineLabel),
                   _kv(
                     context,
-                    'IKAMVA_MODEL_DOWNLOAD_URL',
-                    ModelPrepareConfig.hasNetworkModelUrl
-                        ? _downloadUrlPreview()
-                        : '(not set)',
+                    'Bundled asset path',
+                    ModelPrepareConfig.bundledModelAssetPath,
                   ),
                   _kv(context, 'ModelType', GemmaModelConfig.modelType.name),
-                  FutureBuilder<String>(
-                    future: ModelLocalCache.localWeightsFile().then(
-                      (f) => f.path,
-                    ),
-                    builder: (context, snap) {
-                      return _kv(
-                        context,
-                        'Local weights path',
-                        snap.data ?? 'resolving…',
-                      );
-                    },
-                  ),
                   _kv(
                     context,
-                    'Plugin model id (from cache file)',
-                    ModelLocalCache.pluginModelId,
+                    'Note',
+                    'Weights load only from the bundled .litertlm (plugin copies to its own storage).',
                   ),
                   _kv(
                     context,
                     'Prepare required now',
                     '${shouldPrepare ?? 'loading…'}',
                   ),
-                  _kv(context, 'Prepared URL (last)', _preparedUrl ?? '(none)'),
+                  _kv(
+                    context,
+                    'Prepared fingerprint (last)',
+                    _preparedFingerprint ?? '(none)',
+                  ),
                   _kv(
                     context,
                     'Prepared at',

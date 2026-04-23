@@ -24,8 +24,8 @@ Digital Equity & Inclusivity
 
 On-device Gemma (flutter_gemma)
 	•	MediaPipe / LiteRT-LM inference via the `flutter_gemma` plugin
-	•	**`.task` weights via HTTPS** at first use (`IKAMVA_MODEL_DOWNLOAD_URL` compile-time); **not** shipped in the APK; plugin **persists** files on device; **re-download** if missing or corrupt (prepare screen or `LlmService` load path)
-	•	Efficient memory + token usage (quantised mobile builds); optional **`IKAMVA_HF_TOKEN`** for gated Hugging Face URLs
+	•	**Bundled** Gemma 4 E2B **`gemma-4-E2B-it.litertlm`** in the app asset bundle; first use runs **hub warm-up** / **`ensureReady()`** (`installModel`…`fromAsset`). **No** remote weight download. Plugin **persists** files on device; **re-install** from assets if missing or corrupt (`LlmService` load path / Settings warm-up)
+	•	Efficient memory + token usage (quantised mobile builds)
 
 **1.1 Adult guide (Teacher/Parent).** The adult who assigns quests and reviews summaries may be a **school teacher** or a **parent** (shared classroom tablet or home device). Specs, design, and **user-visible app copy** use **Teacher/Parent** for that role. Schema names such as `paired_teacher_code` remain shorthand for the paired adult unless a future migration renames them.
 
@@ -39,7 +39,7 @@ On-device Gemma (flutter_gemma)
     |-- UI (Flutter)
     |-- Game Engine
     |-- Local DB (SQLite)
-    |-- AI Runtime (flutter_gemma + HTTP-downloaded Gemma `.task`, persisted on device)
+    |-- AI Runtime (flutter_gemma + bundled Gemma `.litertlm`, optional HTTP override, persisted on device)
     |-- Content Cache + Prompt Templates + Child-friendly gate (on-device)
     |
 [ Optional Sync Layer ]
@@ -88,7 +88,7 @@ Flutter App (`LlmService` → `FlutterGemmaLlmEngine`)
    ↓
 `flutter_gemma` plugin (Android / iOS)
    ↓
-Gemma `.task` on disk (downloaded once via HTTPS from `IKAMVA_MODEL_DOWNLOAD_URL`; not in `assets/` — see `OBTAINING_MODELS.txt`)
+Gemma `.litertlm` on disk (copied from bundled `assets/models/gemma-4-E2B-it.litertlm` — see `OBTAINING_MODELS.txt`)
 
 
 ⸻

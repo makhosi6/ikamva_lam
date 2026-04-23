@@ -49,8 +49,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            '${e.message} On mobile, set IKAMVA_MODEL_DOWNLOAD_URL and use '
-            'Preparing AI (or Retry there) to download weights.',
+            '${e.message} On mobile, try Warm up model below or cold-start '
+            'the app so the home hub runs setup again. Ensure '
+            '`assets/models/gemma-4-E2B-it.litertlm` is in `pubspec.yaml` and rebuild.',
           ),
         ),
       );
@@ -212,8 +213,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Gemma weights are not in the APK: set compile-time '
-                    'IKAMVA_MODEL_DOWNLOAD_URL (see assets/models/OBTAINING_MODELS.txt).',
+                    'Gemma loads only from the bundled `.litertlm` in '
+                    '`pubspec.yaml` (see assets/models/OBTAINING_MODELS.txt).',
                     style: theme.textTheme.bodySmall,
                   ),
                   const SizedBox(height: 12),

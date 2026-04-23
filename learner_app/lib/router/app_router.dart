@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../screens/debug_stats_screen.dart';
-import '../screens/model_prepare_screen.dart';
 import '../screens/game_shell_screen.dart';
 import '../screens/home_hub_screen.dart';
 import '../screens/session_summary_screen.dart';
@@ -16,6 +15,7 @@ import '../screens/teacher/teacher_quest_editor_screen.dart';
 import '../screens/splash_screen.dart';
 import '../screens/welcome_screen.dart';
 import '../state/settings_store.dart';
+import 'route_observers.dart';
 
 /// Drops any visible [SnackBar] when the stack changes so messages from the
 /// previous route do not linger (e.g. game hints on the home hub).
@@ -51,7 +51,7 @@ class _ClearSnackBarsOnNavigate extends NavigatorObserver {
 GoRouter createAppRouter(SettingsStore settings) {
   return GoRouter(
     initialLocation: '/splash',
-    observers: [_ClearSnackBarsOnNavigate()],
+    observers: [_ClearSnackBarsOnNavigate(), ikamvaRouteObserver],
     refreshListenable: settings,
     redirect: (BuildContext context, GoRouterState state) {
       final done = settings.onboardingComplete;
@@ -72,10 +72,6 @@ GoRouter createAppRouter(SettingsStore settings) {
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),
-      ),
-      GoRoute(
-        path: '/model-prepare',
-        builder: (context, state) => const ModelPrepareScreen(),
       ),
       GoRoute(
         path: '/home',

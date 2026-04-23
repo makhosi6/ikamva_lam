@@ -4,7 +4,7 @@ import '../hub/daily_quest_ids.dart';
 import '../llm/llm_generate_request.dart';
 import '../llm/llm_output_filters.dart';
 import '../llm/llm_service.dart';
-import '../llm/model_prepare_config.dart';
+import '../llm/flutter_gemma_llm_engine.dart';
 import '../prompts/prompt_compliance.dart';
 
 /// Result of on-device **child-appropriate** screening (spec §4.1.4).
@@ -23,9 +23,9 @@ class ContentSafetyVerdict {
 /// Covers: hub topics, quest topics, **all string fields** in task JSON,
 /// multilingual hint maps, and Teacher/Parent insight text.
 ///
-/// When [ModelPrepareConfig.hasNetworkModelUrl] is false (e.g. `flutter test`
-/// without `--dart-define-from-file`), the Gemma **sentiment** pass is skipped
-/// and only rule-based screening runs.
+/// When not on an Android/iOS shell ([shouldUseFlutterGemmaEngine] is false,
+/// e.g. `flutter test` on desktop), the Gemma **sentiment** pass is skipped and
+/// only rule-based screening runs.
 abstract final class ChildFriendlyContentGate {
   static const int maxTopicLength = 48;
   static const int maxTopicWords = 5;
@@ -190,7 +190,7 @@ abstract final class ChildFriendlyContentGate {
     if (normalizedTopics.isEmpty) {
       return const ContentSafetyVerdict(ok: true);
     }
-    if (!ModelPrepareConfig.hasNetworkModelUrl) {
+    if (!shouldUseFlutterGemmaEngine) {
       return const ContentSafetyVerdict(ok: true);
     }
     final encoded = jsonEncode(normalizedTopics);
@@ -240,7 +240,7 @@ abstract final class ChildFriendlyContentGate {
     if (!rules.ok) return rules;
     final m = material.trim();
     if (m.isEmpty) return rules;
-    if (!ModelPrepareConfig.hasNetworkModelUrl) {
+    if (!shouldUseFlutterGemmaEngine) {
       return rules;
     }
     final cap = m.length > 2200 ? '${m.substring(0, 2200)}\n…' : m;

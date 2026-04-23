@@ -2,7 +2,7 @@
 
 <img src="branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
 
-Playful, Teacher/Parent-guided English practice for primary and early secondary learners (school or home). Learner app targets **offline-first** use on tablets and low-end phones; on-device AI runs via **`flutter_gemma`** with a **one-time HTTPS download** of Gemma weights (not shipped in the APK — see [spec.md](spec.md)).
+Playful, Teacher/Parent-guided English practice for primary and early secondary learners (school or home). Learner app targets **offline-first** use on tablets and low-end phones; on-device AI runs via **`flutter_gemma`** with a **bundled** Gemma 4 E2B **`.litertlm`** (optional compile-time HTTP override — see [spec.md](spec.md)).
 
 ## Repository layout
 
@@ -11,7 +11,7 @@ Playful, Teacher/Parent-guided English practice for primary and early secondary 
 | [branding/](branding/) | Logo & cover PNGs (raster), SVG source, future brand assets |
 | [scripts/](scripts/) | e.g. `generate_cover.py` — cover layout (logo + copy) |
 | [learner_app/](learner_app/) | Flutter learner client |
-| [learner_app/assets/models/](learner_app/assets/models/) | `OBTAINING_MODELS.txt` — how to set `IKAMVA_MODEL_DOWNLOAD_URL` (no weights in repo) |
+| [learner_app/assets/models/](learner_app/assets/models/) | Bundled **`gemma-4-E2B-it.litertlm`** + `OBTAINING_MODELS.txt` |
 | [TASKS.md](TASKS.md) | Detailed build checklist |
 | [design.md](design.md) | UX flows and visual tokens |
 | [spec.md](spec.md) | Technical specification |
@@ -28,11 +28,11 @@ Fill this table on real hardware after profiling. Stub LLM timings are not repre
 | Metric | 4GB RAM (E2B target) | 8GB RAM (E4B target) |
 |--------|----------------------|------------------------|
 | Cold start → first interactive frame | TBD | TBD |
-| Model ready (HTTP `.task` install + first `generate`) | TBD | TBD |
+| Model ready (bundled `.litertlm` install + first `generate`) | TBD | TBD |
 | First-token latency (one cloze prompt) | TBD | TBD |
 | Avg. task generation (queue fill) | TBD | TBD |
 
-**How to capture (TASKS Phase 17.1):** (1) Note device model, OS version, RAM, and Git commit. (2) Cold start: time from app icon tap until Welcome or Hub is interactive. (3) Model ready: first successful `LlmService.generate` after the `.task` is downloaded and opened (Settings → “Warm up model” or first hub generation). (4) First-token: one representative `TASK: generate_cloze` prompt; stopwatch from invoke to first visible character if streaming is enabled, else full completion. (5) Queue fill: average wall time for `TaskQueueService` top-up of *N* items (pick N in app logs or debug panel). Paste numbers into this table and keep a copy for [writeup.md](writeup.md).
+**How to capture (TASKS Phase 17.1):** (1) Note device model, OS version, RAM, and Git commit. (2) Cold start: time from app icon tap until Welcome or Hub is interactive. (3) Model ready: first successful `LlmService.generate` after bundled **`ensureReady()`** / hub warm-up finishes and the model is opened (Settings → “Warm up model” or first hub generation). (4) First-token: one representative `TASK: generate_cloze` prompt; stopwatch from invoke to first visible character if streaming is enabled, else full completion. (5) Queue fill: average wall time for `TaskQueueService` top-up of *N* items (pick N in app logs or debug panel). Paste numbers into this table and keep a copy for [writeup.md](writeup.md).
 
 **Battery / thermal (TASKS §15.4):** run a continuous 15-minute practice session on a physical device; note % battery drop and subjective warmth in your writeup. No simulator substitute.
 
@@ -67,23 +67,23 @@ python3 scripts/generate_cover.py
 
 Requires **macOS** system fonts (*Arial Rounded Bold*, *Arial*). On Linux, point the script at equivalent `.ttf` paths or install those faces.
 
-## Models (flutter_gemma + HTTP download)
+## Models (flutter_gemma + bundled `.litertlm` only)
 
-- **Production (Android / iOS):** weights are **not** in the APK. Set **`IKAMVA_MODEL_DOWNLOAD_URL`** at compile time (HTTPS link to a **native** artifact: **`.litertlm`** for Gemma 4, or a mobile **`.task`** for older families — **never** a **`*-web.task`** URL on iOS/Android; those are Web-only and cause LiteRT “zip archive” errors). Use repo-root **`.env`** with `--dart-define-from-file=.env` (see `.env.example`) or your CI equivalent. Optional **`IKAMVA_HF_TOKEN`** for gated Hugging Face files. Full checklist: `learner_app/assets/models/OBTAINING_MODELS.txt`.
-- **Persistence:** HTTP downloads always land at the same app support path (`…/ikamva_gemma/ikamva_ondevice_model.bin` plus `ikamva_ondevice_model.meta.json` with the URL), then `flutter_gemma` registers that file. Cold starts re-open the active model; if it is missing or corrupt, prepare or **`LlmService.ensureReady` / `generate`** triggers a **re-download**.
-- **Cross-session correctness:** prepare state is tracked with both a success flag and the last prepared model URL. If `IKAMVA_MODEL_DOWNLOAD_URL` changes between builds, the app automatically routes back to prepare/verify so stale model artifacts are not reused.
-- **Default target:** Gemma 3 **1B**–class mobile `.task` from [litert-community](https://huggingface.co/litert-community) or similar (team choice in `docs/flutter_gemma_migration_scope.md`).
+- **Production (Android / iOS):** Gemma 4 **E2B** **`gemma-4-E2B-it.litertlm`** is **bundled** under `learner_app/assets/models/` and declared in **`pubspec.yaml`**. There is **no** HTTP download of weights; first use copies via **`FlutterGemma.installModel`…`fromAsset`**. Checklist: `learner_app/assets/models/OBTAINING_MODELS.txt`, architecture: `learner_app/docs/model_delivery.md`.
+- **Persistence:** the plugin keeps the installed model on device. Cold starts re-open the active model; if it is missing or corrupt, **`LlmService.ensureReady` / `generate`** or the prepare flow can trigger a **re-install from the bundled asset**.
+- **Cross-session correctness:** prepare state stores a **bundle fingerprint**. If the bundled path changes between builds, the app may route through prepare/verify so stale artifacts are not reused.
+- **Default target:** Gemma 4 **E2B** `.litertlm` from [litert-community](https://huggingface.co/litert-community) (you vendor the file into `assets/models/`).
 - **Pin:** `flutter_gemma` version is pinned in `learner_app/pubspec.yaml`; run `pod install` under `learner_app/ios` after upgrades.
-- **Stub / CI:** `IKAMVA_USE_STUB_LLM=1` or `flutter test` on a desktop host uses **`StubLlmEngine`** (no download).
-- **Privacy:** all **LLM inference is on-device**; the download URL is only used to fetch weights to the device. Optional non-LLM network (e.g. sync) is separate—see `docs/api_sync_contract.md`.
+- **Stub / CI:** `IKAMVA_USE_STUB_LLM=1` or `flutter test` on a desktop host does not load the mobile plugin for real inference.
+- **Privacy:** all **LLM inference is on-device**. Optional non-LLM network (e.g. sync) is separate—see `docs/api_sync_contract.md`.
 - **Optional sync:** compile with `--dart-define=IKAMVA_SYNC_URL=https://example.com/v1/summaries` to exercise outbox flush (see `docs/api_sync_contract.md`).
 - **Debug diagnostics:** in debug builds, `/dev/stats` is now tabbed (`Overview`, `Model`, `Event Log`). The `Event Log` captures verbose model lifecycle events (probe/open/install/retry/purge) and supports copy-to-clipboard for bug reports.
 
 ### VS Code, `.env`, and CI
 
-- **Local:** copy **`.env.example`** → **`.env`** at the repo root; set at least **`IKAMVA_MODEL_DOWNLOAD_URL`** (and **`IKAMVA_HF_TOKEN`** if your URL is gated). VS Code **Run and Debug** uses **`--dart-define-from-file=${workspaceFolder}/.env`** (see **`.vscode/launch.json`**). If **`.env` is missing**, Flutter fails fast with the standard “Did not find the file passed to `--dart-define-from-file`” message — create the file first.
+- **Local:** VS Code **Run and Debug** may use **`--dart-define-from-file=${workspaceFolder}/.env`** (see **`.vscode/launch.json`**). Gemma weights are **not** configured via `.env`; use an empty **`.env`** if the launch config requires the file. Optional **`IKAMVA_MODEL_*`** defines adjust prepare-screen free-space hints (`model_prepare_config.dart`).
 - **Stub LLM (tests / forced QA):** set process environment **`IKAMVA_USE_STUB_LLM=1`** (not a `dart-define` in this codebase). Launch configs do not set it by default.
-- **Release builds (GitHub Actions):** the **`build-and-deploy`** job writes **`.env`** from **`secrets.IKAMVA_HF_TOKEN`** and **`secrets.IKAMVA_MODEL_DOWNLOAD_URL`** before **`flutter build apk`** / **`flutter build ios`**. Add those repository secrets for tagged releases that must embed a download URL.
+- **Release builds (GitHub Actions):** **`build-and-deploy`** creates an empty repo-root **`.env`** so **`--dart-define-from-file`** succeeds; release binaries must list the `.litertlm` in **`pubspec.yaml`**.
 
 ### Minimum device profile (on-device Gemma)
 

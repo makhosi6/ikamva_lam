@@ -27,3 +27,7 @@ Thumbs.db
 
 # Coverage
 coverage/
+
+# models
+learner_app/assets/models/*
+!learner_app/assets/models/OBTAINING_MODELS.txt

@@ -8,7 +8,7 @@ import 'package:ikamva_lam/db/app_database.dart';
 import 'package:ikamva_lam/db/database_connection.dart';
 import 'package:ikamva_lam/db/seed.dart';
 import 'package:ikamva_lam/llm/llm_service.dart';
-import 'package:ikamva_lam/llm/model_prepare_config.dart';
+import 'package:ikamva_lam/llm/flutter_gemma_llm_engine.dart';
 import 'package:ikamva_lam/safety/child_friendly_content_gate.dart';
 import 'package:ikamva_lam/state/settings_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,7 +24,7 @@ void main() {
     final settings = SettingsStore();
     await settings.load();
     LlmService.instance.invalidateCachedEngine();
-    await LlmService.instance.configure(settings);
+    LlmService.instance.configure(settings);
 
     db = openMemoryDatabase();
     await ensureDevSeed(db);
@@ -65,7 +65,7 @@ void main() {
       await InsightJob.runAfterSession(db, sessionId);
 
       final cards = await InsightCardRepository(db).listForLearner(kSeedLearnerId);
-      if (!ModelPrepareConfig.hasNetworkModelUrl) {
+      if (!shouldUseFlutterGemmaEngine) {
         expect(cards, isEmpty);
       }
     },

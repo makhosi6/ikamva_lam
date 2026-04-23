@@ -16,23 +16,24 @@ void main() {
     expect(shouldPrepare, isTrue);
   });
 
-  test('markPrepareDoneForCurrentConfig records done/url/timestamp', () async {
+  test('markPrepareDoneForCurrentConfig records done/fingerprint/timestamp',
+      () async {
     await ModelPreparePrefs.markPrepareDoneForCurrentConfig();
 
     expect(await ModelPreparePrefs.isPrepareDone(), isTrue);
     expect(
-      await ModelPreparePrefs.preparedModelUrl(),
-      ModelPrepareConfig.networkUrl,
+      await ModelPreparePrefs.preparedInstallFingerprint(),
+      ModelPrepareConfig.modelInstallFingerprint,
     );
     expect(await ModelPreparePrefs.preparedAt(), isNotNull);
   });
 
-  test('clearPrepareDone removes done/url/timestamp', () async {
+  test('clearPrepareDone removes done/fingerprint/timestamp', () async {
     await ModelPreparePrefs.markPrepareDoneForCurrentConfig();
     await ModelPreparePrefs.clearPrepareDone();
 
     expect(await ModelPreparePrefs.isPrepareDone(), isFalse);
-    expect(await ModelPreparePrefs.preparedModelUrl(), isNull);
+    expect(await ModelPreparePrefs.preparedInstallFingerprint(), isNull);
     expect(await ModelPreparePrefs.preparedAt(), isNull);
   });
 }
