@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,8 @@ import '../hub/daily_topics_service.dart';
 import '../hub/hub_daily_topic_progress.dart';
 import '../llm/flutter_gemma_llm_engine.dart';
 import '../llm/llm_service.dart';
+import '../llm/model_diagnostics.dart';
+import '../llm/model_prepare_config.dart';
 import '../router/route_observers.dart';
 import '../state/database_scope.dart';
 import '../state/game_pause_store.dart';
@@ -24,7 +27,13 @@ const double _hubMaxContentWidth = 560;
 /// Min height (approx.) for the [PageView] row to stack two topic cards; otherwise 1×1.
 /// Based on [LayoutBuilder] height for the carousel strip (below the swipe hint), minus dots.
 const double _carouselMinHeightForTwoUp = 296;
+const int _hubDiagnosticsTailMax = 48;
+const double _hubDiagnosticsPeekHeight = 144;
 
+/// Data for the hub carousel once async work finishes.
+///
+/// Built by [_fetchHub]: topic offers for today, which topics the learner
+/// already completed, plus quest template metadata for copy on cards.
 class _HubPayload {
   const _HubPayload(
     this.offers,
@@ -35,8 +44,10 @@ class _HubPayload {
 
   final List<HubTopicOffer> offers;
   final Set<String> done;
+
   /// CEFR-style level from the template quest used for hub sessions.
   final String questLevel;
+
   /// Max task slots per hub session (same cap as the template quest).
   final int questMaxTasks;
 }
@@ -50,9 +61,38 @@ class HomeHubScreen extends StatefulWidget {
 
 class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
   late final Future<GamePauseSnapshot?> _pauseFuture = GamePauseStore.load();
+
+  /// Single future shared by both hub [FutureBuilder]s: **warm LLM (if any) →
+  /// then** load hub data.
+  ///
+  /// **Assigned in** [didChangeDependencies] (`??=` so only the first assignment
+  /// sticks): [_warmModelThenFetchHub]. **Replaced** (new future) when the user
+  /// refreshes [_reloadHubContent] or returns from a topic [_openTopic].
+  ///
+  /// **Why it can take a long time**
+  ///
+  /// 1. **On Android/iOS** ([shouldUseFlutterGemmaEngine]): awaits
+  ///    [LlmService.ensureReady] first — copies/opens the bundled `.litertlm`
+  ///    (first launch is often minutes). That call is wrapped in a **10 minute**
+  ///    timeout inside the service.
+  /// 2. **Then always:** [DailyTopicsService.loadOffersForToday] — fast if
+  ///    SharedPreferences cache hits for today; otherwise runs **on-device
+  ///    generation** ([LlmService.generate] in a loop, up to several attempts)
+  ///    plus child-safety checks — can add many more seconds per attempt
+  ///    (generation has its own timeout in [LlmService]).
+  /// 3. **Also:** DB reads for completed topics and the seed quest template.
+  ///
+  /// Until this future completes, [FutureBuilder] stays in
+  /// [ConnectionState.waiting] and the UI shows the loading branch.
   Future<_HubPayload>? _hubPayload;
   late final PageController _pageController;
-  late final ScrollController _modelLogScroll;
+
+  /// Full-screen hub loading diagnostics (only one list uses this at a time).
+  late final ScrollController _loadingDiagnosticsScroll;
+
+  /// Peek panel on the loaded hub; separate from [_loadingDiagnosticsScroll]
+  /// so two lists never share one controller (e.g. resume banner + peek).
+  late final ScrollController _hubPeekDiagnosticsScroll;
 
   int _pageIndex = 0;
 
@@ -64,30 +104,156 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
   PageRoute<dynamic>? _routeSubscription;
   bool _resumeModelBusy = false;
 
-  final List<String> _modelInitLog = <String>[];
   int? _modelInitPercent;
 
-  static const int _maxModelLogLines = 40;
+  /// Start time for the active [_hubPayload] future; cleared when it completes.
+  DateTime? _hubPayloadLoadStartedAt;
+
+  /// Drives a once-per-second [setState] so elapsed loading time stays visible.
+  Timer? _hubPayloadElapsedTimer;
+
+  /// Bumped on each new [_hubPayload] assignment so an older future's
+  /// [Future.whenComplete] cannot clear timer/start time for a newer load.
+  int _hubPayloadGeneration = 0;
 
   String get _todayKey => DailyTopicsService.calendarDayKeyLocal();
 
-  void _appendModelLog(String line) {
-    _modelInitLog.add(line);
-    while (_modelInitLog.length > _maxModelLogLines) {
-      _modelInitLog.removeAt(0);
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_modelLogScroll.hasClients) return;
-      final max = _modelLogScroll.position.maxScrollExtent;
-      _modelLogScroll.jumpTo(max);
+  /// Wraps hub loads so the UI can show elapsed time until [whenComplete].
+  Future<_HubPayload> _trackHubFuture(Future<_HubPayload> inner) {
+    final gen = ++_hubPayloadGeneration;
+    _hubPayloadLoadStartedAt = DateTime.now();
+    _hubPayloadElapsedTimer?.cancel();
+    _hubPayloadElapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && gen == _hubPayloadGeneration) setState(() {});
     });
+    return inner.whenComplete(() {
+      if (gen != _hubPayloadGeneration) return;
+      _hubPayloadElapsedTimer?.cancel();
+      _hubPayloadElapsedTimer = null;
+      _hubPayloadLoadStartedAt = null;
+      if (mounted) setState(() {});
+    });
+  }
+
+  static String _formatElapsedCompact(Duration d) {
+    if (d.inHours >= 1) {
+      return '${d.inHours}h ${d.inMinutes.remainder(60)}m '
+          '${d.inSeconds.remainder(60)}s';
+    }
+    if (d.inMinutes >= 1) {
+      return '${d.inMinutes}m ${d.inSeconds.remainder(60)}s';
+    }
+    return '${d.inSeconds}s';
+  }
+
+  /// Timer + expectations copy while [_hubPayload] is in flight.
+  Widget _hubElapsedAndExpectationsCopy(ThemeData theme) {
+    final start = _hubPayloadLoadStartedAt;
+    if (start == null) return const SizedBox.shrink();
+    final elapsed = DateTime.now().difference(start);
+    final gbApprox =
+        (ModelPrepareConfig.estimatedDownloadMb / 1024).ceil().clamp(1, 999);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          'Loading so far: ${_formatElapsedCompact(elapsed)}',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          shouldUseFlutterGemmaEngine
+              ? 'This step installs roughly $gbApprox GB from the app bundle '
+                    'into device storage (copy + engine setup). First launch '
+                    'often takes several minutes on many phones — that is '
+                    'normal and depends more on storage speed than RAM.'
+              : 'Generating today\'s topics can take up to a few minutes on '
+                    'first run (on-device generation and safety checks).',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.78),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _onDiagnosticsEventsChanged() {
+    _scheduleDiagnosticsScroll();
+  }
+
+  List<ModelDiagnosticEvent> _tailDiagnostics(List<ModelDiagnosticEvent> all) {
+    if (all.length <= _hubDiagnosticsTailMax) return all;
+    return all.sublist(all.length - _hubDiagnosticsTailMax);
+  }
+
+  String _formatHubDiagnosticLine(ModelDiagnosticEvent e) {
+    final ts = e.timestamp.toIso8601String();
+    final shortTs = ts.length >= 19 ? ts.substring(11, 19) : ts;
+    final extra = e.data.isEmpty ? '' : ' ${jsonEncode(e.data)}';
+    return '$shortTs [${e.area}/${e.action}] ${e.message}$extra';
+  }
+
+  Widget _buildDiagnosticsScrollView(
+    ThemeData theme, {
+    EdgeInsetsGeometry padding = const EdgeInsets.all(8),
+    double? height,
+    ScrollController? scrollController,
+  }) {
+    final view = ValueListenableBuilder<List<ModelDiagnosticEvent>>(
+      valueListenable: ModelDiagnostics.instance.events,
+      builder: (context, events, _) {
+        final tail = _tailDiagnostics(events);
+        final child = tail.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    'No engine events yet. Lines appear as install, open, '
+                    'and inference steps run.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ),
+              )
+            : ListView.builder(
+                controller: scrollController,
+                padding: padding,
+                itemCount: tail.length,
+                itemBuilder: (context, i) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: SelectableText(
+                      _formatHubDiagnosticLine(tail[i]),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
+                        fontFamilyFallback: const ['monospace'],
+                      ),
+                    ),
+                  );
+                },
+              );
+        if (height != null) {
+          return SizedBox(height: height, child: child);
+        }
+        return child;
+      },
+    );
+    return view;
   }
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 1);
-    _modelLogScroll = ScrollController();
+    _loadingDiagnosticsScroll = ScrollController();
+    _hubPeekDiagnosticsScroll = ScrollController();
+    ModelDiagnostics.instance.events.addListener(_onDiagnosticsEventsChanged);
   }
 
   @override
@@ -104,30 +270,36 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
       LlmService.instance.configure(
         settings,
         onModelInstallProgress: (p) {
-          if (!mounted) return;
-          setState(() => _modelInitPercent = p.clamp(0, 100));
+          if (!mounted || _modelInitPercent != null && (_modelInitPercent?? 0) >= p) return;
+          print('onModelInstallProgress: $p');
+          setState(() => _modelInitPercent = p);
         },
         onModelLifecycle: (phase, message, percent) {
           if (!mounted) return;
+          print('onModelLifecycle: $phase $message $percent');
           setState(() {
-            final pct = percent != null ? ' (${percent.clamp(0, 100)}%)' : '';
-            _appendModelLog('[$phase]$pct $message');
-            if (percent != null) {
-              _modelInitPercent = percent.clamp(0, 100);
+            if (percent != null && (_modelInitPercent == null || (_modelInitPercent?? 0) < percent)) {
+              _modelInitPercent = percent;
             }
           });
         },
       );
     }
-    _hubPayload ??= _warmModelThenFetchHub(DatabaseScope.of(context));
+    _hubPayload ??=
+        _trackHubFuture(_warmModelThenFetchHub(DatabaseScope.of(context)));
   }
 
   @override
   void dispose() {
+    _hubPayloadElapsedTimer?.cancel();
+    ModelDiagnostics.instance.events.removeListener(
+      _onDiagnosticsEventsChanged,
+    );
     if (_routeSubscription != null) {
       ikamvaRouteObserver.unsubscribe(this);
     }
-    _modelLogScroll.dispose();
+    _loadingDiagnosticsScroll.dispose();
+    _hubPeekDiagnosticsScroll.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -139,73 +311,107 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
 
   Future<void> _recheckModelAfterReturningToHub() async {
     if (!shouldUseFlutterGemmaEngine || !mounted) return;
+    ModelDiagnostics.instance.log(
+      area: 'hub',
+      action: 'resume_check',
+      message: 'Back on hub — verifying on-device model…',
+    );
     setState(() {
       _resumeModelBusy = true;
       _modelInitPercent = null;
-      _appendModelLog('[home] Back on hub — verifying on-device model…');
     });
     try {
       await LlmService.instance.ensureReady();
       if (!mounted) return;
+      ModelDiagnostics.instance.log(
+        area: 'hub',
+        action: 'resume_ok',
+        message: 'Model is ready.',
+      );
       setState(() {
         _resumeModelBusy = false;
         _modelInitPercent = 100;
-        _appendModelLog('[home] Model is ready.');
       });
     } on Object catch (e) {
       if (!mounted) return;
+      ModelDiagnostics.instance.log(
+        area: 'hub',
+        action: 'resume_failed',
+        message: 'Model check failed: $e',
+      );
       setState(() {
         _resumeModelBusy = false;
-        _appendModelLog('[home] Model check failed: $e');
-        _appendModelLog(
-          '[home] Try Settings → Warm up model or free storage and return here.',
-        );
       });
     }
   }
 
+  /// First screen entry: optionally block on the on-device model, then load hub
+  /// rows from disk/LLM.
+  ///
+  /// When [shouldUseFlutterGemmaEngine] is true, **nothing after this returns**
+  /// until [LlmService.instance.ensureReady] finishes (install from bundle if
+  /// needed, native open, retries). Failures are logged to [ModelDiagnostics];
+  /// [_fetchHub] still runs afterward so the hub can show empty/error state.
+  ///
+  /// When false (e.g. desktop), this immediately continues to [_fetchHub]
+  /// only — no model warm step, but topic generation may still call the LLM
+  /// service if the app is configured to use it on that platform.
   Future<_HubPayload> _warmModelThenFetchHub(IkamvaDatabase db) async {
     if (shouldUseFlutterGemmaEngine) {
+      ModelDiagnostics.instance.log(
+        area: 'hub',
+        action: 'warm_start',
+        message:
+            'Warming on-device Gemma (first launch can take a few minutes)…',
+      );
       if (mounted) {
-        setState(() {
-          _modelInitLog
-            ..clear()
-            ..add('[init] Warming on-device Gemma (first launch can take a few minutes)…');
-          _modelInitPercent = null;
-        });
-        _scheduleModelLogScroll();
+        setState(() => _modelInitPercent = null);
+        _scheduleDiagnosticsScroll();
       }
       try {
         await LlmService.instance.ensureReady();
         if (mounted) {
-          setState(() {
-            _modelInitLog.add('[init] Gemma is ready for today\'s topics.');
-            _modelInitPercent = 100;
-          });
-          _scheduleModelLogScroll();
+          ModelDiagnostics.instance.log(
+            area: 'hub',
+            action: 'warm_ok',
+            message: 'Gemma is ready for today\'s topics.',
+          );
+          setState(() => _modelInitPercent = 100);
+          _scheduleDiagnosticsScroll();
         }
       } on Object catch (e) {
         if (mounted) {
-          setState(() {
-            _modelInitLog.add('[init] Could not finish model setup: $e');
-            _modelInitLog.add(
-              '[init] You can open Settings → Warm up model, or retry after freeing storage.',
-            );
-          });
-          _scheduleModelLogScroll();
+          ModelDiagnostics.instance.log(
+            area: 'hub',
+            action: 'warm_failed',
+            message: 'Could not finish model setup: $e',
+            data: <String, Object?>{
+              'hint': 'Settings → Warm up model; free storage',
+            },
+          );
+          setState(() {});
+          _scheduleDiagnosticsScroll();
         }
       }
     }
     return _fetchHub(db);
   }
 
-  void _scheduleModelLogScroll() {
+  void _scheduleDiagnosticsScroll() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_modelLogScroll.hasClients) return;
-      _modelLogScroll.jumpTo(_modelLogScroll.position.maxScrollExtent);
+      if (!mounted) return;
+      for (final c in [_loadingDiagnosticsScroll, _hubPeekDiagnosticsScroll]) {
+        if (c.hasClients) {
+          c.jumpTo(c.position.maxScrollExtent);
+        }
+      }
     });
   }
 
+  /// Loads everything the carousel needs **after** any model warm-up.
+  ///
+  /// Order: daily topic offers (cache or LLM + safety gates) → completed set
+  /// for today → quest template for level / max task copy.
   Future<_HubPayload> _fetchHub(IkamvaDatabase db) async {
     final offers = await DailyTopicsService.loadOffersForToday();
     final done = await HubDailyTopicProgress.completedForDay(_todayKey);
@@ -220,13 +426,24 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
     );
   }
 
+  void _reloadHubContent() {
+    setState(() {
+      _pageIndex = 0;
+      _hubPayload = _trackHubFuture(_fetchHub(DatabaseScope.of(context)));
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_pageController.hasClients) return;
+      _pageController.jumpToPage(0);
+    });
+  }
+
   Future<void> _openTopic(HubTopicOffer offer) async {
     final q =
         'topic=${Uri.encodeQueryComponent(offer.topic)}&day=${Uri.encodeQueryComponent(_todayKey)}';
     await context.push('/game?$q');
     if (!mounted) return;
     setState(() {
-      _hubPayload = _fetchHub(DatabaseScope.of(context));
+      _hubPayload = _trackHubFuture(_fetchHub(DatabaseScope.of(context)));
     });
   }
 
@@ -318,10 +535,7 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              questLevel,
-                              style: theme.textTheme.bodySmall,
-                            ),
+                            Text(questLevel, style: theme.textTheme.bodySmall),
                           ],
                         ),
                       ],
@@ -357,12 +571,20 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ik = context.ikamvaColors;
+    final showResumeBanner =
+        shouldUseFlutterGemmaEngine && _resumeModelBusy;
     return Scaffold(
       appBar: AppBar(
         title: const IkamvaAppBarTitle(title: 'Your quests'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh_outlined),
+            tooltip: 'Reload quests',
+            onPressed: _reloadHubContent,
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
           ),
         ],
@@ -371,177 +593,188 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                _hubTextGutter,
-                8,
-                _hubTextGutter,
-                0,
-              ),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: _hubMaxContentWidth,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        "Today's topics",
-                        style: theme.textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Swipe sideways for more themes. Fresh picks each day.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.82,
-                          ),
+            // Top strip: headers vs. Gemma status card while [_hubPayload] runs.
+            FutureBuilder<_HubPayload>(
+              future: _hubPayload,
+              builder: (context, snap) {
+                final gemmaBlockingUi =
+                    shouldUseFlutterGemmaEngine &&
+                    (_resumeModelBusy ||
+                        snap.connectionState == ConnectionState.waiting);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!gemmaBlockingUi)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          _hubTextGutter,
+                          8,
+                          _hubTextGutter,
+                          0,
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Resets after midnight (your device time).',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.65,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            if (shouldUseFlutterGemmaEngine && _resumeModelBusy)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  _hubTextGutter,
-                  0,
-                  _hubTextGutter,
-                  8,
-                ),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: _hubMaxContentWidth,
-                    ),
-                    child: Card(
-                      elevation: 0,
-                      color: theme.colorScheme.primaryContainer.withValues(
-                        alpha: 0.35,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: _hubMaxContentWidth,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: theme.colorScheme.primary,
+                                Text(
+                                  "Today's topics",
+                                  style: theme.textTheme.headlineSmall,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Swipe sideways for more themes. '
+                                  'Fresh picks each day.',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.82),
                                   ),
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Loading / verifying on-device Gemma',
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Resets after midnight (your device time).',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.65),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            if (_modelInitPercent != null)
-                              Text(
-                                'Progress: '
-                                '${_modelInitPercent!.clamp(0, 100)}%',
-                                style: theme.textTheme.labelMedium,
-                              ),
-                            const SizedBox(height: 6),
-                            if (_modelInitPercent != null)
-                              LinearProgressIndicator(
-                                minHeight: 6,
-                                borderRadius: BorderRadius.circular(4),
-                                value: _modelInitPercent!.clamp(0, 100) / 100.0,
-                              )
-                            else
-                              LinearProgressIndicator(
-                                minHeight: 6,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Verbose log',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            SizedBox(
-                              height: 120,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme
-                                      .surfaceContainerHighest
-                                      .withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: theme.colorScheme.outline
-                                        .withValues(alpha: 0.15),
-                                  ),
-                                ),
-                                child: _modelInitLog.isEmpty
-                                    ? Center(
-                                        child: Text(
-                                          'Waiting…',
-                                          style: theme.textTheme.bodySmall,
-                                        ),
-                                      )
-                                    : ListView.builder(
-                                        controller: _modelLogScroll,
-                                        padding: const EdgeInsets.all(8),
-                                        itemCount: _modelInitLog.length,
-                                        itemBuilder: (context, i) {
-                                          return Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 6,
-                                            ),
-                                            child: SelectableText(
-                                              _modelInitLog[i],
-                                              style: theme.textTheme.bodySmall
-                                                  ?.copyWith(
-                                                fontFamily: 'monospace',
-                                                fontFamilyFallback: const [
-                                                  'monospace',
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
-              ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: FutureBuilder<_HubPayload>(
-                future: _hubPayload,
-                builder: (context, snap) {
+                    if (showResumeBanner || (_modelInitPercent?? 0) < 100)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          _hubTextGutter,
+                          0,
+                          _hubTextGutter,
+                          8,
+                        ),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: _hubMaxContentWidth,
+                            ),
+                            child: Card(
+                              elevation: 0,
+                              color: theme.colorScheme.primaryContainer
+                                  .withValues(alpha: 0.35),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'Loading / verifying on-device '
+                                            'Gemma',
+                                            style: theme.textTheme.titleSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    if (_modelInitPercent != null)
+                                      Text(
+                                        'Progress: '
+                                        '${_modelInitPercent!.clamp(0, 100)}%',
+                                        style: theme.textTheme.labelMedium,
+                                      ),
+                                    const SizedBox(height: 6),
+                                    if (_modelInitPercent != null)
+                                      LinearProgressIndicator(
+                                        minHeight: 6,
+                                        borderRadius: BorderRadius.circular(4),
+                                        value:
+                                            _modelInitPercent!.clamp(0, 100) /
+                                            100.0,
+                                      )
+                                    else
+                                      LinearProgressIndicator(
+                                        minHeight: 6,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    _hubElapsedAndExpectationsCopy(theme),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Model diagnostics',
+                                      style: theme.textTheme.labelLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Live timeline from the engine (install, '
+                                      'open, probe — same stream as Developer → '
+                                      'Event Log).',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.72),
+                                          ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: theme
+                                            .colorScheme
+                                            .surfaceContainerHighest
+                                            .withValues(alpha: 0.5),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: theme.colorScheme.outline
+                                              .withValues(alpha: 0.15),
+                                        ),
+                                      ),
+                                      child: _buildDiagnosticsScrollView(
+                                        theme,
+                                        height: _hubDiagnosticsPeekHeight,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (!gemmaBlockingUi || showResumeBanner)
+                      const SizedBox(height: 12),
+                  ],
+                );
+              },
+            ),
+            // Main hub body: show once Gemma install reached 100% (or no Gemma).
+            if (!showResumeBanner &&
+                (!shouldUseFlutterGemmaEngine ||
+                    (_modelInitPercent ?? 0) >= 100))
+              Expanded(
+                child: FutureBuilder<_HubPayload>(
+                  future: _hubPayload,
+                  builder: (context, snap) {
                   if (_hubPayload == null ||
                       snap.connectionState == ConnectionState.waiting) {
                     if (!shouldUseFlutterGemmaEngine) {
@@ -560,6 +793,7 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.bodyMedium,
                               ),
+                              _hubElapsedAndExpectationsCopy(theme),
                             ],
                           ),
                         ),
@@ -578,6 +812,7 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              const SizedBox(height: 20),
                               Text(
                                 'Loading on-device Gemma',
                                 style: theme.textTheme.titleMedium?.copyWith(
@@ -590,18 +825,20 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
                                 'The model is copied from the app bundle into '
                                 'plugin storage; detailed engine steps are below.',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.75),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.75,
+                                  ),
                                 ),
                                 textAlign: TextAlign.center,
                               ),
+                              _hubElapsedAndExpectationsCopy(theme),
                               const SizedBox(height: 16),
                               if (_modelInitPercent != null)
                                 LinearProgressIndicator(
                                   minHeight: 8,
                                   borderRadius: BorderRadius.circular(6),
-                                  value: _modelInitPercent!.clamp(0, 100) /
-                                      100.0,
+                                  value:
+                                      _modelInitPercent!.clamp(0, 100) / 100.0,
                                 )
                               else
                                 LinearProgressIndicator(
@@ -613,8 +850,8 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
                                 _modelInitPercent != null
                                     ? 'Bundle → device copy: '
                                           '${_modelInitPercent!.clamp(0, 100)}% '
-                                          '(and open / verify steps in log)'
-                                    : 'Progress: preparing… (see log for phase)',
+                                          '(and open / verify steps below)'
+                                    : 'Progress: preparing… (see diagnostics below)',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -624,17 +861,28 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                  'Verbose log',
+                                  'Model diagnostics',
                                   style: theme.textTheme.labelLarge?.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Engine timeline: service + hub + native steps '
+                                '(matches Developer → Event Log).',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.72,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
                               Expanded(
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
-                                    color: theme.colorScheme
+                                    color: theme
+                                        .colorScheme
                                         .surfaceContainerHighest
                                         .withValues(alpha: 0.45),
                                     borderRadius: BorderRadius.circular(12),
@@ -643,40 +891,15 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
                                           .withValues(alpha: 0.2),
                                     ),
                                   ),
-                                  child: _modelInitLog.isEmpty
-                                      ? Center(
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(16),
-                                            child: Text(
-                                              'Waiting for engine status…',
-                                              style:
-                                                  theme.textTheme.bodySmall,
-                                            ),
-                                          ),
-                                        )
-                                      : ListView.builder(
-                                          controller: _modelLogScroll,
-                                          padding: const EdgeInsets.all(12),
-                                          itemCount: _modelInitLog.length,
-                                          itemBuilder: (context, i) {
-                                            return Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 6,
-                                              ),
-                                              child: SelectableText(
-                                                _modelInitLog[i],
-                                                style: theme
-                                                    .textTheme.bodySmall
-                                                    ?.copyWith(
-                                                  fontFamily: 'monospace',
-                                                  fontFamilyFallback: const [
-                                                    'monospace',
-                                                  ],
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
+                                  // max space for the diagnostics scroll view
+                                  child: SizedBox(
+                                    height: _hubDiagnosticsPeekHeight,
+                                    child: _buildDiagnosticsScrollView(
+                                      theme,
+                                      padding: const EdgeInsets.all(12),
+                                      scrollController: _loadingDiagnosticsScroll,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -697,8 +920,8 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
                           snap.hasError
                               ? 'Could not load topics. Try again later.'
                               : 'Daily topics are generated on this device. When the '
-                                  'learning model is ready, fresh child-safe themes '
-                                  'will appear here. Try again in a moment, or check Settings.',
+                                    'learning model is ready, fresh child-safe themes '
+                                    'will appear here. Try again in a moment, or check Settings.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyLarge,
                         ),
@@ -748,6 +971,86 @@ class _HomeHubScreenState extends State<HomeHubScreen> with RouteAware {
                           ),
                         ),
                       ),
+                      if (shouldUseFlutterGemmaEngine)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: 8,
+                            left: 6,
+                            right: 6,
+                          ),
+                          child: Card(
+                            elevation: 0,
+                            color: theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: theme.colorScheme.outline.withValues(
+                                  alpha: 0.18,
+                                ),
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                10,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.timeline_outlined,
+                                        size: 22,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'On-device model diagnostics',
+                                          style: theme.textTheme.titleSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Same live log as Developer → Event Log: '
+                                    'install, open, inference, and hub steps.',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.72),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.surface
+                                          .withValues(alpha: 0.55),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: theme.colorScheme.outline
+                                            .withValues(alpha: 0.12),
+                                      ),
+                                    ),
+                                    child: _buildDiagnosticsScrollView(
+                                      theme,
+                                      height: _hubDiagnosticsPeekHeight,
+                                      scrollController:
+                                          _hubPeekDiagnosticsScroll,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       Expanded(
                         child: Align(
                           alignment: Alignment.topCenter,

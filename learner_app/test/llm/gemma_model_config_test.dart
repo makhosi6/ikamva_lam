@@ -44,7 +44,7 @@ void main() {
     expect(GemmaModelConfig.fileTypeForPath('model.task'), ModelFileType.task);
     expect(
       GemmaModelConfig.fileTypeForPath('model.litertlm'),
-      ModelFileType.task,
+      ModelFileType.litertlm,
     );
     expect(
       GemmaModelConfig.fileTypeForPath('weights.bin'),

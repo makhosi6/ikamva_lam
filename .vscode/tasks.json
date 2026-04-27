@@ -1,0 +1,56 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Flutter: clean build + run (iOS)",
+      "type": "shell",
+      "command": "${workspaceFolder}/learner_app/tool/clear_build_and_run.sh",
+      "args": ["-d", "ios"],
+      "options": {
+        "cwd": "${workspaceFolder}/learner_app"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Flutter: clean build + run (Android)",
+      "type": "shell",
+      "command": "${workspaceFolder}/learner_app/tool/clear_build_and_run.sh",
+      "args": ["-d", "android"],
+      "options": {
+        "cwd": "${workspaceFolder}/learner_app"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Flutter: clean build only",
+      "type": "shell",
+      "command": "${workspaceFolder}/learner_app/tool/clear_flutter_build.sh",
+      "options": {
+        "cwd": "${workspaceFolder}/learner_app"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Flutter: enable master + native-assets (optional)",
+      "type": "shell",
+      "command": "${workspaceFolder}/learner_app/tool/enable_flutter_master_and_native_assets.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ]
+}

@@ -21,6 +21,22 @@ abstract final class ModelPrepareConfig {
     defaultValue: 1024 * 2,
   );
 
+  /// Context window passed to [FlutterGemma.getActiveModel] (`maxTokens`).
+  ///
+  /// Low RAM stays at 512. Otherwise uses `IKAMVA_CONTEXT_MAX_TOKENS` (512–2048;
+  /// default 1024). Set `--dart-define=IKAMVA_CONTEXT_MAX_TOKENS=2048` to match
+  /// common on-device chat examples that use a 2048 window (heavier RAM use).
+  static int contextMaxTokensFor(bool lowRamProfile) {
+    if (lowRamProfile) return 512;
+    const v = int.fromEnvironment(
+      'IKAMVA_CONTEXT_MAX_TOKENS',
+      defaultValue: 1024,
+    );
+    if (v < 512) return 512;
+    if (v > 2048) return 2048;
+    return v;
+  }
+
   static ModelType get modelType => GemmaModelConfig.modelType;
 
   static String get bundledModelAssetPath =>

@@ -10,7 +10,7 @@ void main() {
     );
     expect(
       ModelPrepareConfig.fileTypeForInstallSource('https://x/model.litertlm'),
-      ModelFileType.task,
+      ModelFileType.litertlm,
     );
     expect(
       ModelPrepareConfig.fileTypeForInstallSource('/tmp/model.bin'),

@@ -11,7 +11,9 @@ import 'state/settings_store.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await FlutterGemma.initialize();
+    await FlutterGemma.initialize(
+      maxDownloadRetries: 10,
+    );
   } on Object catch (e, st) {
     // Avoid crashing the whole app if the plugin fails early; Gemma screens
     // and [FlutterGemmaLlmEngine] surface errors when used.

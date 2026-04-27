@@ -74,37 +74,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _llmBusy = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final out = await LlmService.instance
-          .generate(
-            const LlmGenerateRequest(
-              prompt: ModelBoundPrompt('{"TASK":"ping","LEVEL":"A1"}'),
-            ),
-          )
-          .timeout(const Duration(seconds: 60));
       if (!mounted) return;
-      final pretty = const JsonEncoder.withIndent('  ').convert(
-        jsonDecode(out.text) as Object,
-      );
       await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Sample output'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: SelectableText(
-                pretty,
-                style: Theme.of(ctx).textTheme.bodySmall,
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
+        barrierDismissible: false,
+        builder: (ctx) => const _SampleLlmOutputDialog(),
       );
     } on Object catch (e) {
       if (!mounted) return;
@@ -269,3 +243,103 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
+
+/// Streams tokens into the dialog when [LlmService.tryOpenGenerateStream] is
+/// available; otherwise falls back to one-shot [LlmService.generate].
+class _SampleLlmOutputDialog extends StatefulWidget {
+  const _SampleLlmOutputDialog();
+
+  @override
+  State<_SampleLlmOutputDialog> createState() => _SampleLlmOutputDialogState();
+}
+
+class _SampleLlmOutputDialogState extends State<_SampleLlmOutputDialog> {
+  static const _request = LlmGenerateRequest(
+    prompt: ModelBoundPrompt('{"TASK":"ping","LEVEL":"A1"}'),
+  );
+
+  String _body = '';
+  String? _prettyJson;
+  String? _error;
+  bool _finished = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  Future<void> _run() async {
+    try {
+      final stream = await LlmService.instance.tryOpenGenerateStream(_request);
+      final buf = StringBuffer();
+      if (stream != null) {
+        await for (final chunk
+            in stream.timeout(const Duration(seconds: 120))) {
+          buf.write(chunk);
+          if (mounted) setState(() => _body = buf.toString());
+        }
+      } else {
+        final out = await LlmService.instance
+            .generate(_request)
+            .timeout(const Duration(seconds: 120));
+        buf.write(out.text);
+        if (mounted) setState(() => _body = buf.toString());
+      }
+      final raw = buf.toString();
+      String? pretty;
+      try {
+        pretty = const JsonEncoder.withIndent('  ').convert(
+          jsonDecode(raw) as Object,
+        );
+      } on Object {
+        pretty = null;
+      }
+      if (mounted) {
+        setState(() {
+          _prettyJson = pretty;
+          _finished = true;
+        });
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = '$e';
+          _finished = true;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      title: const Text('Sample output'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: _error != null
+              ? Text(
+                  _error!,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                )
+              : SelectableText(
+                  _finished && _prettyJson != null ? _prettyJson! : _body,
+                  style: theme.textTheme.bodySmall,
+                ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed:
+              _finished || _error != null ? () => Navigator.of(context).pop() : null,
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+

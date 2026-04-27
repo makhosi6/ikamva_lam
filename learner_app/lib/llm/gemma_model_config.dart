@@ -2,14 +2,18 @@ import 'package:flutter_gemma/core/utils/file_name_utils.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:path/path.dart' as p;
 
-/// On-device Gemma identity for **`flutter_gemma`**.
+/// On-device **Gemma 4** identity for **`flutter_gemma`**.
 ///
-/// Weights are **only** loaded from **`bundledGemma4E2bLitertlmAsset`** via
-/// **`installModel`…`fromAsset`** (see `pubspec.yaml` and `OBTAINING_MODELS.txt`).
+/// This app targets **only** Gemma 4 E2B (bundled `.litertlm`). Other model
+/// families are not installed or selected.
+///
+/// Weights load from **`bundledGemma4E2bLitertlmAsset`** via
+/// **`FlutterGemma.installModel`…`fromAsset`** (see `pubspec.yaml`).
 abstract final class GemmaModelConfig {
+  /// Gemma 4 uses the shared Gemma instruction-tuned type (per plugin table).
   static const ModelType modelType = ModelType.gemmaIt;
 
-  /// Default on-device weights (Gemma 4 E2B Instruct, LiteRT LM `.litertlm`).
+  /// Gemma 4 E2B Instruct — LiteRT-LM **`.litertlm`** (Android + iOS).
   static const String bundledGemma4E2bLitertlmAsset =
       'assets/models/gemma-4-E2B-it.litertlm';
 
@@ -40,10 +44,12 @@ abstract final class GemmaModelConfig {
     return <String>{file, if (base != file) base}.toList();
   }
 
-  /// Use [ModelFileType.task] for `.task` and `.litertlm` per plugin docs.
+  /// **`.litertlm`** must use [ModelFileType.litertlm] so LiteRT-LM paths,
+  /// native `systemInstruction`, and chat templating match the plugin (Gemma 4).
+  /// **`.task`** uses [ModelFileType.task] (older MediaPipe mobile artifacts).
   static ModelFileType fileTypeForPath(String assetPath) {
     final lower = assetPath.toLowerCase();
-    if (lower.endsWith('.litertlm')) return ModelFileType.task;
+    if (lower.endsWith('.litertlm')) return ModelFileType.litertlm;
     if (lower.endsWith('.task')) return ModelFileType.task;
     if (lower.endsWith('.bin') || lower.endsWith('.tflite')) {
       return ModelFileType.binary;

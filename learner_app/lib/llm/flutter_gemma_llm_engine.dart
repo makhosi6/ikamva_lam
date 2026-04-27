@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 
 import '../state/settings_store.dart';
+import 'device_model_storage.dart';
+import 'gemma_inference_defaults.dart';
 import 'gemma_model_config.dart';
 import 'model_asset_manifest.dart';
 import 'model_diagnostics.dart';
@@ -82,7 +84,7 @@ Future<bool> probeFlutterGemmaActiveModelReady(SettingsStore settings) async {
         data: <String, Object?>{'backend': backend.name},
       );
       final model = await FlutterGemma.getActiveModel(
-        maxTokens: settings.lowRamProfile ? 512 : 1024,
+        maxTokens: ModelPrepareConfig.contextMaxTokensFor(settings.lowRamProfile),
         preferredBackend: backend,
       );
       try {
@@ -155,7 +157,8 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   bool _loaded = false;
   bool _disposed = false;
 
-  int get _contextMaxTokens => _settings.lowRamProfile ? 512 : 1024;
+  int get _contextMaxTokens =>
+      ModelPrepareConfig.contextMaxTokensFor(_settings.lowRamProfile);
 
   PreferredBackend get _preferredBackend =>
       _settings.lowRamProfile ? PreferredBackend.cpu : PreferredBackend.gpu;
@@ -165,13 +168,6 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   Future<void> _installFromBundledAsset() async {
     final assetPath = ModelPrepareConfig.bundledModelAssetPath;
     _emit('install', 'Registering model from app bundle ($assetPath)…', 0);
-    var builder = FlutterGemma.installModel(
-      modelType: GemmaModelConfig.modelType,
-      fileType: GemmaModelConfig.fileTypeForPath(assetPath),
-    ).fromAsset(assetPath);
-
-    builder = builder.withProgress(_emitProgress);
-
     try {
       ModelDiagnostics.instance.log(
         area: 'engine',
@@ -179,7 +175,10 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
         message: 'Registering model from Flutter asset',
         data: <String, Object?>{'asset': assetPath},
       );
-      await builder.install();
+      await installBundledInferenceWeightsFromFlutterAsset(
+        assetPath: assetPath,
+        onProgress: _emitProgress,
+      );
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'install_bundled_ok',
@@ -379,10 +378,18 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     if (!_loaded) await ensureLoaded();
     final model = _model!;
 
-    final session = await model.createSession();
+    // Gemma 4 / LiteRT-LM: sampling defaults recommended in flutter_gemma docs
+    // (thinking off; structured JSON prompts still benefit from topK/topP).
+    final session = await model.createSession(
+      temperature: GemmaInferenceDefaults.temperature,
+      randomSeed: GemmaInferenceDefaults.randomSeed,
+      topK: GemmaInferenceDefaults.topK,
+      topP: GemmaInferenceDefaults.topP,
+      enableThinking: GemmaInferenceDefaults.enableThinking,
+    );
     try {
       await session.addQueryChunk(
-        Message(text: request.prompt.text, isUser: true),
+        Message.text(text: request.prompt.text, isUser: true),
       );
       var text = await session.getResponse();
       text = _applyStopSequences(text, request.stopSequences);
@@ -417,10 +424,16 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       try {
         if (!_loaded) await ensureLoaded();
         final model = _model!;
-        final session = await model.createSession();
+        final session = await model.createSession(
+          temperature: GemmaInferenceDefaults.temperature,
+          randomSeed: GemmaInferenceDefaults.randomSeed,
+          topK: GemmaInferenceDefaults.topK,
+          topP: GemmaInferenceDefaults.topP,
+          enableThinking: GemmaInferenceDefaults.enableThinking,
+        );
         try {
           await session.addQueryChunk(
-            Message(text: request.prompt.text, isUser: true),
+            Message.text(text: request.prompt.text, isUser: true),
           );
           await for (final token in session.getResponseAsync()) {
             if (!controller.isClosed) controller.add(token);

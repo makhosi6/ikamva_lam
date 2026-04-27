@@ -30,6 +30,21 @@ Compile-time defines (defaults in **`lib/llm/model_prepare_config.dart`**):
   IKAMVA_MODEL_ESTIMATED_MB=2048
   IKAMVA_MODEL_HEADROOM_MB=256
   IKAMVA_MODEL_MIN_FREE_MB=2048
+  IKAMVA_CONTEXT_MAX_TOKENS=1024   (512–2048; use 2048 only if you accept higher RAM)
+
+Flutter toolchain (experimental native-assets stacks)
+------------------------------------------------------
+
+Some third-party on-device stacks (for example certain MediaPipe GenAI setups)
+expect **Flutter `master`** and **`flutter config --enable-native-assets`**.
+
+This app’s **`flutter_gemma`** path usually works on **stable Flutter** without
+that. If you truly need the experimental toolchain, run from the repo:
+
+**`learner_app/tool/enable_flutter_master_and_native_assets.sh`**
+
+(or VS Code task **“Flutter: enable master + native-assets (optional)”**), then
+restart your terminal / IDE.
 
 CI / desktop
 ------------
