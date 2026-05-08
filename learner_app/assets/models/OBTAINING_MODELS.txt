@@ -1,9 +1,12 @@
 Gemma on-device weights (bundled `.litertlm` only)
 ===================================================
 
-The learner app **does not** download model weights over the network. All
-Gemma inference uses **`assets/models/gemma-4-E2B-it.litertlm`** shipped in the
-app bundle and installed with **`FlutterGemma.installModel`…`fromAsset`**.
+**E2B (bundled):** Gemma inference can use **`assets/models/gemma-4-E2B-it.litertlm`**
+in the app bundle (`FlutterGemma.installModel`…`fromAsset`).
+
+**E4B (download):** If you omit the E2B file (e.g. slim CI), use **Settings →
+Choose on-device Gemma 4 model** and pick **E4B**; it downloads once via the
+plugin (`fromNetwork`).
 
 Setup
 -----

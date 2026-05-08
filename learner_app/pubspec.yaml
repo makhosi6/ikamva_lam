@@ -31,6 +31,8 @@ dependencies:
   disk_space_2: ^1.0.12
   drift_sqflite: ^2.0.1
   sqflite: ^2.4.2+1
+  flutter_bloc: ^9.1.1
+  equatable: ^2.0.8
 
 dev_dependencies:
   flutter_test:
@@ -79,7 +81,7 @@ flutter:
     - assets/us_silver.json
     - assets/gb_gold.json
     - assets/gb_silver.json
-    # Gemma 4 E2B (LiteRT `.litertlm`) — bundled for reliable first launch.
-    - assets/models/
+    # Gemma 4 E2B — place `gemma-4-E2B-it.litertlm` next to OBTAINING_MODELS.txt.
+    # CI without weights: comment out the .litertlm line; app will steer you to E4B.
     - assets/models/gemma-4-E2B-it.litertlm
     - assets/models/OBTAINING_MODELS.txt

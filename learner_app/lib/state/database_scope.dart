@@ -11,8 +11,10 @@ class DatabaseScope extends InheritedWidget {
 
   final IkamvaDatabase database;
 
-  static IkamvaDatabase of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<DatabaseScope>();
+  static IkamvaDatabase of(BuildContext context, {bool listen = true}) {
+    final DatabaseScope? scope = listen
+        ? context.dependOnInheritedWidgetOfExactType<DatabaseScope>()
+        : context.getInheritedWidgetOfExactType<DatabaseScope>();
     assert(scope != null, 'DatabaseScope missing');
     return scope!.database;
   }

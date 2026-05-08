@@ -97,6 +97,24 @@ Requires **macOS** system fonts (*Arial Rounded Bold*, *Arial*). On Linux, point
 2. Re-read the [flutter_gemma changelog](https://pub.dev/packages/flutter_gemma/changelog) for iOS `Podfile` / Android manifest notes.
 3. Run `cd learner_app/ios && pod install` and verify `flutter build apk` / `flutter build ios`.
 
+### Local Models Setup (Optional)
+
+If you want to test local models like `Gemma 3 1B IT (Local)`:
+
+1. Download the model file from HuggingFace
+2. Place it in the appropriate location:
+   - **Android:** `android/app/src/main/assets/models/gemma3-1b-it-int4.task`
+   - **iOS:** Add to Xcode project under Resources
+   - **Web:** `web/assets/models/gemma3-1b-it-int4.task` (production builds only)
+3. Ensure the file is listed in `pubspec.yaml` under `flutter: assets:`
+
+```yaml
+flutter:
+  assets:
+    - assets/models/gemma3-1b-it-int4.task
+    - assets/models/gemma-3n-E2B-it-int4.task
+```
+
 ## License
 
 This repository is licensed under [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/). See [LICENSE](LICENSE). That matches the Gemma 4 Good Hackathon winner license type; third-party dependencies (for example Flutter packages) remain under their own licenses.

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../analytics/export_summary_service.dart';
 import '../game/task_queue_service.dart';
 import '../llm/flutter_gemma_llm_engine.dart';
+import '../llm/gemma4_ondevice_variant.dart';
 import '../llm/gemma_model_config.dart';
 import '../llm/llm_service.dart';
 import '../llm/model_diagnostics.dart';
@@ -284,37 +285,65 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
   }
 
   Widget _buildModelTab(ThemeData theme, SettingsStore settings) {
-    final shouldPrepareFuture =
-        ModelPreparePrefs.shouldPrepareForCurrentConfig();
-    return FutureBuilder<bool>(
-      future: shouldPrepareFuture,
-      builder: (context, shouldPrepareSnap) {
-        final shouldPrepare = shouldPrepareSnap.data;
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            _Section(
-              title: 'On-device LLM',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _kv(context, 'Resolved engine', _resolvedEngineLabel),
-                  _kv(
-                    context,
-                    'Bundled asset path',
-                    ModelPrepareConfig.bundledModelAssetPath,
-                  ),
-                  _kv(context, 'ModelType', GemmaModelConfig.modelType.name),
-                  _kv(
-                    context,
-                    'Note',
-                    'Weights load only from the bundled .litertlm (plugin copies to its own storage).',
-                  ),
-                  _kv(
-                    context,
-                    'Prepare required now',
-                    '${shouldPrepare ?? 'loading…'}',
-                  ),
+    return ListenableBuilder(
+      listenable: settings,
+      builder: (context, _) {
+        final fp = ModelPrepareConfig.installFingerprint(
+          settings.gemma4OnDeviceVariant,
+        );
+        return FutureBuilder<bool>(
+          key: ValueKey<String>(fp),
+          future: ModelPreparePrefs.shouldPrepareForFingerprint(fp),
+          builder: (context, shouldPrepareSnap) {
+            final shouldPrepare = shouldPrepareSnap.data;
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: [
+                _Section(
+                  title: 'On-device LLM',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _kv(context, 'Resolved engine', _resolvedEngineLabel),
+                      _kv(
+                        context,
+                        'Gemma 4 variant',
+                        settings.gemma4OnDeviceVariant ==
+                                Gemma4OnDeviceVariant.e2bBundled
+                            ? 'E2B bundled'
+                            : 'E4B network',
+                      ),
+                      _kv(
+                        context,
+                        'Gemma setup gate',
+                        '${settings.gemma4SetupComplete}',
+                      ),
+                      _kv(
+                        context,
+                        'Bundled asset path (E2B)',
+                        ModelPrepareConfig.bundledModelAssetPath,
+                      ),
+                      _kv(
+                        context,
+                        'E4B URL',
+                        GemmaModelConfig.gemma4E4bLitertlmUrl,
+                      ),
+                      _kv(context, 'ModelType', GemmaModelConfig.modelType.name),
+                      _kv(
+                        context,
+                        'Active install fingerprint',
+                        fp,
+                      ),
+                      _kv(
+                        context,
+                        'Note',
+                        'E2B: fromAsset; E4B: fromNetwork then getActiveModel.',
+                      ),
+                      _kv(
+                        context,
+                        'Prepare required now',
+                        '${shouldPrepare ?? 'loading…'}',
+                      ),
                   _kv(
                     context,
                     'Prepared fingerprint (last)',
@@ -383,10 +412,12 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                     icon: const Icon(Icons.restart_alt_outlined, size: 20),
                     label: const Text('Reset model prepare state'),
                   ),
-                ],
-              ),
-            ),
-          ],
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );

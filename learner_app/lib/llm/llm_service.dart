@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../state/settings_store.dart';
 import 'flutter_gemma_llm_engine.dart';
 import 'llm_engine.dart';
@@ -9,10 +11,10 @@ import 'streaming_llm_capability.dart';
 
 /// App-wide access to on-device LLM (TASKS §6.4–6.8).
 ///
-/// Always uses [FlutterGemmaLlmEngine] with **bundled** `.litertlm` only
-/// (**`installModel`…`fromAsset`**). [ensureLoaded] re-opens the saved model or
-/// re-installs from assets if it is missing or corrupt. Call [configure] with
-/// [SettingsStore] before generation.
+/// Uses [FlutterGemmaLlmEngine]: **Gemma 4 E2B** from bundled `.litertlm`
+/// (`fromAsset`) or **E4B** from network (`fromNetwork`), per
+/// [SettingsStore.gemma4OnDeviceVariant]. [ensureLoaded] opens the active model
+/// or reinstalls. Call [configure] with [SettingsStore] before generation.
 ///
 /// Removed: `ProcessLlmEngine` / `llama-cli` / GGUF / `native/build` paths.
 class LlmService {
@@ -24,6 +26,12 @@ class LlmService {
   bool _disposed = false;
   void Function(int installPercent)? _onModelInstallProgress;
   void Function(String phase, String message, int? percent)? _onModelLifecycle;
+
+  /// `true` after [ensureReady] finishes and the on-device weights are loaded
+  /// ([engine.ensureLoaded] completed). Resets to `false` when
+  /// [invalidateCachedEngine] runs. Use with [ValueListenableBuilder] or
+  /// [Listenable.merge] so any page can react without calling the LLM again.
+  final ValueNotifier<bool> onDeviceWeightsReady = ValueNotifier<bool>(false);
 
   /// Optional: [onModelInstallProgress] 0–100 during bytes transfer;
   /// [onModelLifecycle] verbose steps for UI (phase label + message + optional %).
@@ -65,6 +73,16 @@ class LlmService {
         'power and try again; otherwise check storage and reinstall.',
       ),
     );
+    onDeviceWeightsReady.value = true;
+  }
+
+  /// Same as [configure] with **only** [settings]: clears install/lifecycle
+  /// hooks **without** disposing the cached engine. Call after the home hub has
+  /// finished warming so other routes keep using the loaded weights until the
+  /// next [configure] that passes progress callbacks (which triggers
+  /// [invalidateCachedEngine]).
+  void releaseInstallUiHooks(SettingsStore settings) {
+    configure(settings);
   }
 
   /// Runs one completion using the active [LlmEngine].
@@ -161,6 +179,7 @@ class LlmService {
     );
     _engine?.dispose();
     _engine = null;
+    onDeviceWeightsReady.value = false;
   }
 
   void dispose() {

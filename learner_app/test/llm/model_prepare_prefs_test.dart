@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ikamva_lam/llm/gemma4_ondevice_variant.dart';
 import 'package:ikamva_lam/llm/model_prepare_config.dart';
 import 'package:ikamva_lam/llm/model_prepare_prefs.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,26 +11,33 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  test('shouldPrepareForCurrentConfig is true when no prepare state', () async {
-    final shouldPrepare =
-        await ModelPreparePrefs.shouldPrepareForCurrentConfig();
+  test('shouldPrepareForFingerprint is true when no prepare state', () async {
+    final fp = ModelPrepareConfig.installFingerprint(
+      Gemma4OnDeviceVariant.e2bBundled,
+    );
+    final shouldPrepare = await ModelPreparePrefs.shouldPrepareForFingerprint(fp);
     expect(shouldPrepare, isTrue);
   });
 
-  test('markPrepareDoneForCurrentConfig records done/fingerprint/timestamp',
-      () async {
-    await ModelPreparePrefs.markPrepareDoneForCurrentConfig();
+  test('markPrepareDone records done/fingerprint/timestamp', () async {
+    final fp = ModelPrepareConfig.installFingerprint(
+      Gemma4OnDeviceVariant.e2bBundled,
+    );
+    await ModelPreparePrefs.markPrepareDone(installFingerprint: fp);
 
     expect(await ModelPreparePrefs.isPrepareDone(), isTrue);
     expect(
       await ModelPreparePrefs.preparedInstallFingerprint(),
-      ModelPrepareConfig.modelInstallFingerprint,
+      fp,
     );
     expect(await ModelPreparePrefs.preparedAt(), isNotNull);
   });
 
   test('clearPrepareDone removes done/fingerprint/timestamp', () async {
-    await ModelPreparePrefs.markPrepareDoneForCurrentConfig();
+    final fp = ModelPrepareConfig.installFingerprint(
+      Gemma4OnDeviceVariant.e4bNetwork,
+    );
+    await ModelPreparePrefs.markPrepareDone(installFingerprint: fp);
     await ModelPreparePrefs.clearPrepareDone();
 
     expect(await ModelPreparePrefs.isPrepareDone(), isFalse);

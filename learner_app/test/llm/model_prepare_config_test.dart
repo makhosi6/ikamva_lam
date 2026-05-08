@@ -1,5 +1,6 @@
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ikamva_lam/llm/gemma4_ondevice_variant.dart';
 import 'package:ikamva_lam/llm/model_prepare_config.dart';
 
 void main() {
@@ -24,10 +25,14 @@ void main() {
     expect(ModelPrepareConfig.minFreeDiskMb, greaterThan(0));
   });
 
-  test('modelInstallFingerprint is bundle-only', () {
+  test('installFingerprint distinguishes E2B bundle vs E4B network', () {
     expect(
-      ModelPrepareConfig.modelInstallFingerprint,
+      ModelPrepareConfig.installFingerprint(Gemma4OnDeviceVariant.e2bBundled),
       'bundle:${ModelPrepareConfig.bundledModelAssetPath}',
+    );
+    expect(
+      ModelPrepareConfig.installFingerprint(Gemma4OnDeviceVariant.e4bNetwork),
+      startsWith('network:https://'),
     );
   });
 }

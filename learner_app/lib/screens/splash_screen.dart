@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../llm/flutter_gemma_llm_engine.dart';
 import '../state/settings_scope.dart';
 import '../theme/ikamva_colors.dart';
 import '../widgets/ikamva_logo.dart';
@@ -35,6 +36,10 @@ class _SplashScreenState extends State<SplashScreen>
     final settings = SettingsScope.of(context);
     if (!settings.onboardingComplete) {
       context.go('/welcome');
+      return;
+    }
+    if (shouldUseFlutterGemmaEngine && !settings.gemma4SetupComplete) {
+      context.go('/gemma-setup');
       return;
     }
     context.go('/home');

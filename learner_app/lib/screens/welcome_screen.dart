@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../llm/flutter_gemma_llm_engine.dart';
 import '../state/settings_scope.dart';
 import '../widgets/constrained_content.dart';
 import '../widgets/ikamva_logo.dart';
@@ -45,7 +46,12 @@ class WelcomeScreen extends StatelessWidget {
                 onPressed: () async {
                   await SettingsScope.of(context).setOnboardingComplete(true);
                   if (!context.mounted) return;
-                  context.go('/home');
+                  final s = SettingsScope.of(context);
+                  if (shouldUseFlutterGemmaEngine && !s.gemma4SetupComplete) {
+                    context.go('/gemma-setup');
+                  } else {
+                    context.go('/home');
+                  }
                 },
                 child: const Text('Continue'),
               ),

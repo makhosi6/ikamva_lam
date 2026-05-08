@@ -1,5 +1,6 @@
 import 'package:flutter_gemma/flutter_gemma.dart';
 
+import 'gemma4_ondevice_variant.dart';
 import 'gemma_model_config.dart';
 
 /// Bundled Gemma weights only — no remote download. The `.litertlm` must be
@@ -42,9 +43,25 @@ abstract final class ModelPrepareConfig {
   static String get bundledModelAssetPath =>
       GemmaModelConfig.bundledGemma4E2bLitertlmAsset;
 
-  /// [ModelPreparePrefs] identity (bundled path only).
-  static String get modelInstallFingerprint =>
-      'bundle:$bundledModelAssetPath';
+  /// [ModelPreparePrefs] identity for the active Gemma 4 variant.
+  static String installFingerprint(Gemma4OnDeviceVariant variant) {
+    switch (variant) {
+      case Gemma4OnDeviceVariant.e2bBundled:
+        return 'bundle:$bundledModelAssetPath';
+      case Gemma4OnDeviceVariant.e4bNetwork:
+        return 'network:${GemmaModelConfig.gemma4E4bLitertlmUrl}';
+    }
+  }
+
+  /// Rough install / copy size for UX (MB).
+  static int estimatedInstallMbFor(Gemma4OnDeviceVariant variant) {
+    switch (variant) {
+      case Gemma4OnDeviceVariant.e2bBundled:
+        return estimatedDownloadMb;
+      case Gemma4OnDeviceVariant.e4bNetwork:
+        return 4400;
+    }
+  }
 
   static ModelFileType fileTypeForInstallSource(String pathOrUrl) =>
       GemmaModelConfig.fileTypeForPath(pathOrUrl);

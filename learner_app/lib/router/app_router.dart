@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../llm/flutter_gemma_llm_engine.dart';
 import '../screens/debug_stats_screen.dart';
+import '../screens/gemma_setup_screen.dart';
 import '../screens/game_shell_screen.dart';
 import '../screens/home_hub_screen.dart';
 import '../screens/session_summary_screen.dart';
@@ -60,7 +62,23 @@ GoRouter createAppRouter(SettingsStore settings) {
         return '/welcome';
       }
       if (done && loc == '/welcome') {
+        if (shouldUseFlutterGemmaEngine && !settings.gemma4SetupComplete) {
+          return '/gemma-setup';
+        }
         return '/home';
+      }
+      if (done &&
+          shouldUseFlutterGemmaEngine &&
+          !settings.gemma4SetupComplete) {
+        const exempt = {
+          '/splash',
+          '/welcome',
+          '/gemma-setup',
+          '/settings',
+        };
+        if (!exempt.contains(loc)) {
+          return '/gemma-setup';
+        }
       }
       return null;
     },
@@ -72,6 +90,10 @@ GoRouter createAppRouter(SettingsStore settings) {
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/gemma-setup',
+        builder: (context, state) => const GemmaSetupScreen(),
       ),
       GoRoute(
         path: '/home',

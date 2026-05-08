@@ -9,8 +9,10 @@ class SettingsScope extends InheritedNotifier<SettingsStore> {
     required super.child,
   });
 
-  static SettingsStore of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<SettingsScope>();
+  static SettingsStore of(BuildContext context, {bool listen = true}) {
+    final SettingsScope? scope = listen
+        ? context.dependOnInheritedWidgetOfExactType<SettingsScope>()
+        : context.getInheritedWidgetOfExactType<SettingsScope>();
     assert(scope != null, 'SettingsScope missing');
     return scope!.notifier!;
   }

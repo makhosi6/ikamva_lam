@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../llm/flutter_gemma_llm_engine.dart';
+import '../llm/gemma4_ondevice_variant.dart';
 import '../llm/llm_exceptions.dart';
 import '../llm/llm_generate_request.dart';
 import '../llm/llm_service.dart';
@@ -187,10 +189,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Gemma loads only from the bundled `.litertlm` in '
-                    '`pubspec.yaml` (see assets/models/OBTAINING_MODELS.txt).',
+                    shouldUseFlutterGemmaEngine
+                        ? 'Gemma 4 only: either the bundled E2B weights in the app '
+                            'or a one-time download of E4B (see Choose model).'
+                        : 'On-device Gemma runs on Android and iOS builds only.',
                     style: theme.textTheme.bodySmall,
                   ),
+                  if (shouldUseFlutterGemmaEngine) ...[
+                    const SizedBox(height: 8),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Choose on-device Gemma 4 model'),
+                      subtitle: Text(
+                        'Current: ${settings.gemma4OnDeviceVariant == Gemma4OnDeviceVariant.e2bBundled ? 'E2B (bundled)' : 'E4B (downloaded)'}',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/gemma-setup'),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   FilledButton.tonal(
                     onPressed: _llmBusy ? null : _warmLlm,

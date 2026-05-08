@@ -5,6 +5,8 @@ import 'package:flutter_gemma/flutter_gemma.dart';
 
 import '../state/settings_store.dart';
 import 'device_model_storage.dart';
+import 'gemma4_model_download_service.dart';
+import 'gemma4_ondevice_variant.dart';
 import 'gemma_inference_defaults.dart';
 import 'gemma_model_config.dart';
 import 'model_asset_manifest.dart';
@@ -47,6 +49,9 @@ Future<void> purgeGemmaPluginInstallCandidates() async {
   final ids = <String>{
     ...GemmaModelConfig.pluginUninstallCandidateIdsFor(
       ModelPrepareConfig.bundledModelAssetPath,
+    ),
+    ...GemmaModelConfig.pluginUninstallCandidateIdsFor(
+      GemmaModelConfig.gemma4E4bLitertlmUrl,
     ),
     'ikamva_ondevice_model',
     'bundled_gemma.task',
@@ -146,7 +151,11 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     _loaded = true;
     unawaited(() async {
       try {
-        await ModelPreparePrefs.markPrepareDoneForCurrentConfig();
+        await ModelPreparePrefs.markPrepareDone(
+          installFingerprint: ModelPrepareConfig.installFingerprint(
+            _settings.gemma4OnDeviceVariant,
+          ),
+        );
       } on Object {
         // best-effort prefs
       }
@@ -207,16 +216,63 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   }
 
   Future<void> _installFromConfiguredSource() async {
-    final bundledPath = ModelPrepareConfig.bundledModelAssetPath;
-    final hasBundle = await modelAssetListedInBundle(bundledPath);
-    if (hasBundle) {
-      await _installFromBundledAsset();
-      return;
+    switch (_settings.gemma4OnDeviceVariant) {
+      case Gemma4OnDeviceVariant.e2bBundled:
+        final bundledPath = ModelPrepareConfig.bundledModelAssetPath;
+        final hasBundle = await modelAssetListedInBundle(bundledPath);
+        if (hasBundle) {
+          await _installFromBundledAsset();
+          return;
+        }
+        throw LlmUnavailableException(
+          'Gemma weights are missing: `$bundledPath` is not in the asset manifest. '
+          'Add `assets/models/gemma-4-E2B-it.litertlm` to `pubspec.yaml` and rebuild.',
+        );
+      case Gemma4OnDeviceVariant.e4bNetwork:
+        await _installE4bFromNetwork();
     }
-    throw LlmUnavailableException(
-      'Gemma weights are missing: `$bundledPath` is not in the asset manifest. '
-      'Add `assets/models/gemma-4-E2B-it.litertlm` to `pubspec.yaml` and rebuild.',
+  }
+
+  Future<void> _installE4bFromNetwork() async {
+    _emit(
+      'install',
+      'Downloading Gemma 4 E4B (${GemmaModelConfig.gemma4E4bLitertlmFilename})…',
+      0,
     );
+    try {
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'install_network_start',
+        message: 'Installing Gemma 4 E4B from network',
+        data: <String, Object?>{
+          'url': GemmaModelConfig.gemma4E4bLitertlmUrl,
+        },
+      );
+      await Gemma4ModelDownloadService.downloadE4b(
+        (p) => _emitProgress(p.round().clamp(0, 100)),
+      );
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'install_network_ok',
+        message: 'Gemma 4 E4B install finished',
+      );
+    } on Object catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('space') ||
+          msg.contains('storage') ||
+          msg.contains('enospc')) {
+        throw LlmResourceException(
+          'Not enough storage to download Gemma 4 E4B. Free space and try again.',
+        );
+      }
+      ModelDiagnostics.instance.log(
+        area: 'engine',
+        action: 'install_network_failed',
+        message: 'E4B download/install failed',
+        data: <String, Object?>{'error': '$e'},
+      );
+      throw LlmUnavailableException('Could not install Gemma 4 E4B: $e');
+    }
   }
 
   Future<InferenceModel> _openActiveModel() async {
@@ -270,15 +326,19 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       );
     }
 
-    final listed = await modelAssetListedInBundle(
-      ModelPrepareConfig.bundledModelAssetPath,
-    );
-    if (!listed) {
-      throw LlmUnavailableException(
-        'Bundled Gemma file is absent from the asset manifest. '
-        'Add `${ModelPrepareConfig.bundledModelAssetPath}` to `pubspec.yaml` '
-        'and rebuild.',
+    if (_settings.gemma4OnDeviceVariant == Gemma4OnDeviceVariant.e2bBundled) {
+      final listed = await modelAssetListedInBundle(
+        ModelPrepareConfig.bundledModelAssetPath,
       );
+      if (!listed) {
+        throw LlmUnavailableException(
+          'Bundled Gemma file is absent from the asset manifest. '
+          'Place `gemma-4-E2B-it.litertlm` under assets/models/, ensure '
+          '`${ModelPrepareConfig.bundledModelAssetPath}` is listed in '
+          '`pubspec.yaml`, and rebuild — or open Settings → Choose on-device '
+          'Gemma 4 model → Gemma 4 E4B (download).',
+        );
+      }
     }
 
     _emit(
@@ -356,10 +416,17 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       } on Object catch (e2) {
         _model = null;
         if (gemmaErrorLooksLikeInvalidTaskArchive(e2)) {
+          final hint = switch (_settings.gemma4OnDeviceVariant) {
+            Gemma4OnDeviceVariant.e2bBundled =>
+              'Verify `${ModelPrepareConfig.bundledModelAssetPath}` in '
+                  '`pubspec.yaml` is complete and is the native `.litertlm` artifact.',
+            Gemma4OnDeviceVariant.e4bNetwork =>
+              'Try choosing the on-device model again and re-download Gemma 4 E4B, '
+                  'or free storage and retry.',
+          };
           throw LlmUnavailableException(
             'The model is not a valid Gemma archive (LiteRT could not open it '
-            'as a zip). Verify `assets/models/gemma-4-E2B-it.litertlm` in '
-            '`pubspec.yaml` is complete and is the native `.litertlm` artifact. '
+            'as a zip). $hint '
             'Underlying error: $e2',
           );
         }

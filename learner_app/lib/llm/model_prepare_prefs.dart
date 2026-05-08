@@ -1,11 +1,9 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'model_prepare_config.dart';
-
 /// Tracks that the one-time model prepare flow completed (install + verify).
 abstract final class ModelPreparePrefs {
   static const _doneKey = 'ikamva_model_install_done_v1';
-  /// Stores [ModelPrepareConfig.modelInstallFingerprint] (e.g. `bundle:…`).
+  /// Last successful install fingerprint (see [ModelPrepareConfig.installFingerprint]).
   static const _fingerprintKey = 'ikamva_model_install_url_v1';
   static const _preparedAtEpochMsKey = 'ikamva_model_prepared_at_epoch_ms_v1';
 
@@ -14,7 +12,10 @@ abstract final class ModelPreparePrefs {
     return p.getBool(_doneKey) ?? false;
   }
 
-  static Future<void> setPrepareDone(bool value) async {
+  static Future<void> setPrepareDone(
+    bool value, {
+    required String installFingerprint,
+  }) async {
     final p = await SharedPreferences.getInstance();
     await p.setBool(_doneKey, value);
     if (!value) {
@@ -22,7 +23,7 @@ abstract final class ModelPreparePrefs {
       await p.remove(_preparedAtEpochMsKey);
       return;
     }
-    await p.setString(_fingerprintKey, ModelPrepareConfig.modelInstallFingerprint);
+    await p.setString(_fingerprintKey, installFingerprint);
     await p.setInt(
       _preparedAtEpochMsKey,
       DateTime.now().millisecondsSinceEpoch,
@@ -49,10 +50,10 @@ abstract final class ModelPreparePrefs {
     return DateTime.fromMillisecondsSinceEpoch(epochMs);
   }
 
-  static Future<void> markPrepareDoneForCurrentConfig() async {
+  static Future<void> markPrepareDone({required String installFingerprint}) async {
     final p = await SharedPreferences.getInstance();
     await p.setBool(_doneKey, true);
-    await p.setString(_fingerprintKey, ModelPrepareConfig.modelInstallFingerprint);
+    await p.setString(_fingerprintKey, installFingerprint);
     await p.setInt(
       _preparedAtEpochMsKey,
       DateTime.now().millisecondsSinceEpoch,
@@ -62,12 +63,14 @@ abstract final class ModelPreparePrefs {
   /// True when app should go through model prepare/re-verify:
   /// - never prepared
   /// - prepared flag false
-  /// - URL changed since last successful prepare
-  static Future<bool> shouldPrepareForCurrentConfig() async {
+  /// - fingerprint changed since last successful prepare
+  static Future<bool> shouldPrepareForFingerprint(
+    String installFingerprint,
+  ) async {
     final p = await SharedPreferences.getInstance();
     final done = p.getBool(_doneKey) ?? false;
     if (!done) return true;
     final last = p.getString(_fingerprintKey) ?? '';
-    return last != ModelPrepareConfig.modelInstallFingerprint;
+    return last != installFingerprint;
   }
 }
