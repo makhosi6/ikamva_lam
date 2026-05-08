@@ -5,7 +5,6 @@ import 'app.dart';
 import 'db/app_database.dart';
 import 'db/database_connection.dart';
 import 'db/seed.dart';
-import 'llm/gemma_asset_selection_repair.dart';
 import 'llm/llm_service.dart';
 import 'state/settings_store.dart';
 
@@ -22,7 +21,6 @@ Future<void> main() async {
   }
   final settings = SettingsStore();
   await settings.load();
-  await repairGemma4SelectionIfBundledAssetMissing(settings);
   LlmService.instance.configure(settings);
   final database = IkamvaDatabase(openIkamvaDatabaseFile());
   await ensureDevSeed(database);

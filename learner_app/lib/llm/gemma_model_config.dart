@@ -4,17 +4,22 @@ import 'package:path/path.dart' as p;
 
 /// On-device **Gemma 4** identity for **`flutter_gemma`**.
 ///
-/// This app targets **only** Gemma 4 (bundled E2B or downloaded E4B `.litertlm`).
-/// Other model families are not installed or selected.
+/// This app targets **only** Gemma 4 `.litertlm` installed from Hugging Face
+/// (**E2B** or **E4B** via `fromNetwork`). Other model families are not used.
 ///
-/// E2B loads from **`bundledGemma4E2bLitertlmAsset`** via
-/// **`FlutterGemma.installModel`…`fromAsset`** (see `pubspec.yaml`).
-/// E4B uses **`gemma4E4bLitertlmUrl`** with **`fromNetwork`** (example parity).
+/// E2B uses **`gemma4E2bLitertlmUrl`**; E4B uses **`gemma4E4bLitertlmUrl`**.
 abstract final class GemmaModelConfig {
   /// **Gemma 4** `.litertlm` on **flutter_gemma 0.13.6** still registers as
   /// [ModelType.gemmaIt]. Newer plugin versions expose [ModelType.gemma4] (see
   /// `learner_app/example` when using a path dependency).
   static const ModelType modelType = ModelType.gemmaIt;
+
+  /// Hugging Face **Gemma 4 E2B IT** `.litertlm` (same URL as flutter_gemma example).
+  static const String gemma4E2bLitertlmUrl =
+      'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm';
+
+  static String get gemma4E2bLitertlmFilename =>
+      filenameFromPathOrUrl(gemma4E2bLitertlmUrl);
 
   /// Hugging Face **Gemma 4 E4B IT** native `.litertlm` (same URL as flutter_gemma example).
   static const String gemma4E4bLitertlmUrl =
@@ -22,10 +27,6 @@ abstract final class GemmaModelConfig {
 
   static String get gemma4E4bLitertlmFilename =>
       filenameFromPathOrUrl(gemma4E4bLitertlmUrl);
-
-  /// Gemma 4 E2B Instruct — LiteRT-LM **`.litertlm`** (Android + iOS).
-  static const String bundledGemma4E2bLitertlmAsset =
-      'assets/models/gemma-4-E2B-it.litertlm';
 
   /// **`-web.task`** files are **Web-only** per the `flutter_gemma` README
   /// compatibility matrix (not for native `.litertlm` workflows).
@@ -53,6 +54,16 @@ abstract final class GemmaModelConfig {
     final base = FileNameUtils.getBaseName(file);
     return <String>{file, if (base != file) base}.toList();
   }
+
+  /// Runtime flags for [FlutterGemma.getActiveModel] on **Gemma 4** `.litertlm`.
+  ///
+  /// Must match the multimodal setup in `learner_app/_example_bak` (`Model.gemma4_E2B` /
+  /// `gemma4_E4B`): vision + audio buffers are provisioned at open time.
+  static const bool activeModelSupportImage = true;
+
+  static const bool activeModelSupportAudio = true;
+
+  static const int activeModelMaxNumImages = 1;
 
   /// **`.litertlm`** must use [ModelFileType.litertlm] so LiteRT-LM paths,
   /// native `systemInstruction`, and chat templating match the plugin (Gemma 4).

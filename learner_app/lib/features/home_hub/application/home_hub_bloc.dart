@@ -75,7 +75,7 @@ class HomeHubBloc extends Bloc<HomeHubEvent, HomeHubState> {
       final payload = await _repository
           .loadPayload(_database)
           .timeout(
-            const Duration(minutes: 45),
+            const Duration(minutes: 3),
             onTimeout: () => throw TimeoutException('hub_payload'),
           );
       if (!isClosed) {
@@ -91,7 +91,7 @@ class HomeHubBloc extends Bloc<HomeHubEvent, HomeHubState> {
       if (!isClosed) {
         emit(
           const HomeHubFailure(
-            'Could not load topics. Try again later.',
+            'We could not prepare today\'s topics in time. Please retry.',
           ),
         );
       }
@@ -113,7 +113,7 @@ class HomeHubBloc extends Bloc<HomeHubEvent, HomeHubState> {
       final payload = await _repository
           .loadPayload(_database)
           .timeout(
-            const Duration(minutes: 45),
+            const Duration(minutes: 3),
             onTimeout: () => throw TimeoutException('hub_payload'),
           );
       if (!isClosed) emit(HomeHubReady(payload));
@@ -121,7 +121,7 @@ class HomeHubBloc extends Bloc<HomeHubEvent, HomeHubState> {
       if (!isClosed) {
         emit(
           const HomeHubFailure(
-            'Could not load topics. Try again later.',
+            'We could not prepare today\'s topics in time. Please retry.',
           ),
         );
       }

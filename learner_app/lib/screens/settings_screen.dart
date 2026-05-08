@@ -51,9 +51,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            '${e.message} On mobile, try Warm up model below or cold-start '
-            'the app so the home hub runs setup again. Ensure '
-            '`assets/models/gemma-4-E2B-it.litertlm` is in `pubspec.yaml` and rebuild.',
+            '${e.message} On mobile, try Warm up model below or open '
+            'Settings → Choose on-device Gemma 4 model to download E2B or E4B from '
+            'Hugging Face.',
           ),
         ),
       );
@@ -190,8 +190,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     shouldUseFlutterGemmaEngine
-                        ? 'Gemma 4 only: either the bundled E2B weights in the app '
-                            'or a one-time download of E4B (see Choose model).'
+                        ? 'Gemma 4 only: E2B or E4B from Hugging Face (see Choose model).'
                         : 'On-device Gemma runs on Android and iOS builds only.',
                     style: theme.textTheme.bodySmall,
                   ),
@@ -201,7 +200,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Choose on-device Gemma 4 model'),
                       subtitle: Text(
-                        'Current: ${settings.gemma4OnDeviceVariant == Gemma4OnDeviceVariant.e2bBundled ? 'E2B (bundled)' : 'E4B (downloaded)'}',
+                        'Current: ${switch (settings.gemma4OnDeviceVariant) {
+                          Gemma4OnDeviceVariant.e2bHuggingFace =>
+                            'E2B (Hugging Face)',
+                          Gemma4OnDeviceVariant.e4bNetwork =>
+                            'E4B (Hugging Face)',
+                        }}',
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/gemma-setup'),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import '../hub/daily_quest_ids.dart';
 import '../llm/llm_generate_request.dart';
@@ -32,6 +33,10 @@ abstract final class ChildFriendlyContentGate {
 
   /// Marker in the Gemma sentiment sub-prompt (`_sentimentLlm`).
   static const sentimentTaskMarker = 'TASK: child_content_sentiment_check';
+
+  /// Inference-only cap after [LlmService.ensureReady] (cold `generate()` can exceed
+  /// this while `ensureLoaded` runs).
+  static const Duration _sentimentLlmTimeout = Duration(seconds: 60);
 
   static const Set<String> _blockedWholeWords = {
     'ass',
@@ -257,6 +262,8 @@ abstract final class ChildFriendlyContentGate {
     String material,
   ) async {
     try {
+      await LlmService.instance.ensureReady();
+
       final prompt = '''
 $sentimentTaskMarker
 KIND: ${jsonEncode(kind)}
@@ -271,9 +278,15 @@ or
 {"safe": false, "reason": "one short English phrase"}
 If unsure, prefer safe=false.
 ''';
-      final raw = await LlmService.instance.generate(
-        LlmGenerateRequest(prompt: ModelBoundPrompt(prompt), maxTokens: 96),
-      );
+      final raw = await LlmService.instance
+          .generate(
+            LlmGenerateRequest(prompt: ModelBoundPrompt(prompt), maxTokens: 96),
+          )
+          .timeout(
+            _sentimentLlmTimeout,
+            onTimeout: () =>
+                throw TimeoutException('child_content_sentiment_timeout'),
+          );
       if (isEmptyComplianceObject(raw.text)) {
         return const ContentSafetyVerdict(
           ok: false,

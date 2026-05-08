@@ -11,10 +11,10 @@ import 'streaming_llm_capability.dart';
 
 /// App-wide access to on-device LLM (TASKS §6.4–6.8).
 ///
-/// Uses [FlutterGemmaLlmEngine]: **Gemma 4 E2B** from bundled `.litertlm`
-/// (`fromAsset`) or **E4B** from network (`fromNetwork`), per
-/// [SettingsStore.gemma4OnDeviceVariant]. [ensureLoaded] opens the active model
-/// or reinstalls. Call [configure] with [SettingsStore] before generation.
+/// Uses [FlutterGemmaLlmEngine]: **Gemma 4 E2B or E4B** from Hugging Face
+/// (`fromNetwork`), per [SettingsStore.gemma4OnDeviceVariant]. [ensureLoaded]
+/// opens the active model or reinstalls. Call [configure] with [SettingsStore]
+/// before generation.
 ///
 /// Removed: `ProcessLlmEngine` / `llama-cli` / GGUF / `native/build` paths.
 class LlmService {
@@ -57,7 +57,7 @@ class LlmService {
     );
   }
 
-  /// Validates engine + on-disk model (reinstalls from bundled assets if needed).
+  /// Validates engine + on-disk model (re-downloads from Hugging Face if needed).
   Future<void> ensureReady() async {
     _throwIfDisposed();
     final engine = _engine ??= _createEngine();

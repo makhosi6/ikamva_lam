@@ -4,12 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 
 import '../state/settings_store.dart';
-import 'device_model_storage.dart';
-import 'gemma4_model_download_service.dart';
 import 'gemma4_ondevice_variant.dart';
+import 'gemma_hf_model_download_service.dart';
+import 'huggingface_auth_token_store.dart';
 import 'gemma_inference_defaults.dart';
 import 'gemma_model_config.dart';
-import 'model_asset_manifest.dart';
 import 'model_diagnostics.dart';
 import 'llm_engine.dart';
 import 'llm_exceptions.dart';
@@ -43,12 +42,27 @@ bool gemmaErrorLooksLikeInvalidTaskArchive(Object error) {
       (s.contains('unable to open') && s.contains('zip'));
 }
 
+/// True when the plugin has an active inference spec **and** reports its files
+/// on disk. [FlutterGemma.hasActiveModel] alone can be true after the weights
+/// were removed (stale registration).
+Future<bool> flutterGemmaActiveInferenceInstalled() async {
+  if (!FlutterGemma.hasActiveModel()) return false;
+  final mgr = FlutterGemmaPlugin.instance.modelManager;
+  final spec = mgr.activeInferenceModel;
+  if (spec == null) return false;
+  try {
+    return await mgr.isModelInstalled(spec);
+  } on Object {
+    return false;
+  }
+}
+
 /// Unregisters installed model ids so a bad copy is not reused. Includes ids
-/// derived from the bundled asset and legacy artifact names from older app versions.
+/// derived from HF URLs and legacy artifact names from older app versions.
 Future<void> purgeGemmaPluginInstallCandidates() async {
   final ids = <String>{
     ...GemmaModelConfig.pluginUninstallCandidateIdsFor(
-      ModelPrepareConfig.bundledModelAssetPath,
+      GemmaModelConfig.gemma4E2bLitertlmUrl,
     ),
     ...GemmaModelConfig.pluginUninstallCandidateIdsFor(
       GemmaModelConfig.gemma4E4bLitertlmUrl,
@@ -80,6 +94,16 @@ Future<void> purgeGemmaPluginInstallCandidates() async {
 /// hub warm-up / `ensureReady` after uninstall or corruption.
 Future<bool> probeFlutterGemmaActiveModelReady(SettingsStore settings) async {
   if (!shouldUseFlutterGemmaEngine) return true;
+  if (!await flutterGemmaActiveInferenceInstalled()) {
+    ModelDiagnostics.instance.log(
+      area: 'probe',
+      action: 'skip_no_install',
+      message:
+          'No lesson-helper model registered yet (finish Download on the setup '
+          'screen and Continue, or Settings → Warm up). Probe skipped.',
+    );
+    return false;
+  }
   Future<bool> probe(PreferredBackend backend) async {
     try {
       ModelDiagnostics.instance.log(
@@ -91,6 +115,9 @@ Future<bool> probeFlutterGemmaActiveModelReady(SettingsStore settings) async {
       final model = await FlutterGemma.getActiveModel(
         maxTokens: ModelPrepareConfig.contextMaxTokensFor(settings.lowRamProfile),
         preferredBackend: backend,
+        supportImage: GemmaModelConfig.activeModelSupportImage,
+        supportAudio: GemmaModelConfig.activeModelSupportAudio,
+        maxNumImages: GemmaModelConfig.activeModelMaxNumImages,
       );
       try {
         await model.close();
@@ -122,9 +149,8 @@ Future<bool> probeFlutterGemmaActiveModelReady(SettingsStore settings) async {
   return false;
 }
 
-/// On-device inference via [flutter_gemma] — **bundled** `.litertlm` only
-/// (`installModel`…`fromAsset`). [ensureLoaded] re-opens the active model or
-/// re-installs from assets if open fails.
+/// On-device inference via [flutter_gemma] — Gemma 4 **E2B/E4B** from Hugging Face
+/// (`fromNetwork`). [ensureLoaded] re-opens the active model or re-downloads if needed.
 class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   FlutterGemmaLlmEngine({
     required SettingsStore settings,
@@ -166,6 +192,11 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   bool _loaded = false;
   bool _disposed = false;
 
+  /// Single-flight guard: concurrent [ensureLoaded] calls (hub + setup + sentiment)
+  /// must not each open the LiteRT model — native GPU init is huge and parallel
+  /// opens OOM-kill the process (see `trimMemory` / "Lost connection to device").
+  Future<void>? _ensureLoadedInFlight;
+
   int get _contextMaxTokens =>
       ModelPrepareConfig.contextMaxTokensFor(_settings.lowRamProfile);
 
@@ -174,87 +205,46 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
 
   Future<void> _purgeInstallArtifacts() => purgeGemmaPluginInstallCandidates();
 
-  Future<void> _installFromBundledAsset() async {
-    final assetPath = ModelPrepareConfig.bundledModelAssetPath;
-    _emit('install', 'Registering model from app bundle ($assetPath)…', 0);
-    try {
-      ModelDiagnostics.instance.log(
-        area: 'engine',
-        action: 'install_bundled_start',
-        message: 'Registering model from Flutter asset',
-        data: <String, Object?>{'asset': assetPath},
-      );
-      await installBundledInferenceWeightsFromFlutterAsset(
-        assetPath: assetPath,
-        onProgress: _emitProgress,
-      );
-      ModelDiagnostics.instance.log(
-        area: 'engine',
-        action: 'install_bundled_ok',
-        message: 'Bundled model install finished',
-      );
-    } on Object catch (e) {
-      final msg = e.toString().toLowerCase();
-      if (msg.contains('space') ||
-          msg.contains('storage') ||
-          msg.contains('enospc')) {
-        throw LlmResourceException(
-          'Not enough storage to install the on-device model from the app '
-          'bundle. Free space and try again.',
-        );
-      }
-      ModelDiagnostics.instance.log(
-        area: 'engine',
-        action: 'install_bundled_failed',
-        message: 'Bundled model install failed',
-        data: <String, Object?>{'error': '$e'},
-      );
-      throw LlmUnavailableException(
-        'Could not install bundled Gemma model: $e',
-      );
-    }
-  }
-
   Future<void> _installFromConfiguredSource() async {
     switch (_settings.gemma4OnDeviceVariant) {
-      case Gemma4OnDeviceVariant.e2bBundled:
-        final bundledPath = ModelPrepareConfig.bundledModelAssetPath;
-        final hasBundle = await modelAssetListedInBundle(bundledPath);
-        if (hasBundle) {
-          await _installFromBundledAsset();
-          return;
-        }
-        throw LlmUnavailableException(
-          'Gemma weights are missing: `$bundledPath` is not in the asset manifest. '
-          'Add `assets/models/gemma-4-E2B-it.litertlm` to `pubspec.yaml` and rebuild.',
+      case Gemma4OnDeviceVariant.e2bHuggingFace:
+        await _installFromHfService(
+          GemmaHfModelDownloadService.e2b(),
+          'Gemma 4 E2B',
         );
+        return;
       case Gemma4OnDeviceVariant.e4bNetwork:
-        await _installE4bFromNetwork();
+        await _installFromHfService(
+          GemmaHfModelDownloadService.e4b(),
+          'Gemma 4 E4B',
+        );
+        return;
     }
   }
 
-  Future<void> _installE4bFromNetwork() async {
-    _emit(
-      'install',
-      'Downloading Gemma 4 E4B (${GemmaModelConfig.gemma4E4bLitertlmFilename})…',
-      0,
-    );
+  /// Example [ModelDownloadService.downloadModel] path (`fromNetwork` + progress).
+  Future<void> _installFromHfService(
+    GemmaHfModelDownloadService service,
+    String label,
+  ) async {
+    _emit('install', 'Downloading $label (${service.modelFilename})…', 0);
     try {
+      final raw = await HuggingfaceAuthTokenStore.loadToken() ?? '';
+      final token = service.needsAuth ? raw : '';
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'install_network_start',
-        message: 'Installing Gemma 4 E4B from network',
-        data: <String, Object?>{
-          'url': GemmaModelConfig.gemma4E4bLitertlmUrl,
-        },
+        message: 'Installing $label from network',
+        data: <String, Object?>{'url': service.modelUrl},
       );
-      await Gemma4ModelDownloadService.downloadE4b(
-        (p) => _emitProgress(p.round().clamp(0, 100)),
+      await service.downloadModel(
+        token: token,
+        onProgress: (p) => _emitProgress(p.round().clamp(0, 100)),
       );
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'install_network_ok',
-        message: 'Gemma 4 E4B install finished',
+        message: '$label install finished',
       );
     } on Object catch (e) {
       final msg = e.toString().toLowerCase();
@@ -262,16 +252,16 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
           msg.contains('storage') ||
           msg.contains('enospc')) {
         throw LlmResourceException(
-          'Not enough storage to download Gemma 4 E4B. Free space and try again.',
+          'Not enough storage to download $label. Free space and try again.',
         );
       }
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'install_network_failed',
-        message: 'E4B download/install failed',
+        message: '$label download/install failed',
         data: <String, Object?>{'error': '$e'},
       );
-      throw LlmUnavailableException('Could not install Gemma 4 E4B: $e');
+      throw LlmUnavailableException('Could not install $label: $e');
     }
   }
 
@@ -286,6 +276,9 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       return await FlutterGemma.getActiveModel(
         maxTokens: _contextMaxTokens,
         preferredBackend: _preferredBackend,
+        supportImage: GemmaModelConfig.activeModelSupportImage,
+        supportAudio: GemmaModelConfig.activeModelSupportAudio,
+        maxNumImages: GemmaModelConfig.activeModelMaxNumImages,
       );
     } on Object catch (e) {
       // Match hub/settings warm-up: on iOS, any GPU open failure can be a
@@ -298,6 +291,9 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
         return FlutterGemma.getActiveModel(
           maxTokens: _contextMaxTokens,
           preferredBackend: PreferredBackend.cpu,
+          supportImage: GemmaModelConfig.activeModelSupportImage,
+          supportAudio: GemmaModelConfig.activeModelSupportAudio,
+          maxNumImages: GemmaModelConfig.activeModelMaxNumImages,
         );
       }
       ModelDiagnostics.instance.log(
@@ -320,25 +316,24 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     }
     if (_loaded && _model != null) return;
 
+    _ensureLoadedInFlight ??= _ensureLoadedBody();
+    try {
+      await _ensureLoadedInFlight!;
+    } finally {
+      _ensureLoadedInFlight = null;
+    }
+  }
+
+  Future<void> _ensureLoadedBody() async {
+    if (_disposed) {
+      throw StateError('FlutterGemmaLlmEngine disposed');
+    }
+    if (_loaded && _model != null) return;
+
     if (!shouldUseFlutterGemmaEngine) {
       throw LlmUnavailableException(
         'On-device Gemma runs on Android and iOS only.',
       );
-    }
-
-    if (_settings.gemma4OnDeviceVariant == Gemma4OnDeviceVariant.e2bBundled) {
-      final listed = await modelAssetListedInBundle(
-        ModelPrepareConfig.bundledModelAssetPath,
-      );
-      if (!listed) {
-        throw LlmUnavailableException(
-          'Bundled Gemma file is absent from the asset manifest. '
-          'Place `gemma-4-E2B-it.litertlm` under assets/models/, ensure '
-          '`${ModelPrepareConfig.bundledModelAssetPath}` is listed in '
-          '`pubspec.yaml`, and rebuild — or open Settings → Choose on-device '
-          'Gemma 4 model → Gemma 4 E4B (download).',
-        );
-      }
     }
 
     _emit(
@@ -347,6 +342,14 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       '${_preferredBackend.name})…',
       null,
     );
+    // Example `ChatScreen`: always `installModel`…`install()` first (idempotent),
+    // then `getActiveModel`. Re-register when there is no active spec **or**
+    // the spec is stale (active pointer but files missing — avoids
+    // "no longer installed" before we open).
+    //
+    // Removing the pre-check matches `_example_bak` behavior exactly.
+    await _installFromConfiguredSource();
+
     try {
       _model = await _openActiveModel();
       _emit('ready', 'Model opened — ready to generate.', 100);
@@ -417,9 +420,9 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
         _model = null;
         if (gemmaErrorLooksLikeInvalidTaskArchive(e2)) {
           final hint = switch (_settings.gemma4OnDeviceVariant) {
-            Gemma4OnDeviceVariant.e2bBundled =>
-              'Verify `${ModelPrepareConfig.bundledModelAssetPath}` in '
-                  '`pubspec.yaml` is complete and is the native `.litertlm` artifact.',
+            Gemma4OnDeviceVariant.e2bHuggingFace =>
+              'Try re-downloading Gemma 4 E2B from Hugging Face in Settings → '
+                  'Choose on-device Gemma 4 model, or free storage and retry.',
             Gemma4OnDeviceVariant.e4bNetwork =>
               'Try choosing the on-device model again and re-download Gemma 4 E4B, '
                   'or free storage and retry.',

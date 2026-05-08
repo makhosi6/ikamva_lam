@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:math';
+import 'dart:async';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,6 +25,9 @@ abstract final class DailyTopicsService {
   /// Bump when topic policy or on-device model era changes (invalidates prefs cache).
   static const _prefsKey = 'hub_daily_topics_v4';
   static const _topicCount = 8;
+  static const Duration _overallGenerationBudget = Duration(minutes: 2);
+  static const Duration _topicsLlmTimeout = Duration(seconds: 35);
+  static const Duration _sentimentTimeout = Duration(seconds: 25);
 
   /// Dev-only fallback when LLM unavailable (see [LearnerContentPolicy.allowDevSeed]).
   static const _fallbackPool = <String>[
@@ -120,9 +124,17 @@ abstract final class DailyTopicsService {
   static Future<List<String>> _generateTopics(String dayKey) async {
     final accumulated = <String>[];
     final seen = <String>{};
+    final startedAt = DateTime.now();
     for (var attempt = 0;
         attempt < 4 && accumulated.length < _topicCount;
         attempt++) {
+      if (DateTime.now().difference(startedAt) > _overallGenerationBudget) {
+        developer.log(
+          'DailyTopicsService: generation budget exceeded after $attempt attempts',
+          name: 'DailyTopicsService',
+        );
+        break;
+      }
       final batch = await _tryLlmTopics();
       if (batch == null) continue;
       final candidates = <String>[];
@@ -138,10 +150,15 @@ abstract final class DailyTopicsService {
         candidates.add(t);
       }
       if (candidates.isEmpty) continue;
-      final batchSentiment =
-          await ChildFriendlyContentGate.evaluateHubTopicsBatchSentiment(
-        candidates,
-      );
+      final batchSentiment = await ChildFriendlyContentGate
+          .evaluateHubTopicsBatchSentiment(candidates)
+          .timeout(
+            _sentimentTimeout,
+            onTimeout: () => const ContentSafetyVerdict(
+              ok: false,
+              violations: ['hub_topic_batch:timeout'],
+            ),
+          );
       if (!batchSentiment.ok) {
         developer.log(
           'DailyTopicsService: Gemma rejected topic batch → '
@@ -166,21 +183,26 @@ abstract final class DailyTopicsService {
 
   static Future<List<String>?> _tryLlmTopics() async {
     try {
-      final raw = await LlmService.instance.generate(
-        LlmGenerateRequest(
-          prompt: const ModelBoundPrompt(
-            'Return only a JSON array of exactly 8 different strings. '
-            'Each string is one short English-learning **topic title** for children '
-            'ages about 8–14 in a South African classroom (wholesome, no romance, '
-            'no violence, no drugs, no politics, no religion debates, no brands, '
-            'no URLs). Use lowercase letters and single spaces only, max 5 words '
-            'per string. Example shape: '
-            '["food","travel","family","school","weather","music","sports","home"]. '
-            'No markdown, no commentary, no extra keys.',
-          ),
-          maxTokens: 220,
-        ),
-      );
+      final raw = await LlmService.instance
+          .generate(
+            LlmGenerateRequest(
+              prompt: const ModelBoundPrompt(
+                'Return only a JSON array of exactly 8 different strings. '
+                'Each string is one short English-learning **topic title** for children '
+                'ages about 8–14 in a South African classroom (wholesome, no romance, '
+                'no violence, no drugs, no politics, no religion debates, no brands, '
+                'no URLs). Use lowercase letters and single spaces only, max 5 words '
+                'per string. Example shape: '
+                '["food","travel","family","school","weather","music","sports","home"]. '
+                'No markdown, no commentary, no extra keys.',
+              ),
+              maxTokens: 220,
+            ),
+          )
+          .timeout(
+            _topicsLlmTimeout,
+            onTimeout: () => throw TimeoutException('hub_topics_llm_timeout'),
+          );
       final slice = _extractJsonArray(raw.text) ?? raw.text.trim();
       final decoded = jsonDecode(slice);
       if (decoded is! List) return null;

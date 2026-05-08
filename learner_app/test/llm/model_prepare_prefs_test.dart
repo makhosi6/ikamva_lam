@@ -13,7 +13,7 @@ void main() {
 
   test('shouldPrepareForFingerprint is true when no prepare state', () async {
     final fp = ModelPrepareConfig.installFingerprint(
-      Gemma4OnDeviceVariant.e2bBundled,
+      Gemma4OnDeviceVariant.e2bHuggingFace,
     );
     final shouldPrepare = await ModelPreparePrefs.shouldPrepareForFingerprint(fp);
     expect(shouldPrepare, isTrue);
@@ -21,7 +21,7 @@ void main() {
 
   test('markPrepareDone records done/fingerprint/timestamp', () async {
     final fp = ModelPrepareConfig.installFingerprint(
-      Gemma4OnDeviceVariant.e2bBundled,
+      Gemma4OnDeviceVariant.e2bHuggingFace,
     );
     await ModelPreparePrefs.markPrepareDone(installFingerprint: fp);
 

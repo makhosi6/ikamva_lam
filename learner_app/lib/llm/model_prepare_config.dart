@@ -3,8 +3,7 @@ import 'package:flutter_gemma/flutter_gemma.dart';
 import 'gemma4_ondevice_variant.dart';
 import 'gemma_model_config.dart';
 
-/// Bundled Gemma weights only — no remote download. The `.litertlm` must be
-/// listed under `flutter: assets:` in `pubspec.yaml`.
+/// On-device Gemma install sizing / fingerprints (weights come from Hugging Face).
 abstract final class ModelPrepareConfig {
   /// Rough **install** size for **free disk** checks (MB) — copy from APK/IPA.
   static const int estimatedDownloadMb = int.fromEnvironment(
@@ -40,14 +39,11 @@ abstract final class ModelPrepareConfig {
 
   static ModelType get modelType => GemmaModelConfig.modelType;
 
-  static String get bundledModelAssetPath =>
-      GemmaModelConfig.bundledGemma4E2bLitertlmAsset;
-
   /// [ModelPreparePrefs] identity for the active Gemma 4 variant.
   static String installFingerprint(Gemma4OnDeviceVariant variant) {
     switch (variant) {
-      case Gemma4OnDeviceVariant.e2bBundled:
-        return 'bundle:$bundledModelAssetPath';
+      case Gemma4OnDeviceVariant.e2bHuggingFace:
+        return 'network:${GemmaModelConfig.gemma4E2bLitertlmUrl}';
       case Gemma4OnDeviceVariant.e4bNetwork:
         return 'network:${GemmaModelConfig.gemma4E4bLitertlmUrl}';
     }
@@ -56,8 +52,8 @@ abstract final class ModelPrepareConfig {
   /// Rough install / copy size for UX (MB).
   static int estimatedInstallMbFor(Gemma4OnDeviceVariant variant) {
     switch (variant) {
-      case Gemma4OnDeviceVariant.e2bBundled:
-        return estimatedDownloadMb;
+      case Gemma4OnDeviceVariant.e2bHuggingFace:
+        return 2400;
       case Gemma4OnDeviceVariant.e4bNetwork:
         return 4400;
     }

@@ -25,10 +25,10 @@ void main() {
     expect(ModelPrepareConfig.minFreeDiskMb, greaterThan(0));
   });
 
-  test('installFingerprint distinguishes E2B bundle vs E4B network', () {
+  test('installFingerprint distinguishes E2B HF vs E4B network', () {
     expect(
-      ModelPrepareConfig.installFingerprint(Gemma4OnDeviceVariant.e2bBundled),
-      'bundle:${ModelPrepareConfig.bundledModelAssetPath}',
+      ModelPrepareConfig.installFingerprint(Gemma4OnDeviceVariant.e2bHuggingFace),
+      startsWith('network:https://'),
     );
     expect(
       ModelPrepareConfig.installFingerprint(Gemma4OnDeviceVariant.e4bNetwork),

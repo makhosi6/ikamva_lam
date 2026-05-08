@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:ikamva_lam/llm/model_diagnostics.dart';
 
 import '../../../../llm/flutter_gemma_llm_engine.dart';
-import '../../../../llm/gemma4_ondevice_variant.dart';
 import '../../../../llm/model_prepare_config.dart';
 import '../../../../state/settings_scope.dart';
 import '../../application/home_hub_state.dart';
@@ -105,11 +104,9 @@ class _OnDeviceHubLoadingPanelState extends State<OnDeviceHubLoadingPanel> {
   List<Widget> _elapsedIfAny() {
     if (!widget.showElapsedExpectations) return const [];
     var estimatedMb = ModelPrepareConfig.estimatedDownloadMb;
-    var warmFromBundle = true;
     if (shouldUseFlutterGemmaEngine) {
       final v = SettingsScope.of(context).gemma4OnDeviceVariant;
       estimatedMb = ModelPrepareConfig.estimatedInstallMbFor(v);
-      warmFromBundle = v == Gemma4OnDeviceVariant.e2bBundled;
     }
     return [
       _HubElapsedExpectationsCopy(
@@ -117,7 +114,6 @@ class _OnDeviceHubLoadingPanelState extends State<OnDeviceHubLoadingPanel> {
         isTopicGenerationPhase:
             widget.loadPhase == HomeHubLoadPhase.fetchingHub,
         estimatedInstallMb: estimatedMb,
-        modelWarmUsesBundledAsset: warmFromBundle,
       ),
     ];
   }
@@ -301,13 +297,11 @@ class _HubElapsedExpectationsCopy extends StatefulWidget {
     required this.useOnPrimaryContainerTone,
     required this.isTopicGenerationPhase,
     required this.estimatedInstallMb,
-    required this.modelWarmUsesBundledAsset,
   });
 
   final bool useOnPrimaryContainerTone;
   final bool isTopicGenerationPhase;
   final int estimatedInstallMb;
-  final bool modelWarmUsesBundledAsset;
 
   @override
   State<_HubElapsedExpectationsCopy> createState() =>
@@ -362,15 +356,11 @@ class _HubElapsedExpectationsCopyState
                           '(multiple Gemma runs and safety checks).'
                     : 'Loading today\'s theme list for this build.')
               : (shouldUseFlutterGemmaEngine
-                    ? (widget.modelWarmUsesBundledAsset
-                          ? 'This step installs roughly $gbApprox GB from the app '
-                              'bundle into device storage (copy + engine setup). '
-                              'First launch often takes several minutes on many '
-                              'phones — that is normal and depends more on storage '
-                              'speed than RAM.'
-                          : 'This step sets up roughly $gbApprox GB of Gemma 4 '
-                              'weights already on your device (engine open + verify). '
-                              'First launch can still take several minutes.')
+                    ? 'This step may download and install roughly $gbApprox GB of '
+                          'Gemma 4 on first use, then copy into the engine sandbox. '
+                          'First launch often takes several minutes on many phones '
+                          '— that is normal and depends more on network and storage '
+                          'speed than RAM.'
                     : 'Generating today\'s topics can take up to a few minutes on '
                           'first run (on-device generation and safety checks).'),
           style: theme.textTheme.bodySmall?.copyWith(color: bodyColor),

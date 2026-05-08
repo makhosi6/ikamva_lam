@@ -1,6 +1,6 @@
 # Ikamva Lam
 
-**Version:** `0.0.1+1` (see [`pubspec.yaml`](pubspec.yaml) `version:`).
+**Version:** `1.0.0+1000` (see [`pubspec.yaml`](pubspec.yaml) `version:`).
 
 <img src="../branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
 
@@ -26,7 +26,7 @@ bash tool/fetch_kokoro_models.sh
 
 ## On-device LLM (Gemma)
 
-Gemma 4 **E2B** **`gemma-4-E2B-it.litertlm`** is **bundled** under **`assets/models/`** (see **`pubspec.yaml`**). There is **no** remote model download — see **`assets/models/OBTAINING_MODELS.txt`** and **[`docs/model_delivery.md`](docs/model_delivery.md)**.
+Gemma 4 **E2B** or **E4B** **`.litertlm`** is **not** shipped in the app binary. Learners (or maintainers on first run) download from **Hugging Face** inside **Set-up Gemma 4** / Settings — same **`fromNetwork`** flow as the `flutter_gemma` example. See **[`docs/model_delivery.md`](docs/model_delivery.md)** for architecture notes.
 
 For history and one-off release notes, see **`CHANGELOG.md`** (*Unreleased*).
 
@@ -36,4 +36,4 @@ For history and one-off release notes, see **`CHANGELOG.md`** (*Unreleased*).
   - `Overview`: runtime + metrics + export/sync actions.
   - `Model`: resolved engine, prepare-state metadata, active-model probe, cache invalidation.
   - `Event Log`: verbose lifecycle timeline for model prepare/probe/load/reinstall events.
-- The app persists prepare **fingerprint** (`bundle:…`) and timestamp; if the fingerprint changes, **`ensureReady()`** may run again.
+- The app persists prepare **fingerprint** (`network:<url>`) and timestamp; if the fingerprint changes, **`ensureReady()`** may run again.

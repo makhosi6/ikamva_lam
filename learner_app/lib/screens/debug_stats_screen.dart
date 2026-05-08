@@ -308,10 +308,10 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                       _kv(
                         context,
                         'Gemma 4 variant',
-                        settings.gemma4OnDeviceVariant ==
-                                Gemma4OnDeviceVariant.e2bBundled
-                            ? 'E2B bundled'
-                            : 'E4B network',
+                        switch (settings.gemma4OnDeviceVariant) {
+                          Gemma4OnDeviceVariant.e2bHuggingFace => 'E2B HF',
+                          Gemma4OnDeviceVariant.e4bNetwork => 'E4B HF',
+                        },
                       ),
                       _kv(
                         context,
@@ -320,8 +320,8 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                       ),
                       _kv(
                         context,
-                        'Bundled asset path (E2B)',
-                        ModelPrepareConfig.bundledModelAssetPath,
+                        'E2B HF URL',
+                        GemmaModelConfig.gemma4E2bLitertlmUrl,
                       ),
                       _kv(
                         context,
@@ -337,7 +337,7 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                       _kv(
                         context,
                         'Note',
-                        'E2B: fromAsset; E4B: fromNetwork then getActiveModel.',
+                        'E2B/E4B: fromNetwork then getActiveModel.',
                       ),
                       _kv(
                         context,
