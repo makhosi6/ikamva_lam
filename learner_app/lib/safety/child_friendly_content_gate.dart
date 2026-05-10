@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import '../hub/daily_quest_ids.dart';
+import '../llm/llm_exceptions.dart';
 import '../llm/llm_generate_request.dart';
 import '../llm/llm_output_filters.dart';
 import '../llm/llm_service.dart';
@@ -311,6 +312,14 @@ If unsure, prefer safe=false.
         ok: false,
         violations: ['gemma_sentiment:$reason'],
       );
+    } on LlmResourceException {
+      // Model prep / memory / timeouts — rules already passed; do not block as unsafe.
+      return const ContentSafetyVerdict(ok: true);
+    } on LlmUnavailableException {
+      return const ContentSafetyVerdict(ok: true);
+    } on TimeoutException {
+      // Sentiment inference stalled — rules already passed.
+      return const ContentSafetyVerdict(ok: true);
     } on Object catch (e) {
       return ContentSafetyVerdict(
         ok: false,

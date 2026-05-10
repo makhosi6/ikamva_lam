@@ -24,8 +24,10 @@ class LlmService {
   SettingsStore? _settings;
   LlmEngine? _engine;
   bool _disposed = false;
-  void Function(int installPercent)? _onModelInstallProgress;
-  void Function(String phase, String message, int? percent)? _onModelLifecycle;
+
+  /// Shared with [FlutterGemmaLlmEngine] so [configure] can add/remove UI
+  /// callbacks without [invalidateCachedEngine].
+  final LlmInstallUiHooks _installUiHooks = LlmInstallUiHooks();
 
   /// `true` after [ensureReady] finishes and the on-device weights are loaded
   /// ([engine.ensureLoaded] completed). Resets to `false` when
@@ -36,19 +38,17 @@ class LlmService {
   /// Optional: [onModelInstallProgress] 0–100 during bytes transfer;
   /// [onModelLifecycle] verbose steps for UI (phase label + message + optional %).
   ///
-  /// When either callback is non-null, the cached engine is **discarded** so the
-  /// next load uses these hooks (e.g. home hub attaching a status log).
+  /// Install / lifecycle hooks are stored on [_installUiHooks] and picked up by
+  /// the cached engine — no discard when only callbacks change (avoids tearing
+  /// down a load started before the hub attaches progress UI).
   void configure(
     SettingsStore settings, {
     void Function(int installPercent)? onModelInstallProgress,
     void Function(String phase, String message, int? percent)? onModelLifecycle,
   }) {
     _settings = settings;
-    _onModelInstallProgress = onModelInstallProgress;
-    _onModelLifecycle = onModelLifecycle;
-    if (onModelInstallProgress != null || onModelLifecycle != null) {
-      invalidateCachedEngine();
-    }
+    _installUiHooks.onInstallProgress = onModelInstallProgress;
+    _installUiHooks.onLifecycle = onModelLifecycle;
     ModelDiagnostics.instance.log(
       area: 'service',
       action: 'configure',
@@ -78,9 +78,7 @@ class LlmService {
 
   /// Same as [configure] with **only** [settings]: clears install/lifecycle
   /// hooks **without** disposing the cached engine. Call after the home hub has
-  /// finished warming so other routes keep using the loaded weights until the
-  /// next [configure] that passes progress callbacks (which triggers
-  /// [invalidateCachedEngine]).
+  /// finished warming so other routes keep using the loaded weights.
   void releaseInstallUiHooks(SettingsStore settings) {
     configure(settings);
   }
@@ -165,8 +163,7 @@ class LlmService {
     }
     return FlutterGemmaLlmEngine(
       settings: settings,
-      onInstallProgress: _onModelInstallProgress,
-      onLifecycle: _onModelLifecycle,
+      installUiHooks: _installUiHooks,
     );
   }
 

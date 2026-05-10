@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../llm/android_hf_download_setup.dart';
 import '../llm/flutter_gemma_llm_engine.dart';
 import '../llm/gemma4_ondevice_variant.dart';
 import '../llm/gemma_hf_model_download_service.dart';
+import '../llm/hf_install_error_format.dart';
 import '../llm/huggingface_auth_token_store.dart';
 import '../llm/llm_exceptions.dart';
 import '../llm/llm_service.dart';
@@ -30,8 +32,72 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
   bool _e2bHfDownloading = false;
   bool _e4bDownloading = false;
   bool _busy = false;
-  String? _error;
   bool _depsReady = false;
+
+  static const int _kMaxDownloadDiagLines = 48;
+  final List<String> _downloadDiagLines = [];
+
+  void _appendDownloadDiag(String line) {
+    if (!mounted) return;
+    setState(() {
+      if (_downloadDiagLines.length >= _kMaxDownloadDiagLines) {
+        _downloadDiagLines.removeAt(0);
+      }
+      _downloadDiagLines.add(line);
+    });
+    if (_e2bHfDownloading || _e4bDownloading) {
+      _presentErrorBanner(_downloadDiagLines.join('\n'));
+    }
+  }
+
+  String _formatInstallError(Object e) {
+    final buf = StringBuffer(rawInstallErrorLabel(e));
+    if (_downloadDiagLines.isNotEmpty) {
+      buf.writeln();
+      buf.writeln('--- Automatic retry / status (latest last) ---');
+      for (final line in _downloadDiagLines) {
+        buf.writeln(line);
+      }
+    }
+    return buf.toString();
+  }
+
+  static const Color _kErrorBannerBackground = Color(0xFFFFEBEE);
+  static const Color _kErrorBannerForeground = Color(0xFFB71C1C);
+
+  void _presentErrorBanner(String? message) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.clearMaterialBanners();
+      if (message == null || message.isEmpty) return;
+      messenger.showMaterialBanner(
+        MaterialBanner(
+          backgroundColor: _kErrorBannerBackground,
+          leading: const Icon(Icons.error_outline, color: _kErrorBannerForeground),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                message,
+                style: const TextStyle(
+                  color: _kErrorBannerForeground,
+                  fontSize: 14,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => messenger.hideCurrentMaterialBanner(),
+              child: const Text('Dismiss'),
+            ),
+          ],
+        ),
+      );
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -92,7 +158,7 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
   Future<void> _finalizeE2bIfInstalled() async {
     if (!_e2bHfDownloading) return;
     final svc = _e2bHfSvc;
-    final token = svc.needsAuth ? await _hfToken() : '';
+    final token = await _hfToken();
     final ok = await svc.checkModelExistence(token);
     if (!mounted || !ok) return;
     setState(() {
@@ -104,7 +170,7 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
   Future<void> _finalizeE4bIfInstalled() async {
     if (!_e4bDownloading) return;
     final svc = _e4bSvc;
-    final token = svc.needsAuth ? await _hfToken() : '';
+    final token = await _hfToken();
     final ok = await svc.checkModelExistence(token);
     if (!mounted || !ok) return;
     setState(() {
@@ -128,14 +194,15 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
     setState(() => _busy = true);
     try {
       final svc = _e2bHfSvc;
-      final token = svc.needsAuth ? await _hfToken() : '';
+      final token = await _hfToken();
       final ok = await svc.checkModelExistence(token);
       if (!mounted) return;
+      final hint = ok ? null : 'This model isn’t on the device yet. Tap Download below.';
       setState(() {
         _e2bHfProgress = ok ? 100 : 0;
         if (ok) _e2bHfDownloading = false;
-        _error = ok ? null : 'This model isn’t on the device yet. Tap Download below.';
       });
+      _presentErrorBanner(hint);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -145,20 +212,22 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
     setState(() => _busy = true);
     try {
       final svc = _e4bSvc;
-      final token = svc.needsAuth ? await _hfToken() : '';
+      final token = await _hfToken();
       final ok = await svc.checkModelExistence(token);
       if (!mounted) return;
+      final hint = ok ? null : 'This model isn’t on the device yet. Tap Download below.';
       setState(() {
         _e4bProgress = ok ? 100 : 0;
         if (ok) _e4bDownloading = false;
-        _error = ok ? null : 'This model isn’t on the device yet. Tap Download below.';
       });
+      _presentErrorBanner(hint);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _downloadE2bHf() async {
+    await ensureAndroidModelDownloadNotificationPermission();
     final svc = _e2bHfSvc;
     final token = await _hfToken();
     if (svc.needsAuth && token.isEmpty) {
@@ -174,13 +243,15 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
       return;
     }
     setState(() {
-      _error = null;
+      _downloadDiagLines.clear();
       _e2bHfDownloading = true;
       _e2bHfProgress = 0;
     });
+    _presentErrorBanner(null);
     try {
       await svc.downloadModel(
         token: token,
+        onDiagnostic: _appendDownloadDiag,
         onProgress: (p) {
           final n = _normalizeHfPercent(p);
           if (mounted) setState(() => _e2bHfProgress = n);
@@ -189,13 +260,20 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
           }
         },
       );
-      if (mounted) setState(() => _e2bHfProgress = 100);
-    } on Object catch (e) {
       if (mounted) {
         setState(() {
-          _error = '$e';
+          _e2bHfProgress = 100;
+          _downloadDiagLines.clear();
+        });
+        _presentErrorBanner(null);
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        final msg = _formatInstallError(e);
+        setState(() {
           _e2bHfProgress = 0;
         });
+        _presentErrorBanner(msg);
       }
     } finally {
       if (mounted) setState(() => _e2bHfDownloading = false);
@@ -203,6 +281,7 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
   }
 
   Future<void> _downloadE4b() async {
+    await ensureAndroidModelDownloadNotificationPermission();
     final svc = _e4bSvc;
     final token = await _hfToken();
     if (svc.needsAuth && token.isEmpty) {
@@ -218,13 +297,15 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
       return;
     }
     setState(() {
-      _error = null;
+      _downloadDiagLines.clear();
       _e4bDownloading = true;
       _e4bProgress = 0;
     });
+    _presentErrorBanner(null);
     try {
       await svc.downloadModel(
         token: token,
+        onDiagnostic: _appendDownloadDiag,
         onProgress: (p) {
           final n = _normalizeHfPercent(p);
           if (mounted) setState(() => _e4bProgress = n);
@@ -233,13 +314,20 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
           }
         },
       );
-      if (mounted) setState(() => _e4bProgress = 100);
-    } on Object catch (e) {
       if (mounted) {
         setState(() {
-          _error = '$e';
+          _e4bProgress = 100;
+          _downloadDiagLines.clear();
+        });
+        _presentErrorBanner(null);
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        final msg = _formatInstallError(e);
+        setState(() {
           _e4bProgress = 0;
         });
+        _presentErrorBanner(msg);
       }
     } finally {
       if (mounted) setState(() => _e4bDownloading = false);
@@ -263,25 +351,15 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
           await LlmService.instance.ensureReady();
         } on LlmUnavailableException catch (e) {
           if (!mounted) return;
-          setState(() {
-            _error =
-                'The lesson helper could not start. ${e.message} '
-                'Try Download again, or pick the other model size.';
-          });
+          _presentErrorBanner(e.message);
           return;
         } on LlmResourceException catch (e) {
           if (!mounted) return;
-          setState(() {
-            _error = e.message;
-          });
+          _presentErrorBanner(e.message);
           return;
         } on Object catch (e) {
           if (!mounted) return;
-          setState(() {
-            _error =
-                'The lesson helper could not start. Check storage and Wi‑Fi, '
-                'then tap Download again. (${e.toString()})';
-          });
+          _presentErrorBanner(rawInstallErrorLabel(e));
           return;
         }
       }
@@ -307,7 +385,12 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
         leading: context.canPop()
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: _busy ? null : () => context.pop(),
+                onPressed: _busy
+                    ? null
+                    : () {
+                        ScaffoldMessenger.of(context).clearMaterialBanners();
+                        context.pop();
+                      },
               )
             : null,
       ),
@@ -345,8 +428,8 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
                         : () {
                             setState(() {
                               _selected = Gemma4OnDeviceVariant.e2bHuggingFace;
-                              _error = null;
                             });
+                            _presentErrorBanner(null);
                             unawaited(_checkE2bHf());
                           },
                   ),
@@ -362,8 +445,8 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
                         : () {
                             setState(() {
                               _selected = Gemma4OnDeviceVariant.e4bNetwork;
-                              _error = null;
                             });
+                            _presentErrorBanner(null);
                             unawaited(_checkE4b());
                           },
                   ),
@@ -458,15 +541,6 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
                         ),
                       ),
                     ],
-                  ],
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _error!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.error,
-                      ),
-                    ),
                   ],
                   const SizedBox(height: 24),
                   if (!_canContinue && !_busy) ...[

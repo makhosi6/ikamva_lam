@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 
 import '../state/settings_store.dart';
+import 'android_hf_download_setup.dart';
 import 'gemma4_ondevice_variant.dart';
 import 'gemma_hf_model_download_service.dart';
+import 'hf_install_error_format.dart';
 import 'huggingface_auth_token_store.dart';
 import 'gemma_inference_defaults.dart';
 import 'gemma_model_config.dart';
@@ -17,6 +19,14 @@ import 'llm_output_filters.dart';
 import 'model_prepare_config.dart';
 import 'model_prepare_prefs.dart';
 import 'streaming_llm_capability.dart';
+
+/// Mutable callbacks so [LlmService.configure] can attach progress UI without
+/// disposing an in-flight [FlutterGemmaLlmEngine] (avoids overlapping native
+/// loads when the hub attaches hooks after warm-up starts).
+final class LlmInstallUiHooks {
+  void Function(int installPercent)? onInstallProgress;
+  void Function(String phase, String message, int? percent)? onLifecycle;
+}
 
 /// iOS Metal / TFLite GPU delegate failed — the `.task` file is often fine; use
 /// CPU backend or **Low RAM profile** (Settings). Do **not** treat as corrupt zip.
@@ -154,23 +164,20 @@ Future<bool> probeFlutterGemmaActiveModelReady(SettingsStore settings) async {
 class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   FlutterGemmaLlmEngine({
     required SettingsStore settings,
-    void Function(int installPercent)? onInstallProgress,
-    void Function(String phase, String message, int? percent)? onLifecycle,
+    required LlmInstallUiHooks installUiHooks,
   }) : _settings = settings,
-       _onInstallProgress = onInstallProgress,
-       _onLifecycle = onLifecycle;
+       _hooks = installUiHooks;
 
   final SettingsStore _settings;
-  final void Function(int)? _onInstallProgress;
-  final void Function(String phase, String message, int? percent)? _onLifecycle;
+  final LlmInstallUiHooks _hooks;
 
   void _emit(String phase, String message, [int? percent]) {
-    _onLifecycle?.call(phase, message, percent);
+    _hooks.onLifecycle?.call(phase, message, percent);
   }
 
   void _emitProgress(int p) {
-    _onInstallProgress?.call(p);
-    _onLifecycle?.call('progress', 'Transfer: $p%', p.clamp(0, 100));
+    _hooks.onInstallProgress?.call(p);
+    _hooks.onLifecycle?.call('progress', 'Transfer: $p%', p.clamp(0, 100));
   }
 
   void _finishLoaded() {
@@ -227,10 +234,21 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     GemmaHfModelDownloadService service,
     String label,
   ) async {
-    _emit('install', 'Downloading $label (${service.modelFilename})…', 0);
+    final alreadyInstalled = await service.isPluginModelInstalled();
+    _emit(
+      'install',
+      alreadyInstalled
+          ? 'Using downloaded $label (${service.modelFilename})…'
+          : 'Downloading $label (${service.modelFilename})…',
+      alreadyInstalled ? 100 : 0,
+    );
     try {
-      final raw = await HuggingfaceAuthTokenStore.loadToken() ?? '';
-      final token = service.needsAuth ? raw : '';
+      // Example / `ModelDownloadService`: notification + foreground worker matter
+      // only when a real transfer may run — skip when plugin already has weights.
+      if (!alreadyInstalled) {
+        await ensureAndroidModelDownloadNotificationPermission();
+      }
+      final token = (await HuggingfaceAuthTokenStore.loadToken() ?? '').trim();
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'install_network_start',
@@ -251,17 +269,17 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       if (msg.contains('space') ||
           msg.contains('storage') ||
           msg.contains('enospc')) {
-        throw LlmResourceException(
-          'Not enough storage to download $label. Free space and try again.',
-        );
+        throw LlmResourceException(rawInstallErrorLabel(e));
       }
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'install_network_failed',
         message: '$label download/install failed',
-        data: <String, Object?>{'error': '$e'},
+        data: <String, Object?>{'error': rawInstallErrorLabel(e)},
       );
-      throw LlmUnavailableException('Could not install $label: $e');
+      throw LlmUnavailableException(
+        'Could not install $label: ${rawInstallErrorLabel(e)}',
+      );
     }
   }
 
@@ -281,10 +299,9 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
         maxNumImages: GemmaModelConfig.activeModelMaxNumImages,
       );
     } on Object catch (e) {
-      // Match hub/settings warm-up: on iOS, any GPU open failure can be a
-      // LiteRT / TFLite graph issue (Simulator is especially common), not only
-      // delegate strings we classify as Metal.
-      if (_preferredBackend == PreferredBackend.gpu && Platform.isIOS) {
+      // GPU path can fail (iOS Metal, Android OpenCL / memory pressure) while
+      // the weights are fine — retry on CPU like [probeFlutterGemmaActiveModelReady].
+      if (_preferredBackend == PreferredBackend.gpu) {
         debugPrint(
           'FlutterGemmaLlmEngine: GPU backend failed, opening with CPU: $e',
         );
@@ -430,11 +447,11 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
           throw LlmUnavailableException(
             'The model is not a valid Gemma archive (LiteRT could not open it '
             'as a zip). $hint '
-            'Underlying error: $e2',
+            'Underlying error: ${rawInstallErrorLabel(e2)}',
           );
         }
         throw LlmUnavailableException(
-          'Could not open Gemma model after reinstall: $e2',
+          'Could not open Gemma model after reinstall: ${rawInstallErrorLabel(e2)}',
         );
       }
     }

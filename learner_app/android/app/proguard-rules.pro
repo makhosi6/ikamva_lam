@@ -21,3 +21,27 @@
 # Protocol buffers
 -keep class com.google.protobuf.** { *; }
 -dontwarn com.google.protobuf.**
+
+# LiteRT-LM (Gemma .litertlm) — JNI + reflection; mirror flutter_gemma consumer rules
+# so release R8 does not strip native stubs (UnsatisfiedLinkError on
+# NativeLibraryLoader.nativeCheckLoaded, etc.).
+-keep class com.google.ai.edge.litertlm.** { *; }
+-keep class com.google.ai.edge.litertlm.NativeLibraryLoader { *; }
+-keep class com.google.ai.edge.litertlm.LiteRtLmJni { *; }
+-keepclasseswithmembernames,includedescriptorclasses class com.google.ai.edge.litertlm.** {
+    native <methods>;
+}
+-keep class com.google.ai.edge.localagents.** { *; }
+-dontwarn com.google.ai.edge.localagents.**
+-keepclassmembers class com.google.mediapipe.tasks.genai.llminference.LlmInference { *; }
+-keep class com.google.mediapipe.proto.** { *; }
+
+# Guava / coroutines pulled in by LiteRT / MediaPipe
+-keep class com.google.common.** { *; }
+-dontwarn com.google.common.**
+-keep class kotlinx.coroutines.** { *; }
+-dontwarn kotlinx.coroutines.**
+
+# HF token from repo-root .env (BuildConfig + MainActivity MethodChannel)
+-keep class za.co.ikamvalam.ikamva_lam.BuildConfig { *; }
+-keep class za.co.ikamvalam.ikamva_lam.MainActivity { *; }

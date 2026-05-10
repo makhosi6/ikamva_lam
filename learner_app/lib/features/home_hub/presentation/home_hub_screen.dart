@@ -126,6 +126,15 @@ class _HomeHubRouteScopeState extends State<_HomeHubRouteScope>
             setState(() => _modelInitPercent = null);
           },
         ),
+        BlocListener<HomeHubBloc, HomeHubState>(
+          listenWhen: (prev, curr) =>
+              prev is HomeHubLoading &&
+              prev.phase == HomeHubLoadPhase.modelWarm &&
+              curr is HomeHubReady,
+          listener: (_, _) {
+            setState(() => _modelInitPercent = null);
+          },
+        ),
       ],
       child: _HomeHubView(
         loadingDiagnosticsScroll: _loadingDiagnosticsScroll,

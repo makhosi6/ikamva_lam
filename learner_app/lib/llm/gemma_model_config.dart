@@ -16,14 +16,14 @@ abstract final class GemmaModelConfig {
 
   /// Hugging Face **Gemma 4 E2B IT** `.litertlm` (same URL as flutter_gemma example).
   static const String gemma4E2bLitertlmUrl =
-      'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm';
+      'https://huggingface.co/google/gemma-3n-E2B-it-litert-lm/resolve/main/gemma-3n-E2B-it-int4.litertlm';
 
   static String get gemma4E2bLitertlmFilename =>
       filenameFromPathOrUrl(gemma4E2bLitertlmUrl);
 
   /// Hugging Face **Gemma 4 E4B IT** native `.litertlm` (same URL as flutter_gemma example).
   static const String gemma4E4bLitertlmUrl =
-      'https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm';
+      'https://huggingface.co/google/gemma-3n-E4B-it-litert-lm/resolve/main/gemma-3n-E4B-it-int4.litertlm';
 
   static String get gemma4E4bLitertlmFilename =>
       filenameFromPathOrUrl(gemma4E4bLitertlmUrl);

@@ -3,6 +3,7 @@ import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import 'detailed_smart_downloader.dart';
 import 'gemma_model_config.dart';
 import 'hf_local_file.dart';
 import 'huggingface_auth_token_store.dart';
@@ -60,6 +61,16 @@ class GemmaHfModelDownloadService {
 
   Future<String?> loadToken() => HuggingfaceAuthTokenStore.loadToken();
 
+  /// Same basename as [FlutterGemma.installModel] / repository (example `ModelDownloadService`).
+  String get artifactFilename {
+    final uri = Uri.parse(modelUrl);
+    return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : modelFilename;
+  }
+
+  /// Fast path: plugin registry only (no filesystem / HEAD), matches example before install.
+  Future<bool> isPluginModelInstalled() =>
+      FlutterGemma.isModelInstalled(artifactFilename);
+
   Future<String> getFilePath() async {
     final directory = await getApplicationDocumentsDirectory();
     final correctedPath = directory.path.contains('/data/user/0/')
@@ -71,13 +82,7 @@ class GemmaHfModelDownloadService {
   /// Example: [FlutterGemma.isModelInstalled], then optional filesystem + HEAD.
   Future<bool> checkModelExistence(String token) async {
     try {
-      final uri = Uri.parse(modelUrl);
-      final actualFilename = uri.pathSegments.isNotEmpty
-          ? uri.pathSegments.last
-          : modelFilename;
-
-      final isInstalled = await FlutterGemma.isModelInstalled(actualFilename);
-      if (isInstalled) {
+      if (await isPluginModelInstalled()) {
         return true;
       }
 
@@ -122,28 +127,44 @@ class GemmaHfModelDownloadService {
   Future<void> downloadModel({
     required String token,
     required void Function(double progress) onProgress,
+    void Function(String line)? onDiagnostic,
   }) async {
     final authToken = token.isEmpty ? null : token;
-    await FlutterGemma.installModel(
-      modelType: modelType,
-      fileType: fileType,
-    )
-        .fromNetwork(
-          modelUrl,
-          token: authToken,
-          foreground: foreground,
-        )
-        .withProgress((progress) => onProgress(progress.toDouble()))
-        .install();
+    final void Function(String line)? previous = DetailedSmartDownloader.onDiagnostic;
+    if (onDiagnostic != null) {
+      DetailedSmartDownloader.onDiagnostic = (line) {
+        previous?.call(line);
+        onDiagnostic(line);
+      };
+    }
+    try {
+      final chain = FlutterGemma.installModel(
+        modelType: modelType,
+        fileType: fileType,
+      ).fromNetwork(
+        modelUrl,
+        token: authToken,
+        foreground: foreground,
+      );
+      // Example `ChatScreen` / `ModelDownloadService`: install() is idempotent and
+      // skips transfer when already registered — avoid progress plumbing when fast.
+      if (await FlutterGemma.isModelInstalled(artifactFilename)) {
+        await chain.install();
+      } else {
+        await chain
+            .withProgress((progress) => onProgress(progress.toDouble()))
+            .install();
+      }
+    } finally {
+      if (onDiagnostic != null) {
+        DetailedSmartDownloader.onDiagnostic = previous;
+      }
+    }
   }
 
   Future<void> deleteModel() async {
     try {
-      final uri = Uri.parse(modelUrl);
-      final actualFilename = uri.pathSegments.isNotEmpty
-          ? uri.pathSegments.last
-          : modelFilename;
-      await FlutterGemma.uninstallModel(actualFilename);
+      await FlutterGemma.uninstallModel(artifactFilename);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Error deleting model: $e');

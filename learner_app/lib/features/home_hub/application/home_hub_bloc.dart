@@ -42,32 +42,72 @@ class HomeHubBloc extends Bloc<HomeHubEvent, HomeHubState> {
             'Warming on-device Gemma (first launch can take a few minutes)…',
       );
       emit(const HomeHubLoading(phase: HomeHubLoadPhase.modelWarm));
+      HubPayload? payload;
       try {
-        await LlmService.instance.ensureReady();
-        modelWarmSucceeded = true;
+        // Example app: hub topics / DB work is not blocked on the LLM path; overlap
+        // `ensureReady` with payload load so stored-model opens feel as fast as chat.
+        await Future.wait<void>([
+          () async {
+            try {
+              await LlmService.instance.ensureReady();
+              modelWarmSucceeded = true;
+              if (!isClosed) {
+                ModelDiagnostics.instance.log(
+                  area: 'hub',
+                  action: 'warm_ok',
+                  message: 'Gemma is ready for today\'s topics.',
+                );
+              }
+            } on Object catch (e) {
+              if (!isClosed) {
+                ModelDiagnostics.instance.log(
+                  area: 'hub',
+                  action: 'warm_failed',
+                  message: 'Could not finish model setup: $e',
+                  data: <String, Object?>{
+                    'hint': 'Settings → Warm up model; free storage',
+                  },
+                );
+              }
+            }
+          }(),
+          () async {
+            payload = await _repository
+                .loadPayload(_database)
+                .timeout(
+                  const Duration(minutes: 3),
+                  onTimeout: () => throw TimeoutException('hub_payload'),
+                );
+          }(),
+        ]);
+        if (isClosed) return;
         if (!isClosed) {
           ModelDiagnostics.instance.log(
             area: 'hub',
-            action: 'warm_ok',
-            message: 'Gemma is ready for today\'s topics.',
+            action: 'hub_content_ready',
+            message:
+                'Daily hub payload resolved; prefs/topics updated for navigation.',
+          );
+          emit(const HomeHubLoading(phase: HomeHubLoadPhase.fetchingHub));
+          emit(HomeHubReady(payload!));
+        }
+      } on Object {
+        if (!isClosed) {
+          emit(
+            const HomeHubFailure(
+              'We could not prepare today\'s topics in time. Please retry.',
+            ),
           );
         }
-      } on Object catch (e) {
-        if (!isClosed) {
-          ModelDiagnostics.instance.log(
-            area: 'hub',
-            action: 'warm_failed',
-            message: 'Could not finish model setup: $e',
-            data: <String, Object?>{
-              'hint': 'Settings → Warm up model; free storage',
-            },
-          );
+      } finally {
+        if (shouldUseFlutterGemmaEngine && modelWarmSucceeded) {
+          LlmService.instance.releaseInstallUiHooks(_settings);
         }
       }
-    } else {
-      modelWarmSucceeded = true;
+      return;
     }
 
+    modelWarmSucceeded = true;
     if (isClosed) return;
 
     emit(const HomeHubLoading(phase: HomeHubLoadPhase.fetchingHub));
@@ -94,10 +134,6 @@ class HomeHubBloc extends Bloc<HomeHubEvent, HomeHubState> {
             'We could not prepare today\'s topics in time. Please retry.',
           ),
         );
-      }
-    } finally {
-      if (shouldUseFlutterGemmaEngine && modelWarmSucceeded) {
-        LlmService.instance.releaseInstallUiHooks(_settings);
       }
     }
   }
