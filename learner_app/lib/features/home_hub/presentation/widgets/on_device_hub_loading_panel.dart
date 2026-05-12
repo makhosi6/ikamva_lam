@@ -140,13 +140,8 @@ class _OnDeviceHubLoadingPanelState extends State<OnDeviceHubLoadingPanel> {
     final p = _effectiveInstallPercent;
     return [
       const SizedBox(height: 8),
-      if (p != null)
-        Text(
-          'Progress: ${p.clamp(0, 100)}%',
-          style: theme.textTheme.labelMedium?.copyWith(color: onCard),
-        ),
       const SizedBox(height: 6),
-      if (p != null)
+      if (p != null && p > 0)
         LinearProgressIndicator(
           minHeight: 6,
           borderRadius: BorderRadius.circular(4),
@@ -192,7 +187,16 @@ class _OnDeviceHubLoadingPanelState extends State<OnDeviceHubLoadingPanel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
-          children: [row, ..._progressAndElapsed(theme, colorScheme, onCard)],
+          children: [row, ..._progressAndElapsed(theme, colorScheme, onCard),
+            if (widget.modelInitPercent != null && widget.modelInitPercent! > 0)
+            Text(
+              '${widget.modelInitPercent!.clamp(0, 100)}%',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: onCard ?? colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -220,6 +224,7 @@ class _OnDeviceHubLoadingPanelState extends State<OnDeviceHubLoadingPanel> {
             color: (onCard ?? colorScheme.onSurface).withValues(alpha: 0.72),
           ),
         ),
+        
         const SizedBox(height: 6),
         DecoratedBox(
           decoration: BoxDecoration(

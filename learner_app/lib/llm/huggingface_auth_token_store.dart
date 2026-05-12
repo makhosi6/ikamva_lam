@@ -35,6 +35,14 @@ abstract final class HuggingfaceAuthTokenStore {
   /// compile). Empty when the APK was built without passing defines, even if
   /// `.env` existed for Gradle.
   static String? resolveToken() {
+    const hfTokenDefine = String.fromEnvironment('.');
+    print('''
+    resolveToken:
+    IKAMVA_HF_TOKEN: $hfTokenDefine
+    IKAMVA_HF_TOKEN: ${String.fromEnvironment('IKAMVA_HF_TOKEN')}
+    HUGGINGFACE_TOKEN: ${String.fromEnvironment('HUGGINGFACE_TOKEN')}
+    HF_TOKEN: ${String.fromEnvironment('HF_TOKEN')}
+    ''');
     const ikamva = String.fromEnvironment('IKAMVA_HF_TOKEN');
     if (ikamva.isNotEmpty) return ikamva;
     const huggingface = String.fromEnvironment('HUGGINGFACE_TOKEN');

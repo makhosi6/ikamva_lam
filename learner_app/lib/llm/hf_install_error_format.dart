@@ -1,5 +1,4 @@
-import 'package:flutter_gemma/core/domain/download_error.dart';
-import 'package:flutter_gemma/core/domain/download_exception.dart';
+import 'download_domain.dart';
 
 /// Technical [DownloadError] description (not [DownloadError.toUserMessage]).
 String rawDownloadErrorLabel(DownloadError e) {

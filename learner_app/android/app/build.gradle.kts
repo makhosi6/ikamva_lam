@@ -109,7 +109,7 @@ flutter {
     source = "../.."
 }
 
-// Resolved only to unpack JNI; Java API still comes from flutter_gemma’s dependency.
+// Resolved only to unpack JNI; Java API comes from explicit `litertlm-android` below.
 val litertlmUnpack =
     configurations.create("litertlmUnpack") {
         isCanBeResolved = true
@@ -117,9 +117,11 @@ val litertlmUnpack =
     }
 dependencies {
     "litertlmUnpack"("com.google.ai.edge.litertlm:litertlm-android:$litertlmAndroidVersion") {
-        // Otherwise Gradle resolves transitive artifacts and the unpack task sees >1 file.
         isTransitive = false
     }
+    implementation("com.google.mediapipe:tasks-genai:0.10.33")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:$litertlmAndroidVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }
 
 val extractLiteRtJniLibs =

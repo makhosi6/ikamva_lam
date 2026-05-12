@@ -116,10 +116,11 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
   Future<String> _hfToken() async =>
       (await HuggingfaceAuthTokenStore.loadToken())?.trim() ?? '';
 
-  /// [flutter_gemma] may report **0–1** or **0–100** depending on platform/build.
+  /// Some paths report **0–1** fractions; [DetailedSmartDownloader] uses **0–100** ints.
+  /// Use **strict** `< 1` for fractions so `1` means **1%**, not 100%.
   static double _normalizeHfPercent(double p) {
     if (p.isNaN || p.isInfinite) return 0;
-    if (p >= 0 && p <= 1.0) return (p * 100).clamp(0, 100);
+    if (p > 0 && p < 1) return (p * 100).clamp(0, 100);
     return p.clamp(0, 100);
   }
 

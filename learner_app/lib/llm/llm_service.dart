@@ -11,10 +11,8 @@ import 'streaming_llm_capability.dart';
 
 /// App-wide access to on-device LLM (TASKS §6.4–6.8).
 ///
-/// Uses [FlutterGemmaLlmEngine]: **Gemma 4 E2B or E4B** from Hugging Face
-/// (`fromNetwork`), per [SettingsStore.gemma4OnDeviceVariant]. [ensureLoaded]
-/// opens the active model or reinstalls. Call [configure] with [SettingsStore]
-/// before generation.
+/// Uses [FlutterGemmaLlmEngine]: **Gemma 4 E2B or E4B** from Hugging Face to app
+/// documents, then **native MethodChannel** (LiteRT-LM on Android, MediaPipe on iOS).
 ///
 /// Removed: `ProcessLlmEngine` / `llama-cli` / GGUF / `native/build` paths.
 class LlmService {

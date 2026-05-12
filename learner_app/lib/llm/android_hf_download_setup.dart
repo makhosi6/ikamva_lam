@@ -22,7 +22,7 @@ Future<void> configureAndroidLargeModelHfDownloadSupport() async {
       kFlutterGemmaHfDownloadTaskGroup,
       running: const TaskNotification(
         'Downloading Gemma 4 model',
-        '{filename} · {progress}% · {timeRemaining}',
+        '{filename} · {progress} · {timeRemaining}',
       ),
       complete: const TaskNotification(
         'Model ready',

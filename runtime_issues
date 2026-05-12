@@ -1,0 +1,16 @@
+W/libc    (13464): Access denied finding property "ro.vendor.display.iris_x7.support"
+...
+W/libc    (13464): Access denied finding property "ro.hardware.chipname"
+...
+W/libc    (13464): Access denied finding property "vendor.migl.debug"
+...
+E/alam.ikamva_lam(13464): QUEUE_BUFFER_TIMEOUT: surfaceName: SurfaceView[za.co.ikamvalam.ikamva_lam/za.co.ikamvalam.ikamva_l, fenceName: GPU completion, lastDuration: 2, waitFenceTime: 999
+4
+E/BLASTBufferQueue(13464): [SurfaceView[za.co.ikamvalam.ikamva_lam/za.co.ikamvalam.ikamva_lam.MainActivity]#1](f:1,a:5) acquireNextBufferLocked: Can't acquire next buffer. Already acquired max frames 5 max:3 + 2
+E/alam.ikamva_lam(13464): QUEUE_BUFFER_TIMEOUT: surfaceName: SurfaceView[za.co.ikamvalam.ikamva_lam/za.co.ikamvalam.ikamva_l, fenceName: GPU completion, lastDuration: 0, waitFenceTime: 122
+4
+E/BLASTBufferQueue(13464): [SurfaceView[za.co.ikamvalam.ikamva_lam/za.co.ikamvalam.ikamva_lam.MainActivity]#1](f:1,a:5) acquireNextBufferLocked: Can't acquire next buffer. Already acquired max frames 5 max:3 + 2
+I/ActivityThread(13464): ApplicationInfo updating for za.co.ikamvalam.ikamva_lam, new timestamp: 58788966
+I/ActivityThread(13464): assets removed: [/data/resource-cache/com.android.systemui-neutral-uWQi.frro, /data/resource-cache/com.android.systemui-accent-YHlc.frro, /data/resource-cache/com.android.systemui-dynamic-MZ3h.frro]
+I/ActivityThread(13464): assets added: [/data/resource-cache/com.android.systemui-neutral-IDUA.frro, /data/resource-cache/com.android.systemui-accent-FGJ0.frro, /data/resource-cache/com.android.systemui-dynamic-B7JV.frro]
+E/BLASTBufferQueue(13464): [SurfaceView[za.co.ikamvalam.ikamva_lam/za.co.ikamvalam.ikamva_lam.MainActivity]#1](f:1,a:5) acquireNextBufferLocked: Can't acquire next buffer. Already acquired max frames 5 max:3 + 2

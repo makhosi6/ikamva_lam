@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../db/app_database.dart';
@@ -44,42 +45,45 @@ class HomeHubBloc extends Bloc<HomeHubEvent, HomeHubState> {
       emit(const HomeHubLoading(phase: HomeHubLoadPhase.modelWarm));
       HubPayload? payload;
       try {
-        // Example app: hub topics / DB work is not blocked on the LLM path; overlap
-        // `ensureReady` with payload load so stored-model opens feel as fast as chat.
-        await Future.wait<void>([
-          () async {
-            try {
-              await LlmService.instance.ensureReady();
-              modelWarmSucceeded = true;
-              if (!isClosed) {
-                ModelDiagnostics.instance.log(
-                  area: 'hub',
-                  action: 'warm_ok',
-                  message: 'Gemma is ready for today\'s topics.',
-                );
-              }
-            } on Object catch (e) {
-              if (!isClosed) {
-                ModelDiagnostics.instance.log(
-                  area: 'hub',
-                  action: 'warm_failed',
-                  message: 'Could not finish model setup: $e',
-                  data: <String, Object?>{
-                    'hint': 'Settings → Warm up model; free storage',
-                  },
-                );
-              }
-            }
-          }(),
-          () async {
-            payload = await _repository
-                .loadPayload(_database)
-                .timeout(
-                  const Duration(minutes: 3),
-                  onTimeout: () => throw TimeoutException('hub_payload'),
-                );
-          }(),
-        ]);
+        
+        // Yield until the loading panel paints once. flutter_gemma's GPU open
+        // saturates the OpenCL pipeline; if it starts on the same vsync as the
+        // first frame, FlutterSurfaceView/TextureView can lose its buffer queue
+        // (BLASTBufferQueue "Already acquired max frames") mid-init and crash.
+        await SchedulerBinding.instance.endOfFrame;
+        // Run warm-up before hub payload. Overlapping used to hide latency on fast
+        // devices, but [DailyTopicsService] can call `LlmService.generate` (and the
+        // cached path runs batch sentiment) while LiteRT is still compiling the
+        // OpenCL delegate — that stacks GPU + Impeller work and triggers
+        // QUEUE_BUFFER_TIMEOUT / process death on weak GPUs (see crush_log).
+        try {
+          await LlmService.instance.ensureReady();
+          modelWarmSucceeded = true;
+          if (!isClosed) {
+            ModelDiagnostics.instance.log(
+              area: 'hub',
+              action: 'warm_ok',
+              message: 'Gemma is ready for today\'s topics.',
+            );
+          }
+        } on Object catch (e) {
+          if (!isClosed) {
+            ModelDiagnostics.instance.log(
+              area: 'hub',
+              action: 'warm_failed',
+              message: 'Could not finish model setup: $e',
+              data: <String, Object?>{
+                'hint': 'Settings → Warm up model; free storage',
+              },
+            );
+          }
+        }
+        payload = await _repository
+            .loadPayload(_database)
+            .timeout(
+              const Duration(minutes: 3),
+              onTimeout: () => throw TimeoutException('hub_payload'),
+            );
         if (isClosed) return;
         if (!isClosed) {
           ModelDiagnostics.instance.log(
@@ -89,7 +93,7 @@ class HomeHubBloc extends Bloc<HomeHubEvent, HomeHubState> {
                 'Daily hub payload resolved; prefs/topics updated for navigation.',
           );
           emit(const HomeHubLoading(phase: HomeHubLoadPhase.fetchingHub));
-          emit(HomeHubReady(payload!));
+          emit(HomeHubReady(payload));
         }
       } on Object {
         if (!isClosed) {

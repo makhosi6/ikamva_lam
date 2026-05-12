@@ -38,6 +38,18 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!--
+              Last-resort GPU mitigation for very weak SoCs (e.g. MediaTek Iris X7):
+              uncomment the meta-data below to disable Impeller and fall back to the
+              Skia renderer. Skia uses OpenGL ES instead of Vulkan, which avoids
+              competing with LiteRT's OpenCL delegate for the same Vulkan queue and
+              has eliminated VRI[MainActivity] BLAST QUEUE_BUFFER_TIMEOUT crashes
+              during Gemma 4 warm-up on those devices in our testing.
+
+              <meta-data
+                android:name="io.flutter.embedding.android.EnableImpeller"
+                android:value="false" />
+            -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

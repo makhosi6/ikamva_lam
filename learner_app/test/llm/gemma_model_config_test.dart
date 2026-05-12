@@ -1,4 +1,3 @@
-import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ikamva_lam/llm/gemma_model_config.dart';
 
@@ -40,15 +39,15 @@ void main() {
     expect(ids, contains('gemma-4-E2B-it'));
   });
 
-  test('fileTypeForPath maps known model extensions', () {
-    expect(GemmaModelConfig.fileTypeForPath('model.task'), ModelFileType.task);
+  test('fileKindForPath maps known model extensions', () {
+    expect(GemmaModelConfig.fileKindForPath('model.task'), InstallModelFileKind.task);
     expect(
-      GemmaModelConfig.fileTypeForPath('model.litertlm'),
-      ModelFileType.litertlm,
+      GemmaModelConfig.fileKindForPath('model.litertlm'),
+      InstallModelFileKind.litertlm,
     );
     expect(
-      GemmaModelConfig.fileTypeForPath('weights.bin'),
-      ModelFileType.binary,
+      GemmaModelConfig.fileKindForPath('weights.bin'),
+      InstallModelFileKind.binary,
     );
   });
 }

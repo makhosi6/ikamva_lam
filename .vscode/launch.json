@@ -8,19 +8,26 @@
       "type": "dart",
       "program": "lib/main.dart",
       "toolArgs": [
-        "--dart-define-from-file=${workspaceFolder}/.env"
+        "--dart-define-from-file=${workspaceFolder}/.env",
+        "--dart-define=IKAMVA_MODEL_DOWNLOAD_URL=https://huggingface.co/datasets/ikamva",
+        "--dart-define=IKAMVA_MODEL_ESTIMATED_MB=2048",
+        "--dart-define=IKAMVA_MODEL_MIN_FREE_MB=2048",
+        "--dart-define=IKAMVA_MODEL_HEADROOM_MB=256"
       ]
     },
     {
-      "name": "ikamva_lam (debug, model size defines only)",
+      "name": "ikamva_lam (debug, GPU backend)",
       "cwd": "${workspaceFolder}/learner_app",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
       "toolArgs": [
         "--dart-define-from-file=${workspaceFolder}/.env",
+        "--dart-define=IKAMVA_FORCE_CPU_BACKEND=0",
+        "--dart-define=IKAMVA_MODEL_DOWNLOAD_URL=https://huggingface.co/datasets/ikamva",
         "--dart-define=IKAMVA_MODEL_ESTIMATED_MB=2048",
-        "--dart-define=IKAMVA_MODEL_MIN_FREE_MB=2048"
+        "--dart-define=IKAMVA_MODEL_MIN_FREE_MB=2048",
+        "--dart-define=IKAMVA_MODEL_HEADROOM_MB=256"
       ]
     },
     {
@@ -31,7 +38,11 @@
       "flutterMode": "profile",
       "program": "lib/main.dart",
       "toolArgs": [
-        "--dart-define-from-file=${workspaceFolder}/.env"
+        "--dart-define-from-file=${workspaceFolder}/.env",
+        "--dart-define=IKAMVA_MODEL_DOWNLOAD_URL=https://huggingface.co/datasets/ikamva",
+        "--dart-define=IKAMVA_MODEL_ESTIMATED_MB=2048",
+        "--dart-define=IKAMVA_MODEL_MIN_FREE_MB=2048",
+        "--dart-define=IKAMVA_MODEL_HEADROOM_MB=256"
       ]
     },
     {
@@ -42,7 +53,11 @@
       "flutterMode": "release",
       "program": "lib/main.dart",
       "toolArgs": [
-        "--dart-define-from-file=${workspaceFolder}/.env"
+        "--dart-define-from-file=${workspaceFolder}/.env",
+        "--dart-define=IKAMVA_MODEL_DOWNLOAD_URL=https://huggingface.co/datasets/ikamva",
+        "--dart-define=IKAMVA_MODEL_ESTIMATED_MB=2048",
+        "--dart-define=IKAMVA_MODEL_MIN_FREE_MB=2048",
+        "--dart-define=IKAMVA_MODEL_HEADROOM_MB=256"
       ]
     }
   ]

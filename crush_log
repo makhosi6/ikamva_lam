@@ -1,0 +1,272 @@
+Resolving dependencies...
+Downloading packages...
+  _fe_analyzer_shared 93.0.0 (100.0.0 available)
+  analyzer 10.0.1 (13.0.0 available)
+  build 4.0.5 (4.0.6 available)
+  build_runner 2.13.1 (2.15.0 available)
+  built_value 8.12.5 (8.12.6 available)
+  cli_util 0.4.2 (0.5.1 available)
+  dart_style 3.1.7 (3.1.9 available)
+  drift 2.32.1 (2.33.0 available)
+  drift_dev 2.32.1 (2.33.0 available)
+  flutter_gemma 0.13.6 (0.14.5 available)
+  go_router 14.8.1 (17.2.3 available)
+  google_fonts 6.3.3 (8.1.0 available)
+  hooks 1.0.2 (1.0.3 available)
+  matcher 0.12.19 (0.12.20 available)
+  meta 1.17.0 (1.18.2 available)
+  native_toolchain_c 0.17.6 (0.18.0 available)
+  path_provider_foundation 2.5.1 (2.6.0 available)
+  source_gen 4.2.2 (4.2.3 available)
+  sqflite_common 2.5.6+1 (2.5.7 available)
+  sqlparser 0.44.3 (0.44.4 available)
+  synchronized 3.4.0 (3.4.0+1 available)
+  test_api 0.7.10 (0.7.12 available)
+  vector_math 2.2.0 (2.3.0 available)
+  vm_service 15.1.0 (15.2.0 available)
+  xml 6.6.1 (7.0.1 available)
+Got dependencies!
+25 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Launching lib/main.dart on 23106RN0DA in debug mode...
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+D/FlutterJNI(28134): Beginning load of flutter...
+D/FlutterJNI(28134): flutter (null) was loaded normally!
+I/flutter (28134): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+W/FlutterJNI(28134): FlutterJNI.loadLibrary called more than once
+D/FlutterJNI(28134): Beginning load of flutter...
+D/FlutterJNI(28134): flutter (null) was loaded normally!
+W/FlutterJNI(28134): FlutterJNI.prefetchDefaultFontManager called more than once
+W/FlutterJNI(28134): FlutterJNI.init called more than once
+D/FlutterRenderer(28134): Width is zero. 0,0
+D/FlutterRenderer(28134): Width is zero. 0,0
+D/FlutterJNI(28134): Sending viewport metrics to the engine.
+I/alam.ikamva_lam(28134): Compiler allocated 6713KB to compile void android.view.ViewRootImpl.performTraversals()
+Connecting to VM Service at ws://127.0.0.1:57605/XxxhnN48iw0=/ws
+Connected to the VM Service.
+D/HWUI    (28134): makeCurrent grContext:0xb4000073d4fe0350 reset mTextureAvailable
+D/alam.ikamva_lam(28134): MiuiProcessManagerServiceStub setSchedFifo
+I/MiuiProcessManagerImpl(28134): setSchedFifo pid:28134, mode:3
+I/GrallocExtra(28134): gralloc_extra_query:is_SW3D 0
+W/libc    (28134): Access denied finding property "ro.vendor.display.iris_x7.support"
+E/LB      (28134): fail to open file: No such file or directory
+E/LB      (28134): fail to open node: No such file or directory
+E/LB      (28134): fail to open node: No such file or directory
+I/GrallocExtra(28134): gralloc_extra_query:is_SW3D 0
+W/libc    (28134): Access denied finding property "ro.vendor.display.iris_x7.support"
+D/BLASTBufferQueue(28134): [VRI[MainActivity]#0](f:0,a:1) acquireNextBufferLocked size=720x1600 mFrameNumber=1 applyTransaction=true mTimestamp=60258215817359(auto) mPendingTransactions.size=0 graphicBufferId=120834609905668 transform=0
+D/alam.ikamva_lam(28134): Can't load libmbrainSDK
+D/VRI[MainActivity](28134): vri.reportDrawFinished
+I/HWUI    (28134): Davey! duration=1064ms; Flags=1, FrameTimelineVsyncId=1190280, IntendedVsync=60257175842998, Vsync=60257192494255, InputEventId=0, HandleInputStart=60257200277282, AnimationStart=60257200282513, PerformTraversalsStart=60257200284436, DrawStart=60257349199436, FrameDeadline=60257192842998, FrameInterval=60257200155820, FrameStartTime=16651257, SyncQueued=60258118023513, SyncStart=60258119338590, IssueDrawCommandsStart=60258151775821, SwapBuffers=60258205805974, FrameCompleted=60258241547205, DequeueBufferDuration=39077, QueueBufferDuration=5131076, GpuCompleted=60258206267128, SwapBuffersCompleted=60258241547205, DisplayPresentTime=0, CommandSubmissionCompleted=60258205805974,
+I/HandWritingStubImpl(28134): refreshLastKeyboardType: 1
+I/HandWritingStubImpl(28134): getCurrentKeyboardType: 1
+D/FlutterJNI(28134): Sending viewport metrics to the engine.
+I/HandWritingStubImpl(28134): getCurrentKeyboardType: 1
+D/ProfileInstaller(28134): Installing profile for za.co.ikamvalam.ikamva_lam
+W/MIUIScout App(28134): Enter APP_SCOUT_SLOW state
+D/BackgroundDownloader(28134): Setting preference key com.bbflight.background_downloader.config.foregroundFileSize to 0
+V/BackgroundDownloader(28134): Enabled foreground mode for all tasks
+I/flutter (28134): ModelDiagnostics [service/configure] Configured LLM service {"lowRam":false}
+I/flutter (28134): IkamvaDatabase path: /data/user/0/za.co.ikamvalam.ikamva_lam/app_flutter/ikamva.db
+I/TextToSpeech(28134): Connected to TTS engine
+W/alam.ikamva_lam(28134): userfaultfd: MOVE ioctl seems unsupported: Connection timed out
+W/alam.ikamva_lam(28134): ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~WjhaAM3SRnhmAKAWvvhrcQ==/com.google.android.tts-xIE9MBrQP5tILJ_40ZxMtg==/base.apk' with 1 weak references
+W/alam.ikamva_lam(28134): ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~WjhaAM3SRnhmAKAWvvhrcQ==/com.google.android.tts-xIE9MBrQP5tILJ_40ZxMtg==/split_config.arm64_v8a.apk' with 1 weak references
+W/alam.ikamva_lam(28134): ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~WjhaAM3SRnhmAKAWvvhrcQ==/com.google.android.tts-xIE9MBrQP5tILJ_40ZxMtg==/split_config.en.apk' with 1 weak references
+W/alam.ikamva_lam(28134): ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~WjhaAM3SRnhmAKAWvvhrcQ==/com.google.android.tts-xIE9MBrQP5tILJ_40ZxMtg==/split_config.xhdpi.apk' with 1 weak references
+W/BpBinder(28134): Slow Binder: BpBinder transact took 756 ms, interface=android.speech.tts.ITextToSpeechService, code=15 oneway=false
+I/TextToSpeech(28134): Setting up the connection to TTS engine...
+E/alam.ikamva_lam(28134): DynamicFPS DF open fail: No such file or directory
+E/alam.ikamva_lam(28134): FrameInsert open fail: No such file or directory
+D/FlutterJNI(28134): Sending viewport metrics to the engine.
+W/libc    (28134): Access denied finding property "ro.vendor.display.iris_x7.support"
+W/libc    (28134): Access denied finding property "ro.vendor.display.iris_x7.support"
+W/libc    (28134): Access denied finding property "ro.vendor.display.iris_x7.support"
+I/flutter (28134): ModelDiagnostics [service/configure] Configured LLM service {"lowRam":false}
+I/flutter (28134): ModelDiagnostics [hub/warm_start] Warming on-device Gemma (first launch can take a few minutes)…
+I/Choreographer(28134): Skipped 84 frames!  The application may be doing too much work on its main thread.
+D/UserSceneDetector(28134): invoke error.
+I/HWUI    (28134): Davey! duration=1406ms; Flags=0, FrameTimelineVsyncId=1191352, IntendedVsync=60265988143350, Vsync=60267387397038, InputEventId=0, HandleInputStart=60267390030590, AnimationStart=60267390041052, PerformTraversalsStart=60267390046898, DrawStart=60267390443206, FrameDeadline=60266005143350, FrameInterval=60267387704975, FrameStartTime=16657782, SyncQueued=60267390731744, SyncStart=60267391536360, IssueDrawCommandsStart=60267391583436, SwapBuffers=60267393943821, FrameCompleted=60267395517052, DequeueBufferDuration=142153, QueueBufferDuration=1090154, GpuCompleted=60267395517052, SwapBuffersCompleted=60267395502898, DisplayPresentTime=0, CommandSubmissionCompleted=60267393943821,
+I/flutter (28134): ModelDiagnostics [service/ensure_ready] Ensuring model is ready
+I/flutter (28134): ModelDiagnostics [service/generate] Run one-shot generation {"maxTokens":220,"context":768}
+I/flutter (28134): ModelDiagnostics [engine/install_network_start] Installing Gemma 4 E2B from network {"url":"https://huggingface.co/google/gemma-3n-E2B-it-litert-lm/resolve/main/gemma-3n-E2B-it-int4.litertlm"}
+I/flutter (28134): ℹ️  Model already installed: gemma-3n-E2B-it-int4.litertlm (skipping download)
+I/flutter (28134): ✅ Set active inference model: gemma-3n-E2B-it-int4
+I/flutter (28134): ✅ Inference model installed and set as active: gemma-3n-E2B-it-int4
+I/flutter (28134): ModelDiagnostics [engine/install_network_ok] Gemma 4 E2B install finished
+I/flutter (28134): ModelDiagnostics [engine/open_attempt] Opening active model {"backend":"gpu"}
+I/flutter (28134): UnifiedModelManager initialized successfully
+I/flutter (28134): UnifiedModelManager: Model gemma-3n-E2B-it-int4 installed: true
+I/flutter (28134): UnifiedModelManager: Model gemma-3n-E2B-it-int4 installed: true
+I/flutter (28134): Using unified model file: /data/data/za.co.ikamvalam.ikamva_lam/app_flutter/gemma-3n-E2B-it-int4.litertlm
+W/WindowOnBackDispatcher(28134): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(28134): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+I/LiteRtLmEngine(28134): Initializing LiteRT-LM engine with backend: com.google.ai.edge.litertlm.Backend$GPU@1231d7a, visionBackend: com.google.ai.edge.litertlm.Backend$GPU@1231d7a, audioBackend: CPU(numOfThreads=null), maxTokens: 1024
+E/alam.ikamva_lam(28134): No implementation found for void com.google.ai.edge.litertlm.NativeLibraryLoader.nativeCheckLoaded() (tried Java_com_google_ai_edge_litertlm_NativeLibraryLoader_nativeCheckLoaded and Java_com_google_ai_edge_litertlm_NativeLibraryLoader_nativeCheckLoaded__) - is the library loaded, e.g. System.loadLibrary?
+D/nativeloader(28134): Load /data/app/~~XbRoy-hqndIv58Evf7g0ag==/za.co.ikamvalam.ikamva_lam-UNS4bdNRBlMPaGFwRk3SSg==/lib/arm64/liblitertlm_jni.so using class loader ns clns-7 (caller=/data/app/~~XbRoy-hqndIv58Evf7g0ag==/za.co.ikamvalam.ikamva_lam-UNS4bdNRBlMPaGFwRk3SSg==/base.apk!classes17.dex): ok
+I/native  (28134): I0000 00:00:1778428133.237475   28820 litert_lm_loader.cc:126] LitertLmLoader::Initialize
+I/native  (28134): I0000 00:00:1778428133.731519   28820 litert_lm_loader.cc:149] mmap_status is ok
+I/native  (28134): I0000 00:00:1778428133.733503   28820 litert_lm_loader.cc:155] status: OK
+I/native  (28134): I0000 00:00:1778428133.733651   28820 litert_lm_loader.cc:156] major_version: 1
+I/native  (28134): I0000 00:00:1778428133.733697   28820 litert_lm_loader.cc:157] minor_version: 4
+I/native  (28134): I0000 00:00:1778428133.733727   28820 litert_lm_loader.cc:158] patch_version: 0
+I/native  (28134): I0000 00:00:1778428133.733916   28820 litert_lm_loader.cc:209] section_index: 0
+I/native  (28134): I0000 00:00:1778428133.733996   28820 litert_lm_loader.cc:210] section_data_type: LlmMetadataProto
+I/native  (28134): I0000 00:00:1778428133.734029   28820 litert_lm_loader.cc:212] section_begin_offset: 16384
+I/native  (28134): I0000 00:00:1778428133.734059   28820 litert_lm_loader.cc:213] section_end_offset: 19446
+I/native  (28134): I0000 00:00:1778428133.734092   28820 litert_lm_loader.cc:209] section_index: 1
+I/native  (28134): I0000 00:00:1778428133.734150   28820 litert_lm_loader.cc:210] section_data_type: SP_Tokenizer
+I/native  (28134): I0000 00:00:1778428133.734191   28820 litert_lm_loader.cc:212] section_begin_offset: 32768
+I/native  (28134): I0000 00:00:1778428133.734227   28820 litert_lm_loader.cc:213] section_end_offset: 4728788
+I/native  (28134): I0000 00:00:1778428133.735708   28820 litert_lm_loader.cc:190] model_type: tf_lite_embedder
+I/native  (28134): I0000 00:00:1778428133.735889   28820 litert_lm_loader.cc:209] section_index: 2
+I/native  (28134): I0000 00:00:1778428133.735939   28820 litert_lm_loader.cc:210] section_data_type: TFLiteModel
+I/native  (28134): I0000 00:00:1778428133.735969   28820 litert_lm_loader.cc:212] section_begin_offset: 4734976
+I/native  (28134): I0000 00:00:1778428133.735997   28820 litert_lm_loader.cc:213] section_end_offset: 276320080
+I/native  (28134): I0000 00:00:1778428133.736029   28820 litert_lm_loader.cc:190] model_type: tf_lite_per_layer_embedder
+I/native  (28134): I0000 00:00:1778428133.736059   28820 litert_lm_loader.cc:209] section_index: 3
+I/native  (28134): I0000 00:00:1778428133.736087   28820 litert_lm_loader.cc:210] section_data_type: TFLiteModel
+I/native  (28134): I0000 00:00:1778428133.736113   28820 litert_lm_loader.cc:212] section_begin_offset: 276332544
+I/native  (28134): I0000 00:00:1778428133.736141   28820 litert_lm_loader.cc:213] section_end_offset: 1377352008
+I/native  (28134): I0000 00:00:1778428133.736175   28820 litert_lm_loader.cc:190] model_type: tf_lite_audio_encoder_hw
+I/native  (28134): I0000 00:00:1778428133.736206   28820 litert_lm_loader.cc:203] section_backend_constraint: cpu
+I/native  (28134): I0000 00:00:1778428133.736287   28820 litert_lm_loader.cc:209] section_index: 4
+I/native  (28134): I0000 00:00:1778428133.736324   28820 litert_lm_loader.cc:210] section_data_type: TFLiteModel
+I/native  (28134): I0000 00:00:1778428133.736353   28820 litert_lm_loader.cc:212] section_begin_offset: 1377353728
+I/native  (28134): I0000 00:00:1778428133.736381   28820 litert_lm_loader.cc:213] section_end_offset: 2042018648
+I/native  (28134): I0000 00:00:1778428133.736421   28820 litert_lm_loader.cc:190] model_type: tf_lite_audio_adapter
+I/native  (28134): I0000 00:00:1778428133.736452   28820 litert_lm_loader.cc:203] section_backend_constraint: cpu
+I/native  (28134): I0000 00:00:1778428133.736481   28820 litert_lm_loader.cc:209] section_index: 5
+I/native  (28134): I0000 00:00:1778428133.736508   28820 litert_lm_loader.cc:210] section_data_type: TFLiteModel
+I/native  (28134): I0000 00:00:1778428133.736535   28820 litert_lm_loader.cc:212] section_begin_offset: 2042019840
+I/native  (28134): I0000 00:00:1778428133.736562   28820 litert_lm_loader.cc:213] section_end_offset: 2054614900
+I/native  (28134): I0000 00:00:1778428133.736647   28820 litert_lm_loader.cc:190] model_type: tf_lite_end_of_audio
+I/native  (28134): I0000 00:00:1778428133.736682   28820 litert_lm_loader.cc:209] section_index: 6
+I/native  (28134): I0000 00:00:1778428133.736719   28820 litert_lm_loader.cc:210] section_data_type: TFLiteModel
+I/native  (28134): I0000 00:00:1778428133.736750   28820 litert_lm_loader.cc:212] section_begin_offset: 2054619136
+I/native  (28134): I0000 00:00:1778428133.736787   28820 litert_lm_loader.cc:213] section_end_offset: 2054627956
+I/native  (28134): I0000 00:00:1778428133.736816   28820 litert_lm_loader.cc:190] model_type: tf_lite_vision_adapter
+I/native  (28134): I0000 00:00:1778428133.736845   28820 litert_lm_loader.cc:203] section_backend_constraint: cpu
+I/native  (28134): I0000 00:00:1778428133.737104   28820 litert_lm_loader.cc:209] section_index: 7
+I/native  (28134): I0000 00:00:1778428133.737165   28820 litert_lm_loader.cc:210] section_data_type: TFLiteModel
+I/native  (28134): I0000 00:00:1778428133.737195   28820 litert_lm_loader.cc:212] section_begin_offset: 2054635520
+I/native  (28134): I0000 00:00:1778428133.737222   28820 litert_lm_loader.cc:213] section_end_offset: 2072490148
+I/native  (28134): I0000 00:00:1778428133.737254   28820 litert_lm_loader.cc:190] model_type: tf_lite_vision_encoder
+I/native  (28134): I0000 00:00:1778428133.737284   28820 litert_lm_loader.cc:203] section_backend_constraint: gpu
+I/native  (28134): I0000 00:00:1778428133.737311   28820 litert_lm_loader.cc:209] section_index: 8
+I/native  (28134): I0000 00:00:1778428133.737338   28820 litert_lm_loader.cc:210] section_data_type: TFLiteModel
+I/native  (28134): I0000 00:00:1778428133.737365   28820 litert_lm_loader.cc:212] section_begin_offset: 2072494080
+I/native  (28134): I0000 00:00:1778428133.737401   28820 litert_lm_loader.cc:213] section_end_offset: 2225230968
+I/native  (28134): I0000 00:00:1778428133.737430   28820 litert_lm_loader.cc:190] model_type: tf_lite_prefill_decode
+I/native  (28134): I0000 00:00:1778428133.737461   28820 litert_lm_loader.cc:203] section_backend_constraint: cpu,gpu
+I/native  (28134): I0000 00:00:1778428133.737489   28820 litert_lm_loader.cc:209] section_index: 9
+I/native  (28134): I0000 00:00:1778428133.737517   28820 litert_lm_loader.cc:210] section_data_type: TFLiteModel
+I/native  (28134): I0000 00:00:1778428133.737543   28820 litert_lm_loader.cc:212] section_begin_offset: 2225242112
+I/native  (28134): I0000 00:00:1778428133.737570   28820 litert_lm_loader.cc:213] section_end_offset: 3655827368
+I/native  (28134): I0000 00:00:1778428133.738694   28820 engine_impl.cc:312] New model files have LlmModelType, loading tokenizer asynchronously
+I/native  (28134): I0000 00:00:1778428133.739903   28820 engine_settings.cc:95] The Main backend constraint is matched: GPU
+I/native  (28134): I0000 00:00:1778428133.740440   28820 engine_settings.cc:95] The Vision backend constraint is matched: GPU
+I/native  (28134): I0000 00:00:1778428133.740572   28820 engine_settings.cc:95] The Audio backend constraint is matched: CPU
+I/native  (28134): I0000 00:00:1778428133.740659   28820 engine_settings.cc:343] The validated engine settings: EngineSettings:
+I/native  (28134):   MainExecutorSettings: backend: GPU
+I/native  (28134): backend_config:
+I/native  (28134): max_top_k: 1
+I/native  (28134):
+I/native  (28134): max_tokens: 1024
+I/native  (28134): activation_data_type: Not set
+I/native  (28134): max_num_images: 0
+I/native  (28134): lora_rank: 0
+I/native  (28134): cache_dir: /data/user/0/za.co.ikamvalam.ikamva_lam/cache
+I/native  (28134): cache_file: Not set
+I/native  (28134): litert_dispatch_lib_dir: Not set
+I/native  (28134): model_assets: model_path: /data/data/za.co.ikamvalam.ikamva_lam/app_flutter/gemma-3n-E2B-it-int4.litertlm
+I/native  (28134): fake_weights_mode: FAKE_WEIGHTS_NONE
+I/native  (28134):
+I/native  (28134): advanced_settings: prefill_batch_sizes: []
+I/native  (28134): num_output_candidates: 1
+I/native  (28134): configure_magic_numbers: true
+I/native  (28134): verify_magic_numbers: false
+I/native  (28134): clear_kv_cache_before_prefill: true
+I/native  (28134): num_logits_to_print_after_decode: 0
+I/native  (28134): gpu_madvise_original_shared_tensors: true
+I/native  (28134): is_benchmark: false
+I/native  (28134): preferred_device_substr:
+I/native  (28134): num_threads_to_upload: -1
+I/native  (28134): num_threads_to_compile: -1
+I/native  (28134): convert_weights_on_gpu: true
+I/native  (28134): wait_for_weights_conversion_complete_in_benchmark: true
+I/native  (28134): optimize_shader_compilation: true
+I/native  (28134): cache_compiled_shaders_only: false
+I/native  (28134): share_constant_tensors: true
+I/native  (28134): sampler_handles_input: true
+I/native  (28134): allow_src_quantized_fc_conv_ops: true
+I/native  (28134): hint_waiting_for_completion: false
+I/native  (28134): gpu_context_low_priority: false
+I/native  (28134): enable_speculative_decoding: false
+I/native  (28134): disable_delegate_clustering: false
+I/native  (28134):
+I/native  (28134):   LlmMetadata: MessageLite at 0x72194733a0  BenchmarkParams: Not set
+I/native  (28134):   VisionExecutorSettings: VisionExecutorSettings:
+I/native  (28134):   ModelAssets: model_path: /data/data/za.co.ikamvalam.ikamva_lam/app_flutter/gemma-3n-E2B-it-int4.litertlm
+I/native  (28134): fake_weights_mode: FAKE_WEIGHTS_NONE
+I/native  (28134):
+I/native  (28134):   EncoderBackend: GPU
+I/native  (28134):   AdapterBackend: CPU
+I/native  (28134):   AudioExecutorSettings: AudioExecutorSettings:
+I/native  (28134): ModelAssets: model_path: /data/data/za.co.ikamvalam.ikamva_lam/app_flutter/gemma-3n-E2B-it-int4.litertlm
+I/native  (28134): fake_weights_mode: FAKE_WEIGHTS_NONE
+I/native  (28134):
+I/native  (28134): MaxSequenceLength: 1024
+I/native  (28134): Backend: CPU
+I/native  (28134): BundledWithMainModel: true
+I/native  (28134): NumThreads(CPU only): 4
+I/native  (28134): I0000 00:00:1778428133.746044   28820 model_resources_litert_lm.cc:67] model_type: TF_LITE_PREFILL_DECODE
+I/native  (28134): I0000 00:00:1778428133.746235   28820 model_resources_litert_lm.cc:68] litert model size: 1430585256
+I/litert  (28134): [environment.cc:30] Creating LiteRT environment with options
+W/litert  (28134): [auto_registration.cc:192] NPU accelerator could not be loaded and registered: kLiteRtStatusErrorInvalidArgument.
+I/litert  (28134): [accelerator_registry.cc:54] RegisterAccelerator: ptr=0xb4000073a50550e0, name=LiteRT GPU
+I/litert  (28134): [auto_registration.cc:265] Statically linked GPU accelerator registered.
+I/litert  (28134): [accelerator_registry.cc:54] RegisterAccelerator: ptr=0xb4000073a50599f0, name=CpuAccelerator
+I/litert  (28134): [auto_registration.cc:325] CPU accelerator registered.
+I/native  (28134): I0000 00:00:1778428135.052389   28820 llm_executor_settings_utils.cc:175] Setting serialization dir: /data/user/0/za.co.ikamvalam.ikamva_lam/cache
+I/litert  (28134): [compiled_model.cc:719] Flatbuffer model initialized directly from incoming litert model.
+I/tflite  (28134): Initialized TensorFlow Lite runtime.
+W/libc    (28134): Access denied finding property "ro.hardware.chipname"
+D/MMUD    (28134): mtk_memory_debug_init za.co.ikamvalam.ikamva_lam 0xb40000735b09e5d0
+D/OPENCL_ICD_LOADER(28134): initCLTraceLevel sCLTraceLevel = 0
+D/OPENCL_ICD_LOADER(28134): initCLTraceLevel CL_TARGET_OPENCL_VERSION = 300
+D/OPENCL_ICD_LOADER(28134): Init clImportMemoryARM_fptr 0x733ba99b70
+I/native  (28134): I0000 00:00:1778428135.245637   28820 delegate_opencl.cc:551] options->hint_waiting_for_completion: false
+W/libc    (28134): Access denied finding property "vendor.migl.debug"
+I/libMiGL (28134): EnableDR: 0
+D/libMEOW (28134): meow new tls: 0xb4000073c519d1e0
+D/libMEOW (28134): applied 1 plugins for [za.co.ikamvalam.ikamva_lam]:
+D/libMEOW (28134):   plugin 1: [libMEOW_gift.so]:
+E/libEGL  (28134): call to OpenGL ES API with no current context (logged once per thread)
+I/litert  (28134): [environment.cc:41] Adding options to the existing LiteRT environment
+I/tflite  (28134): Loaded OpenCL library with dlopen.
+I/litert  (28134): [gpu_environment.cc:217] Created OpenCL device from provided device id and platform id.
+I/litert  (28134): [gpu_environment.cc:280] Reusing provided EGL environment.
+I/litert  (28134): [gpu_environment.h:152] Created LiteRT GpuEnvironment.
+I/litert  (28134): [environment.cc:41] Adding options to the existing LiteRT environment
+I/tflite  (28134): Replacing 2936 out of 2936 node(s) with delegate (LITERT_CL) node, yielding 1 partitions for subgraph 0.
+E/alam.ikamva_lam(28134): QUEUE_BUFFER_TIMEOUT: surfaceName: VRI[MainActivity]#0(BLAST Consumer)0, fenceName: GPU completion, lastDuration: 7, waitFenceTime: 824
+I/HWUI    (28134): Davey! duration=755ms; Flags=0, FrameTimelineVsyncId=1196535, IntendedVsync=60277082533609, Vsync=60277149166509, InputEventId=0, HandleInputStart=60277166190206, AnimationStart=60277166201668, PerformTraversalsStart=60277166207206, DrawStart=60277168625668, FrameDeadline=60277099533609, FrameInterval=60277161022591, FrameStartTime=16658225, SyncQueued=60277169157052, SyncStart=60277230381899, IssueDrawCommandsStart=60277230599129, SwapBuffers=60277374208052, FrameCompleted=60277899107206, DequeueBufferDuration=98154, QueueBufferDuration=12763000, GpuCompleted=60277899107206, SwapBuffersCompleted=60277421772360, DisplayPresentTime=0, CommandSubmissionCompleted=60277374208052,
+W/alam.ikamva_lam(28134): PerfMonitor async binderTransact :  time=413ms interface=android.gui.ITransactionComposerListener code=1
+I/HandWritingStubImpl(28134): refreshLastKeyboardType: 1
+I/HandWritingStubImpl(28134): getCurrentKeyboardType: 1
+I/HandWritingStubImpl(28134): refreshLastKeyboardType: 1
+I/HandWritingStubImpl(28134): getCurrentKeyboardType: 1
+W/RenderInspector(28134): QueueBuffer time out on za.co.ikamvalam.ikamva_lam/za.co.ikamvalam.ikamva_lam.MainActivity, count=1, avg=49 ms, max=49 ms.
+D/UserSceneDetector(28134): invoke error.
+I/HWUI    (28134): Davey! duration=1146ms; Flags=0, FrameTimelineVsyncId=1197387, IntendedVsync=60281596808929, Vsync=60282029827021, InputEventId=0, HandleInputStart=60282111106207, AnimationStart=60282111113591, PerformTraversalsStart=60282111183745, DrawStart=60282114403822, FrameDeadline=60281613808929, FrameInterval=60282041955822, FrameStartTime=16654542, SyncQueued=60282114707514, SyncStart=60282221121668, IssueDrawCommandsStart=60282221457899, SwapBuffers=60282723262822, FrameCompleted=60282850176668, DequeueBufferDuration=934693, QueueBufferDuration=113046384, GpuCompleted=60282723262822, SwapBuffersCompleted=60282850176668, DisplayPresentTime=0, CommandSubmissionCompleted=60282723262822,
+I/HWUI    (28134): Davey! duration=809ms; Flags=0, FrameTimelineVsyncId=1197830, IntendedVsync=60283962475766, Vsync=60283995803822, InputEventId=0, HandleInputStart=60283997481899, AnimationStart=60283997487207, PerformTraversalsStart=60283997490514, DrawStart=60283998542514, FrameDeadline=60283979475766, FrameInterval=60283997378284, FrameStartTime=16664028, SyncQueued=60283999001053, SyncStart=60284029712668, IssueDrawCommandsStart=60284029868745, SwapBuffers=60284771112437, FrameCompleted=60284803137053, DequeueBufferDuration=137769, QueueBufferDuration=25922154, GpuCompleted=60284773126899, SwapBuffersCompleted=60284803137053, DisplayPresentTime=0, CommandSubmissionCompleted=60284771112437,
+W/RenderInspector(28134): QueueBuffer time out on za.co.ikamvalam.ikamva_lam/za.co.ikamvalam.ikamva_lam.MainActivity, count=2, avg=69 ms, max=113 ms.
+I/TextToSpeech(28134): Disconnected from TTS engine
+W/RenderInspector(28134): DequeueBuffer time out on za.co.ikamvalam.ikamva_lam/za.co.ikamvalam.ikamva_lam.MainActivity, count=1, avg=36 ms, max=36 ms.
+W/RenderInspector(28134): QueueBuffer time out on za.co.ikamvalam.ikamva_lam/za.co.ikamvalam.ikamva_lam.MainActivity, count=1, avg=17 ms, max=17 ms.
+E/alam.ikamva_lam(28134): QUEUE_BUFFER_TIMEOUT: surfaceName: VRI[MainActivity]#0(BLAST Consumer)0, fenceName: GPU completion, lastDuration: 0, waitFenceTime: 242
+W/RenderInspector(28134): DequeueBuffer time out on za.co.ikamvalam.ikamva_lam/za.co.ikamvalam.ikamva_lam.MainActivity, count=1, avg=56 ms, max=56 ms.
+Lost connection to device.
+
+Exited.

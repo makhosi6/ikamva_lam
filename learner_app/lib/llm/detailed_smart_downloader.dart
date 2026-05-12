@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+
 import 'package:background_downloader/background_downloader.dart';
-import 'package:flutter_gemma/core/domain/download_error.dart';
-import 'package:flutter_gemma/core/domain/download_exception.dart';
-import 'package:flutter_gemma/core/model_management/cancel_token.dart';
+import 'package:flutter/foundation.dart';
+
+import 'download_domain.dart';
 
 /// Builds a single-line summary for UI / [DownloadError.network] (plugin omits this).
 String _taskStatusDetailForUser(TaskStatusUpdate update) {
@@ -17,6 +17,23 @@ String _taskStatusDetailForUser(TaskStatusUpdate update) {
     b.write(': $ex');
   }
   return b.toString();
+}
+
+/// Live 0–100 from [background_downloader] (same basis as the Android foreground
+/// notification `{progress}`). Intentionally **not** monotonized: smoothing in
+/// Dart would desync the in-app bar from the system notification when the engine
+/// reports a lower fraction after reconnect or chunk accounting.
+void _emitDownloadPercent(StreamController<int> progress, int raw) {
+  if (progress.isClosed) return;
+  progress.add(raw.clamp(0, 100));
+}
+
+/// [TaskProgressUpdate.progress] is 0–1 for bytes; negative values are status
+/// sentinels from background_downloader and must not be shown as percent.
+int? _percentFromTaskProgress(double raw) {
+  if (raw.isNaN || raw.isInfinite || raw < 0) return null;
+  final frac = raw > 1 ? 1.0 : raw;
+  return (frac * 100).round();
 }
 
 /// Fork of `flutter_gemma` [SmartDownloader] with richer failure messages for users.
@@ -159,7 +176,8 @@ class DetailedSmartDownloader {
   ///
   /// Note: Auth errors (401/403/404) fail after 1 attempt, regardless of maxRetries.
   /// Only network errors and server errors (5xx) will be retried up to maxRetries times.
-  /// Returns a stream of progress percentages (0-100)
+  /// Returns a stream of progress percentages (0–100), mirroring the plugin /
+  /// foreground notification (may briefly decrease).
   ///
   /// The stream will emit [DownloadCancelledException] if cancelled via cancelToken.
   static Stream<int> downloadWithProgress({
@@ -291,16 +309,15 @@ class DetailedSmartDownloader {
           if (update.task.taskId != taskId) return;
 
           if (update is TaskProgressUpdate) {
-            final percents = (update.progress * 100).round();
+            final percents = _percentFromTaskProgress(update.progress);
+            if (percents == null) return;
             debugPrint('📊 Progress (existing): $percents%');
-            if (!progress.isClosed) {
-              progress.add(percents.clamp(0, 100));
-            }
+            _emitDownloadPercent(progress, percents);
           } else if (update is TaskStatusUpdate) {
             debugPrint('📡 TaskStatusUpdate (existing): ${update.status}');
             if (update.status == TaskStatus.complete) {
               if (!progress.isClosed) {
-                progress.add(100);
+                _emitDownloadPercent(progress, 100);
                 progress.close();
               }
               await listener?.cancel();
@@ -381,18 +398,17 @@ class DetailedSmartDownloader {
         debugPrint('📡 Received update for task ${task.taskId}: ${update.runtimeType}');
 
         if (update is TaskProgressUpdate) {
-          final percents = (update.progress * 100).round();
+          final percents = _percentFromTaskProgress(update.progress);
+          if (percents == null) return;
           debugPrint('📊 Progress: $percents%');
-          if (!progress.isClosed) {
-            progress.add(percents.clamp(0, 100));
-          }
+          _emitDownloadPercent(progress, percents);
         } else if (update is TaskStatusUpdate) {
           debugPrint('📡 TaskStatusUpdate: ${update.status}, HTTP: ${update.responseStatusCode}');
 
           switch (update.status) {
             case TaskStatus.complete:
               if (!progress.isClosed) {
-                progress.add(100);
+                _emitDownloadPercent(progress, 100);
                 progress.close();
               }
               await listener?.cancel();

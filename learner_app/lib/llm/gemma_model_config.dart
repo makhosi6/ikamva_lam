@@ -1,35 +1,35 @@
-import 'package:flutter_gemma/core/utils/file_name_utils.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:path/path.dart' as p;
 
-/// On-device **Gemma 4** identity for **`flutter_gemma`**.
+/// On-device **Gemma 4** identity and Hugging Face artifact URLs.
 ///
 /// This app targets **only** Gemma 4 `.litertlm` installed from Hugging Face
-/// (**E2B** or **E4B** via `fromNetwork`). Other model families are not used.
+/// (**E2B** or **E4B**). Weights are written to app documents, then opened via
+/// native **LiteRT-LM** (Android `.litertlm`) or **MediaPipe GenAI** (iOS).
 ///
-/// E2B uses **`gemma4E2bLitertlmUrl`**; E4B uses **`gemma4E4bLitertlmUrl`**.
+/// **URLs:** We use [litert-community](https://huggingface.co/litert-community)
+/// `*-litert-lm` repos — same **Gemma 4** weights as
+/// [google/gemma-4-E2B-it](https://huggingface.co/google/gemma-4-E2B-it) /
+/// [google/gemma-4-E4B](https://huggingface.co/google/gemma-4-E4B), packaged for
+/// LiteRT-LM and **publicly resolvable** for `background_downloader` (Google’s
+/// matching `google/gemma-4-*-litert-lm` LFS blobs are often gated).
 abstract final class GemmaModelConfig {
-  /// **Gemma 4** `.litertlm` on **flutter_gemma 0.13.6** still registers as
-  /// [ModelType.gemmaIt]. Newer plugin versions expose [ModelType.gemma4] (see
-  /// `learner_app/example` when using a path dependency).
-  static const ModelType modelType = ModelType.gemmaIt;
-
-  /// Hugging Face **Gemma 4 E2B IT** `.litertlm` (same URL as flutter_gemma example).
+  /// Hugging Face **Gemma 4 E2B IT** `.litertlm` (LiteRT-LM bundle, ~2.6 GB).
+  ///
+  /// Artifact: `gemma-4-E2B-it.litertlm` on `main` (not `*-int4.litertlm`).
   static const String gemma4E2bLitertlmUrl =
-      'https://huggingface.co/google/gemma-3n-E2B-it-litert-lm/resolve/main/gemma-3n-E2B-it-int4.litertlm';
+      'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm';
 
   static String get gemma4E2bLitertlmFilename =>
       filenameFromPathOrUrl(gemma4E2bLitertlmUrl);
 
-  /// Hugging Face **Gemma 4 E4B IT** native `.litertlm` (same URL as flutter_gemma example).
+  /// Hugging Face **Gemma 4 E4B IT** `.litertlm` (LiteRT-LM bundle).
   static const String gemma4E4bLitertlmUrl =
-      'https://huggingface.co/google/gemma-3n-E4B-it-litert-lm/resolve/main/gemma-3n-E4B-it-int4.litertlm';
+      'https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm';
 
   static String get gemma4E4bLitertlmFilename =>
       filenameFromPathOrUrl(gemma4E4bLitertlmUrl);
 
-  /// **`-web.task`** files are **Web-only** per the `flutter_gemma` README
-  /// compatibility matrix (not for native `.litertlm` workflows).
+  /// **`-web.task`** files are **Web-only** (not for native `.litertlm` workflows).
   static bool isWebOnlyMediaPipeTaskUrl(String url) {
     final lower = url.toLowerCase().split('?').first;
     return lower.contains('-web.task');
@@ -47,34 +47,29 @@ abstract final class GemmaModelConfig {
     return p.basename(trimmed.split('?').first);
   }
 
-  /// Ids to try with [FlutterGemma.uninstallModel] when clearing bad installs.
+  /// Basenames and stem variants to delete when clearing bad installs.
   static List<String> pluginUninstallCandidateIdsFor(String pathOrUrl) {
     if (pathOrUrl.isEmpty) return const [];
     final file = filenameFromPathOrUrl(pathOrUrl);
-    final base = FileNameUtils.getBaseName(file);
+    final base = p.basenameWithoutExtension(file);
     return <String>{file, if (base != file) base}.toList();
   }
 
-  /// Runtime flags for [FlutterGemma.getActiveModel] on **Gemma 4** `.litertlm`.
-  ///
-  /// Must match the multimodal setup in `learner_app/_example_bak` (`Model.gemma4_E2B` /
-  /// `gemma4_E4B`): vision + audio buffers are provisioned at open time.
+  /// Runtime flags for multimodal Gemma 4 `.litertlm` (vision + audio).
   static const bool activeModelSupportImage = true;
-
   static const bool activeModelSupportAudio = true;
-
   static const int activeModelMaxNumImages = 1;
 
-  /// **`.litertlm`** must use [ModelFileType.litertlm] so LiteRT-LM paths,
-  /// native `systemInstruction`, and chat templating match the plugin (Gemma 4).
-  /// **`.task`** uses [ModelFileType.task] (older MediaPipe mobile artifacts).
-  static ModelFileType fileTypeForPath(String assetPath) {
+  /// File kind for install-source strings (disk / URL paths).
+  static InstallModelFileKind fileKindForPath(String assetPath) {
     final lower = assetPath.toLowerCase();
-    if (lower.endsWith('.litertlm')) return ModelFileType.litertlm;
-    if (lower.endsWith('.task')) return ModelFileType.task;
+    if (lower.endsWith('.litertlm')) return InstallModelFileKind.litertlm;
+    if (lower.endsWith('.task')) return InstallModelFileKind.task;
     if (lower.endsWith('.bin') || lower.endsWith('.tflite')) {
-      return ModelFileType.binary;
+      return InstallModelFileKind.binary;
     }
-    return ModelFileType.task;
+    return InstallModelFileKind.task;
   }
 }
+
+enum InstallModelFileKind { litertlm, task, binary }

@@ -1,21 +1,21 @@
-import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ikamva_lam/llm/gemma4_ondevice_variant.dart';
+import 'package:ikamva_lam/llm/gemma_model_config.dart';
 import 'package:ikamva_lam/llm/model_prepare_config.dart';
 
 void main() {
   test('fileTypeForInstallSource delegates extension mapping', () {
     expect(
       ModelPrepareConfig.fileTypeForInstallSource('https://x/model.task'),
-      ModelFileType.task,
+      InstallModelFileKind.task,
     );
     expect(
       ModelPrepareConfig.fileTypeForInstallSource('https://x/model.litertlm'),
-      ModelFileType.litertlm,
+      InstallModelFileKind.litertlm,
     );
     expect(
       ModelPrepareConfig.fileTypeForInstallSource('/tmp/model.bin'),
-      ModelFileType.binary,
+      InstallModelFileKind.binary,
     );
   });
 

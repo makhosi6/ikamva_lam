@@ -68,17 +68,13 @@ class _HomeHubRouteScopeState extends State<_HomeHubRouteScope>
         SettingsScope.of(context),
         onModelInstallProgress: (p) {
           if (!mounted) return;
-          if (_modelInitPercent != null && _modelInitPercent! >= p) return;
           setState(() => _modelInitPercent = p);
         },
         onModelLifecycle: (phase, message, percent) {
           if (!mounted) return;
-          setState(() {
-            if (percent != null &&
-                (_modelInitPercent == null || _modelInitPercent! < percent)) {
-              _modelInitPercent = percent;
-            }
-          });
+          if (percent != null) {
+            setState(() => _modelInitPercent = percent);
+          }
         },
       );
     }

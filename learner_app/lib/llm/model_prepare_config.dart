@@ -1,11 +1,8 @@
-import 'package:flutter_gemma/flutter_gemma.dart';
-
 import 'gemma4_ondevice_variant.dart';
 import 'gemma_model_config.dart';
 
 /// On-device Gemma install sizing / fingerprints (weights come from Hugging Face).
 abstract final class ModelPrepareConfig {
-  /// Rough **install** size for **free disk** checks (MB) — copy from APK/IPA.
   static const int estimatedDownloadMb = int.fromEnvironment(
     'IKAMVA_MODEL_ESTIMATED_MB',
     defaultValue: 2048,
@@ -21,11 +18,7 @@ abstract final class ModelPrepareConfig {
     defaultValue: 1024 * 2,
   );
 
-  /// Context window passed to [FlutterGemma.getActiveModel] (`maxTokens`).
-  ///
-  /// Low RAM stays at 512. Otherwise uses `IKAMVA_CONTEXT_MAX_TOKENS` (512–2048;
-  /// default 1024). Set `--dart-define=IKAMVA_CONTEXT_MAX_TOKENS=2048` to match
-  /// common on-device chat examples that use a 2048 window (heavier RAM use).
+  /// Context window passed to native load (`maxTokens`).
   static int contextMaxTokensFor(bool lowRamProfile) {
     if (lowRamProfile) return 512;
     const v = int.fromEnvironment(
@@ -37,8 +30,6 @@ abstract final class ModelPrepareConfig {
     return v;
   }
 
-  static ModelType get modelType => GemmaModelConfig.modelType;
-
   /// [ModelPreparePrefs] identity for the active Gemma 4 variant.
   static String installFingerprint(Gemma4OnDeviceVariant variant) {
     switch (variant) {
@@ -49,7 +40,6 @@ abstract final class ModelPrepareConfig {
     }
   }
 
-  /// Rough install / copy size for UX (MB).
   static int estimatedInstallMbFor(Gemma4OnDeviceVariant variant) {
     switch (variant) {
       case Gemma4OnDeviceVariant.e2bHuggingFace:
@@ -59,6 +49,6 @@ abstract final class ModelPrepareConfig {
     }
   }
 
-  static ModelFileType fileTypeForInstallSource(String pathOrUrl) =>
-      GemmaModelConfig.fileTypeForPath(pathOrUrl);
+  static InstallModelFileKind fileTypeForInstallSource(String pathOrUrl) =>
+      GemmaModelConfig.fileKindForPath(pathOrUrl);
 }

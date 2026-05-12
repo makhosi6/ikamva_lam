@@ -47,9 +47,9 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
 
   String get _resolvedEngineLabel {
     if (shouldUseFlutterGemmaEngine) {
-      return 'FlutterGemmaLlmEngine (Android/iOS)';
+      return 'NativeChannelLlmEngine (Android/iOS)';
     }
-    return 'FlutterGemmaLlmEngine (non-mobile host; prepare/generate need device)';
+    return 'NativeChannelLlmEngine (non-mobile host; prepare/generate need device)';
   }
 
   Future<void> _probeActiveModel() async {
@@ -328,7 +328,7 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                         'E4B URL',
                         GemmaModelConfig.gemma4E4bLitertlmUrl,
                       ),
-                      _kv(context, 'ModelType', GemmaModelConfig.modelType.name),
+                      _kv(context, 'Model family', 'Gemma 4 IT (.litertlm)'),
                       _kv(
                         context,
                         'Active install fingerprint',
@@ -337,7 +337,7 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                       _kv(
                         context,
                         'Note',
-                        'E2B/E4B: fromNetwork then getActiveModel.',
+                        'E2B/E4B: HF download to documents, native load by path.',
                       ),
                       _kv(
                         context,

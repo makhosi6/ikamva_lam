@@ -1,5 +1,6 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -8,68 +9,53 @@ import 'gemma_model_config.dart';
 import 'hf_local_file.dart';
 import 'huggingface_auth_token_store.dart';
 
-/// Port of `flutter_gemma_example/lib/services/model_download_service.dart` for
-/// Gemma 4 `.litertlm` installs from Hugging Face (`fromNetwork` + progress).
+/// Hugging Face `.litertlm` install into app documents + [DetailedSmartDownloader].
 class GemmaHfModelDownloadService {
   GemmaHfModelDownloadService({
     required this.modelUrl,
     required this.modelFilename,
-    required this.licenseUrl,
-    required this.modelType,
     required this.needsAuth,
-    this.fileType = ModelFileType.litertlm,
     this.foreground,
   });
 
   final String modelUrl;
   final String modelFilename;
-  final String licenseUrl;
-  final ModelType modelType;
-  final ModelFileType fileType;
   final bool needsAuth;
 
   /// Android foreground download (example: `null` = auto by size).
   final bool? foreground;
 
-  /// Same HF artifact as `Model.gemma4_E2B` in `learner_app/_example_bak` — there,
-  /// the example passes `foreground: true` for >500MB models. Match that on Android
-  /// so large HF pulls are not capped by background WorkManager time limits.
   factory GemmaHfModelDownloadService.e2b() {
     return GemmaHfModelDownloadService(
       modelUrl: GemmaModelConfig.gemma4E2bLitertlmUrl,
       modelFilename: GemmaModelConfig.gemma4E2bLitertlmFilename,
-      licenseUrl: '',
-      modelType: GemmaModelConfig.modelType,
       needsAuth: false,
-      fileType: ModelFileType.litertlm,
       foreground: true,
     );
   }
 
-  /// Same pattern as `Model.gemma4_E4B` in the flutter_gemma example (large → foreground).
   factory GemmaHfModelDownloadService.e4b() {
     return GemmaHfModelDownloadService(
       modelUrl: GemmaModelConfig.gemma4E4bLitertlmUrl,
       modelFilename: GemmaModelConfig.gemma4E4bLitertlmFilename,
-      licenseUrl: '',
-      modelType: GemmaModelConfig.modelType,
       needsAuth: false,
-      fileType: ModelFileType.litertlm,
       foreground: true,
     );
   }
 
   Future<String?> loadToken() => HuggingfaceAuthTokenStore.loadToken();
 
-  /// Same basename as [FlutterGemma.installModel] / repository (example `ModelDownloadService`).
   String get artifactFilename {
     final uri = Uri.parse(modelUrl);
     return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : modelFilename;
   }
 
-  /// Fast path: plugin registry only (no filesystem / HEAD), matches example before install.
-  Future<bool> isPluginModelInstalled() =>
-      FlutterGemma.isModelInstalled(artifactFilename);
+  /// Fast path: model file already on disk (no HEAD).
+  Future<bool> isPluginModelInstalled() async {
+    if (kIsWeb) return false;
+    final filePath = await getFilePath();
+    return hfLocalFileExistsSync(filePath);
+  }
 
   Future<String> getFilePath() async {
     final directory = await getApplicationDocumentsDirectory();
@@ -79,13 +65,8 @@ class GemmaHfModelDownloadService {
     return '$correctedPath/$modelFilename';
   }
 
-  /// Example: [FlutterGemma.isModelInstalled], then optional filesystem + HEAD.
   Future<bool> checkModelExistence(String token) async {
     try {
-      if (await isPluginModelInstalled()) {
-        return true;
-      }
-
       if (kIsWeb) {
         return false;
       }
@@ -138,22 +119,15 @@ class GemmaHfModelDownloadService {
       };
     }
     try {
-      final chain = FlutterGemma.installModel(
-        modelType: modelType,
-        fileType: fileType,
-      ).fromNetwork(
-        modelUrl,
+      final targetPath = await getFilePath();
+      await for (final p in DetailedSmartDownloader.downloadWithProgress(
+        url: modelUrl,
+        targetPath: targetPath,
         token: authToken,
+        maxRetries: 10,
         foreground: foreground,
-      );
-      // Example `ChatScreen` / `ModelDownloadService`: install() is idempotent and
-      // skips transfer when already registered — avoid progress plumbing when fast.
-      if (await FlutterGemma.isModelInstalled(artifactFilename)) {
-        await chain.install();
-      } else {
-        await chain
-            .withProgress((progress) => onProgress(progress.toDouble()))
-            .install();
+      )) {
+        onProgress(p.clamp(0, 100).toDouble());
       }
     } finally {
       if (onDiagnostic != null) {
@@ -164,7 +138,11 @@ class GemmaHfModelDownloadService {
 
   Future<void> deleteModel() async {
     try {
-      await FlutterGemma.uninstallModel(artifactFilename);
+      final path = await getFilePath();
+      final f = File(path);
+      if (f.existsSync()) {
+        await f.delete();
+      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Error deleting model: $e');

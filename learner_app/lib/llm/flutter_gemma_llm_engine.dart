@@ -1,24 +1,29 @@
- import 'dart:async';
+import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../state/settings_store.dart';
 import 'android_hf_download_setup.dart';
 import 'gemma4_ondevice_variant.dart';
 import 'gemma_hf_model_download_service.dart';
-import 'hf_install_error_format.dart';
-import 'huggingface_auth_token_store.dart';
 import 'gemma_inference_defaults.dart';
 import 'gemma_model_config.dart';
-import 'model_diagnostics.dart';
+import 'hf_install_error_format.dart';
+import 'huggingface_auth_token_store.dart';
 import 'llm_engine.dart';
 import 'llm_exceptions.dart';
 import 'llm_generate_request.dart';
 import 'llm_output_filters.dart';
+import 'model_diagnostics.dart';
 import 'model_prepare_config.dart';
 import 'model_prepare_prefs.dart';
+import 'native_llm_platform.dart';
 import 'streaming_llm_capability.dart';
+
+/// Upper bound for native GPU weight upload / delegate setup.
+const Duration _kGpuModelOpenTimeout = Duration(seconds: 120);
 
 /// Mutable callbacks so [LlmService.configure] can attach progress UI without
 /// disposing an in-flight [FlutterGemmaLlmEngine] (avoids overlapping native
@@ -28,7 +33,7 @@ final class LlmInstallUiHooks {
   void Function(String phase, String message, int? percent)? onLifecycle;
 }
 
-/// iOS Metal / TFLite GPU delegate failed — the `.task` file is often fine; use
+/// iOS Metal / TFLite GPU delegate failed — the weights file is often fine; use
 /// CPU backend or **Low RAM profile** (Settings). Do **not** treat as corrupt zip.
 bool gemmaErrorLooksLikeGpuMetalDelegateFailure(Object error) {
   final s = error.toString().toLowerCase();
@@ -40,10 +45,21 @@ bool gemmaErrorLooksLikeGpuMetalDelegateFailure(Object error) {
       (s.contains('metal') && s.contains('delegate'));
 }
 
-/// True when LiteRT failed to read the **artifact** as a zip (truncated / wrong file).
-///
-/// We intentionally **do not** match bare `GenAiInferenceError` /
-/// `failedToInitializeEngine` — those also appear for GPU delegate failures on iOS.
+/// GPU resource exhaustion errors: buffer timeout, memory pressure, or GPU stalls.
+bool gemmaErrorLooksLikeGpuResourceExhaustion(Object error) {
+  final s = error.toString().toLowerCase();
+  return s.contains('queue_buffer_timeout') ||
+      s.contains('gpu completion') ||
+      s.contains('queue buffer') ||
+      s.contains('lost connection') ||
+      s.contains('opengl') ||
+      s.contains('opencl') ||
+      s.contains('gpu stall') ||
+      s.contains('memory pressure') ||
+      (s.contains('timeout') && (s.contains('gpu') || s.contains('render')));
+}
+
+/// True when LiteRT / MediaPipe failed to read the **artifact** as a zip.
 bool gemmaErrorLooksLikeInvalidTaskArchive(Object error) {
   if (gemmaErrorLooksLikeGpuMetalDelegateFailure(error)) return false;
   final s = error.toString().toLowerCase();
@@ -52,24 +68,34 @@ bool gemmaErrorLooksLikeInvalidTaskArchive(Object error) {
       (s.contains('unable to open') && s.contains('zip'));
 }
 
-/// True when the plugin has an active inference spec **and** reports its files
-/// on disk. [FlutterGemma.hasActiveModel] alone can be true after the weights
-/// were removed (stale registration).
-Future<bool> flutterGemmaActiveInferenceInstalled() async {
-  if (!FlutterGemma.hasActiveModel()) return false;
-  final mgr = FlutterGemmaPlugin.instance.modelManager;
-  final spec = mgr.activeInferenceModel;
-  if (spec == null) return false;
-  try {
-    return await mgr.isModelInstalled(spec);
-  } on Object {
-    return false;
+GemmaHfModelDownloadService _hfServiceForVariant(Gemma4OnDeviceVariant v) {
+  switch (v) {
+    case Gemma4OnDeviceVariant.e2bHuggingFace:
+      return GemmaHfModelDownloadService.e2b();
+    case Gemma4OnDeviceVariant.e4bNetwork:
+      return GemmaHfModelDownloadService.e4b();
   }
 }
 
-/// Unregisters installed model ids so a bad copy is not reused. Includes ids
-/// derived from HF URLs and legacy artifact names from older app versions.
+Future<String> _documentsModelBaseDir() async {
+  final directory = await getApplicationDocumentsDirectory();
+  final p = directory.path;
+  return p.contains('/data/user/0/')
+      ? p.replaceFirst('/data/user/0/', '/data/data/')
+      : p;
+}
+
+/// True when the on-disk weights for the **selected** variant exist.
+Future<bool> flutterGemmaActiveInferenceInstalled(
+  Gemma4OnDeviceVariant variant,
+) async {
+  return _hfServiceForVariant(variant).isPluginModelInstalled();
+}
+
+/// Deletes known weight filenames under app documents and legacy plugin ids
+/// (as filenames) so a bad copy is not reused.
 Future<void> purgeGemmaPluginInstallCandidates() async {
+  final base = await _documentsModelBaseDir();
   final ids = <String>{
     ...GemmaModelConfig.pluginUninstallCandidateIdsFor(
       GemmaModelConfig.gemma4E2bLitertlmUrl,
@@ -77,90 +103,112 @@ Future<void> purgeGemmaPluginInstallCandidates() async {
     ...GemmaModelConfig.pluginUninstallCandidateIdsFor(
       GemmaModelConfig.gemma4E4bLitertlmUrl,
     ),
+    GemmaModelConfig.gemma4E2bLitertlmFilename,
+    GemmaModelConfig.gemma4E4bLitertlmFilename,
     'ikamva_ondevice_model',
     'bundled_gemma.task',
   };
   for (final id in ids) {
     if (id.isEmpty) continue;
     try {
-      await FlutterGemma.uninstallModel(id);
+      final f = File('$base/$id');
+      if (f.existsSync()) {
+        await f.delete();
+      }
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'purge_uninstall',
-        message: 'Uninstalled model candidate',
-        data: <String, Object?>{'id': id},
+        message: 'Removed model candidate file',
+        data: <String, Object?>{'path': f.path},
       );
-      debugPrint('purgeGemmaPluginInstallCandidates: uninstalled $id');
+      debugPrint('purgeGemmaPluginInstallCandidates: deleted $id');
     } on Object {
-      // Not registered under this id — ignore.
+      // Missing file — ignore.
     }
   }
 }
 
-/// Returns whether an installed Gemma model can be opened with the same
-/// backend / context limits as [FlutterGemmaLlmEngine] (mobile only).
-///
-/// Used on cold start so a stale `ModelPreparePrefs` flag cannot skip the
-/// hub warm-up / `ensureReady` after uninstall or corruption.
+Future<void> _nativeLoad({
+  required String modelPath,
+  required int maxTokens,
+  required bool preferGpu,
+}) async {
+  await NativeLlmPlatform.loadModel(<String, Object?>{
+    'modelPath': modelPath,
+    'maxTokens': maxTokens,
+    'preferGpu': preferGpu,
+    'supportImage': GemmaModelConfig.activeModelSupportImage,
+    'supportAudio': GemmaModelConfig.activeModelSupportAudio,
+    'maxNumImages': GemmaModelConfig.activeModelMaxNumImages,
+  });
+}
+
+/// Returns whether downloaded weights can be opened natively (mobile only).
 Future<bool> probeFlutterGemmaActiveModelReady(SettingsStore settings) async {
   if (!shouldUseFlutterGemmaEngine) return true;
-  if (!await flutterGemmaActiveInferenceInstalled()) {
+  if (!await flutterGemmaActiveInferenceInstalled(settings.gemma4OnDeviceVariant)) {
     ModelDiagnostics.instance.log(
       area: 'probe',
       action: 'skip_no_install',
       message:
-          'No lesson-helper model registered yet (finish Download on the setup '
+          'No lesson-helper model on disk yet (finish Download on the setup '
           'screen and Continue, or Settings → Warm up). Probe skipped.',
     );
     return false;
   }
-  Future<bool> probe(PreferredBackend backend) async {
+  final path =
+      await _hfServiceForVariant(settings.gemma4OnDeviceVariant).getFilePath();
+  Future<bool> probe(bool preferGpu) async {
     try {
       ModelDiagnostics.instance.log(
         area: 'probe',
         action: 'open_attempt',
-        message: 'Trying to open active model',
-        data: <String, Object?>{'backend': backend.name},
+        message: 'Trying native load',
+        data: <String, Object?>{'preferGpu': preferGpu},
       );
-      final model = await FlutterGemma.getActiveModel(
+      await _nativeLoad(
+        modelPath: path,
         maxTokens: ModelPrepareConfig.contextMaxTokensFor(settings.lowRamProfile),
-        preferredBackend: backend,
-        supportImage: GemmaModelConfig.activeModelSupportImage,
-        supportAudio: GemmaModelConfig.activeModelSupportAudio,
-        maxNumImages: GemmaModelConfig.activeModelMaxNumImages,
+        preferGpu: preferGpu,
+      ).timeout(
+        preferGpu ? _kGpuModelOpenTimeout : const Duration(seconds: 180),
+        onTimeout: () => throw TimeoutException('native load'),
       );
-      try {
-        await model.close();
-      } on Object catch (e) {
-        debugPrint(
-          'probeFlutterGemmaActiveModelReady: model.close() ignored: $e',
-        );
-      }
+      await NativeLlmPlatform.closeModel();
       return true;
     } on Object catch (e) {
+      try {
+        await NativeLlmPlatform.closeModel();
+      } on Object {
+        // ignore
+      }
       ModelDiagnostics.instance.log(
         area: 'probe',
         action: 'open_failed',
-        message: 'Failed to open active model',
-        data: <String, Object?>{'backend': backend.name, 'error': '$e'},
+        message: 'Failed native probe load',
+        data: <String, Object?>{'preferGpu': preferGpu, 'error': '$e'},
       );
-      debugPrint('probeFlutterGemmaActiveModelReady ($backend): $e');
+      debugPrint('probeFlutterGemmaActiveModelReady (gpu=$preferGpu): $e');
       return false;
     }
   }
 
-  final primary = settings.lowRamProfile
-      ? PreferredBackend.cpu
-      : PreferredBackend.gpu;
-  if (await probe(primary)) return true;
-  if (primary == PreferredBackend.gpu && await probe(PreferredBackend.cpu)) {
+  final multimodal = GemmaModelConfig.activeModelSupportImage ||
+      GemmaModelConfig.activeModelSupportAudio;
+  final primaryGpu = multimodal
+      ? true
+      : (!FlutterGemmaLlmEngine._forceCpuBackendBuildFlag &&
+          !settings.lowRamProfile);
+  if (await probe(primaryGpu)) return true;
+  if (!multimodal && primaryGpu && await probe(false)) {
     return true;
   }
   return false;
 }
 
-/// On-device inference via [flutter_gemma] — Gemma 4 **E2B/E4B** from Hugging Face
-/// (`fromNetwork`). [ensureLoaded] re-opens the active model or re-downloads if needed.
+/// On-device inference via **MethodChannel** → native **LiteRT-LM** (Android
+/// `.litertlm`) or **MediaPipe GenAI** (iOS). Weights are downloaded to app
+/// documents then opened by absolute path.
 class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   FlutterGemmaLlmEngine({
     required SettingsStore settings,
@@ -170,6 +218,9 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
 
   final SettingsStore _settings;
   final LlmInstallUiHooks _hooks;
+
+  GemmaHfModelDownloadService get _service =>
+      _hfServiceForVariant(_settings.gemma4OnDeviceVariant);
 
   void _emit(String phase, String message, [int? percent]) {
     _hooks.onLifecycle?.call(phase, message, percent);
@@ -195,20 +246,44 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     }());
   }
 
-  InferenceModel? _model;
   bool _loaded = false;
   bool _disposed = false;
+  Object? _lastOpenError;
 
-  /// Single-flight guard: concurrent [ensureLoaded] calls (hub + setup + sentiment)
-  /// must not each open the LiteRT model — native GPU init is huge and parallel
-  /// opens OOM-kill the process (see `trimMemory` / "Lost connection to device").
   Future<void>? _ensureLoadedInFlight;
 
   int get _contextMaxTokens =>
       ModelPrepareConfig.contextMaxTokensFor(_settings.lowRamProfile);
 
-  PreferredBackend get _preferredBackend =>
-      _settings.lowRamProfile ? PreferredBackend.cpu : PreferredBackend.gpu;
+  static const int _forceCpuBackendIntFlag = int.fromEnvironment(
+    'IKAMVA_FORCE_CPU_BACKEND',
+    defaultValue: 0,
+  );
+  static const String _forceCpuBackendStringFlag = String.fromEnvironment(
+    'IKAMVA_FORCE_CPU_BACKEND',
+    defaultValue: '',
+  );
+  static const bool _forceCpuBackendBuildFlag = _forceCpuBackendIntFlag != 0 ||
+      _forceCpuBackendStringFlag == 'true' ||
+      _forceCpuBackendStringFlag == 'TRUE';
+
+  static bool get _multimodalRequiresGpu =>
+      GemmaModelConfig.activeModelSupportImage ||
+      GemmaModelConfig.activeModelSupportAudio;
+
+  bool get _preferGpu {
+    if (_multimodalRequiresGpu) {
+      if (_forceCpuBackendBuildFlag || _settings.lowRamProfile) {
+        debugPrint(
+          'FlutterGemmaLlmEngine: CPU-only overrides ignored for multimodal '
+          'LiteRT (vision/audio encoder requires GPU).',
+        );
+      }
+      return true;
+    }
+    if (_forceCpuBackendBuildFlag) return false;
+    return !_settings.lowRamProfile;
+  }
 
   Future<void> _purgeInstallArtifacts() => purgeGemmaPluginInstallCandidates();
 
@@ -229,7 +304,6 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     }
   }
 
-  /// Example [ModelDownloadService.downloadModel] path (`fromNetwork` + progress).
   Future<void> _installFromHfService(
     GemmaHfModelDownloadService service,
     String label,
@@ -243,8 +317,6 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       alreadyInstalled ? 100 : 0,
     );
     try {
-      // Example / `ModelDownloadService`: notification + foreground worker matter
-      // only when a real transfer may run — skip when plugin already has weights.
       if (!alreadyInstalled) {
         await ensureAndroidModelDownloadNotificationPermission();
       }
@@ -283,45 +355,70 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     }
   }
 
-  Future<InferenceModel> _openActiveModel() async {
+  Future<void> _nativeOpen({required bool preferGpu}) async {
+    final path = await _service.getFilePath();
+    await _nativeLoad(
+      modelPath: path,
+      maxTokens: _contextMaxTokens,
+      preferGpu: preferGpu,
+    );
+  }
+
+  Future<void> _openActiveModel() async {
     try {
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'open_attempt',
-        message: 'Opening active model',
-        data: <String, Object?>{'backend': _preferredBackend.name},
+        message: 'Opening native model',
+        data: <String, Object?>{'preferGpu': _preferGpu},
       );
-      return await FlutterGemma.getActiveModel(
-        maxTokens: _contextMaxTokens,
-        preferredBackend: _preferredBackend,
-        supportImage: GemmaModelConfig.activeModelSupportImage,
-        supportAudio: GemmaModelConfig.activeModelSupportAudio,
-        maxNumImages: GemmaModelConfig.activeModelMaxNumImages,
-      );
+      if (_preferGpu) {
+        await _nativeOpen(preferGpu: true).timeout(
+          _kGpuModelOpenTimeout,
+          onTimeout: () => throw TimeoutException(
+            'GPU model initialization timed out (${_kGpuModelOpenTimeout.inSeconds}s). '
+            'Falling back to CPU backend.',
+          ),
+        );
+      } else {
+        await _nativeOpen(preferGpu: false);
+      }
+      if (_preferGpu) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
     } on Object catch (e) {
-      // GPU path can fail (iOS Metal, Android OpenCL / memory pressure) while
-      // the weights are fine — retry on CPU like [probeFlutterGemmaActiveModelReady].
-      if (_preferredBackend == PreferredBackend.gpu) {
+      _lastOpenError = e;
+      if (_preferGpu && !_multimodalRequiresGpu) {
         debugPrint(
           'FlutterGemmaLlmEngine: GPU backend failed, opening with CPU: $e',
         );
-        return FlutterGemma.getActiveModel(
-          maxTokens: _contextMaxTokens,
-          preferredBackend: PreferredBackend.cpu,
-          supportImage: GemmaModelConfig.activeModelSupportImage,
-          supportAudio: GemmaModelConfig.activeModelSupportAudio,
-          maxNumImages: GemmaModelConfig.activeModelMaxNumImages,
+        ModelDiagnostics.instance.log(
+          area: 'engine',
+          action: 'gpu_fallback_to_cpu',
+          message: 'GPU backend failed, falling back to CPU',
+          data: <String, Object?>{"error": "$e"},
+        );
+        await _nativeOpen(preferGpu: false);
+        return;
+      }
+      if (_preferGpu && _multimodalRequiresGpu) {
+        ModelDiagnostics.instance.log(
+          area: 'engine',
+          action: 'open_failed',
+          message: 'GPU open failed (multimodal model cannot fall back to CPU)',
+          data: <String, Object?>{'error': '$e'},
+        );
+      } else {
+        ModelDiagnostics.instance.log(
+          area: 'engine',
+          action: 'open_failed',
+          message: 'Open active model failed',
+          data: <String, Object?>{
+            'preferGpu': _preferGpu,
+            'error': '$e',
+          },
         );
       }
-      ModelDiagnostics.instance.log(
-        area: 'engine',
-        action: 'open_failed',
-        message: 'Open active model failed',
-        data: <String, Object?>{
-          'backend': _preferredBackend.name,
-          'error': '$e',
-        },
-      );
       rethrow;
     }
   }
@@ -331,7 +428,7 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     if (_disposed) {
       throw StateError('FlutterGemmaLlmEngine disposed');
     }
-    if (_loaded && _model != null) return;
+    if (_loaded) return;
 
     _ensureLoadedInFlight ??= _ensureLoadedBody();
     try {
@@ -345,7 +442,7 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     if (_disposed) {
       throw StateError('FlutterGemmaLlmEngine disposed');
     }
-    if (_loaded && _model != null) return;
+    if (_loaded) return;
 
     if (!shouldUseFlutterGemmaEngine) {
       throw LlmUnavailableException(
@@ -355,41 +452,54 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
 
     _emit(
       'open',
-      'Looking for an existing on-device Gemma install (backend: '
-      '${_preferredBackend.name})…',
+      'Looking for on-device Gemma weights (GPU preferred: $_preferGpu)…',
       null,
     );
-    // Example `ChatScreen`: always `installModel`…`install()` first (idempotent),
-    // then `getActiveModel`. Re-register when there is no active spec **or**
-    // the spec is stale (active pointer but files missing — avoids
-    // "no longer installed" before we open).
-    //
-    // Removing the pre-check matches `_example_bak` behavior exactly.
     await _installFromConfiguredSource();
 
     try {
-      _model = await _openActiveModel();
+      await _openActiveModel();
       _emit('ready', 'Model opened — ready to generate.', 100);
       _finishLoaded();
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'ensure_loaded',
-        message: 'Active model opened without reinstall',
+        message: 'Native model opened',
       );
       return;
     } on Object catch (e) {
-      _model = null;
-      _emit('open', 'First open failed: $e — retrying…', null);
+      _lastOpenError = e;
+      if (gemmaErrorLooksLikeGpuResourceExhaustion(e) && _preferGpu) {
+        if (_multimodalRequiresGpu) {
+          _emit('open', 'GPU load issue ($e) — will retry GPU shortly…', null);
+        } else {
+          _emit('open', 'GPU resource limit hit ($e) — forcing CPU backend…', null);
+        }
+      } else {
+        _emit('open', 'First open failed: $e — retrying…', null);
+      }
       debugPrint(
         'FlutterGemmaLlmEngine: open active model failed ($e); retrying once.',
       );
     }
 
-    // Brief delay: another screen may have just verified the install with a
-    // separate handle; native teardown can lag one frame.
     try {
       await Future<void>.delayed(const Duration(milliseconds: 400));
-      _model = await _openActiveModel();
+      final gpuExhaustion = _lastOpenError != null &&
+          gemmaErrorLooksLikeGpuResourceExhaustion(_lastOpenError!);
+      if (gpuExhaustion && _multimodalRequiresGpu) {
+        _emit(
+          'open',
+          'GPU was busy (UI + model). Pausing briefly, then retrying GPU…',
+          null,
+        );
+        await Future<void>.delayed(const Duration(seconds: 2));
+      }
+      if (gpuExhaustion && !_multimodalRequiresGpu) {
+        await _nativeOpen(preferGpu: false);
+      } else {
+        await _openActiveModel();
+      }
       _emit('ready', 'Model opened on second try.', 100);
       _finishLoaded();
       ModelDiagnostics.instance.log(
@@ -399,8 +509,7 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       );
       return;
     } on Object catch (e) {
-      _model = null;
-      _emit('recover', 'Still failing ($e). Clearing stale install and reinstalling…', null);
+      _emit('recover', 'Still failing ($e). Clearing stale file and reinstalling…', null);
       debugPrint(
         'FlutterGemmaLlmEngine: second open failed ($e); purging and reinstalling.',
       );
@@ -410,7 +519,7 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     await _installFromConfiguredSource();
 
     try {
-      _model = await _openActiveModel();
+      await _openActiveModel();
       _emit('ready', 'Model opened after reinstall.', 100);
       ModelDiagnostics.instance.log(
         area: 'engine',
@@ -418,7 +527,6 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
         message: 'Open succeeded after reinstall',
       );
     } on Object catch (e) {
-      _model = null;
       debugPrint(
         'FlutterGemmaLlmEngine: first open after install failed ($e), '
         'purging and retrying once.',
@@ -426,7 +534,7 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       await _purgeInstallArtifacts();
       await _installFromConfiguredSource();
       try {
-        _model = await _openActiveModel();
+        await _openActiveModel();
         _emit('ready', 'Model opened after second reinstall.', 100);
         ModelDiagnostics.instance.log(
           area: 'engine',
@@ -434,7 +542,6 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
           message: 'Open succeeded after second reinstall',
         );
       } on Object catch (e2) {
-        _model = null;
         if (gemmaErrorLooksLikeInvalidTaskArchive(e2)) {
           final hint = switch (_settings.gemma4OnDeviceVariant) {
             Gemma4OnDeviceVariant.e2bHuggingFace =>
@@ -445,7 +552,7 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
                   'or free storage and retry.',
           };
           throw LlmUnavailableException(
-            'The model is not a valid Gemma archive (LiteRT could not open it '
+            'The model is not a valid Gemma archive (native loader could not open it '
             'as a zip). $hint '
             'Underlying error: ${rawInstallErrorLabel(e2)}',
           );
@@ -459,34 +566,31 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     _finishLoaded();
   }
 
+  Map<String, Object?> _genArgs(LlmGenerateRequest request) {
+    return <String, Object?>{
+      'prompt': request.prompt.text,
+      'temperature': GemmaInferenceDefaults.temperature,
+      'randomSeed': GemmaInferenceDefaults.randomSeed,
+      'topK': GemmaInferenceDefaults.topK,
+      'topP': GemmaInferenceDefaults.topP,
+      'enableThinking': GemmaInferenceDefaults.enableThinking,
+      'maxNewTokens': request.maxTokens,
+    };
+  }
+
   @override
   Future<ModelBoundCompletion> generate(LlmGenerateRequest request) async {
     if (_disposed) throw StateError('FlutterGemmaLlmEngine disposed');
     if (!_loaded) await ensureLoaded();
-    final model = _model!;
 
-    // Gemma 4 / LiteRT-LM: sampling defaults recommended in flutter_gemma docs
-    // (thinking off; structured JSON prompts still benefit from topK/topP).
-    final session = await model.createSession(
-      temperature: GemmaInferenceDefaults.temperature,
-      randomSeed: GemmaInferenceDefaults.randomSeed,
-      topK: GemmaInferenceDefaults.topK,
-      topP: GemmaInferenceDefaults.topP,
-      enableThinking: GemmaInferenceDefaults.enableThinking,
-    );
     try {
-      await session.addQueryChunk(
-        Message.text(text: request.prompt.text, isUser: true),
-      );
-      var text = await session.getResponse();
+      var text = await NativeLlmPlatform.generate(_genArgs(request));
       text = _applyStopSequences(text, request.stopSequences);
       return ModelBoundCompletion(
         LlmOutputFilters.takeThroughFirstBalancedJson(text),
       );
     } on Object catch (e) {
       throw LlmResourceException('Inference failed: $e');
-    } finally {
-      await session.close();
     }
   }
 
@@ -510,23 +614,11 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     unawaited(() async {
       try {
         if (!_loaded) await ensureLoaded();
-        final model = _model!;
-        final session = await model.createSession(
-          temperature: GemmaInferenceDefaults.temperature,
-          randomSeed: GemmaInferenceDefaults.randomSeed,
-          topK: GemmaInferenceDefaults.topK,
-          topP: GemmaInferenceDefaults.topP,
-          enableThinking: GemmaInferenceDefaults.enableThinking,
-        );
-        try {
-          await session.addQueryChunk(
-            Message.text(text: request.prompt.text, isUser: true),
-          );
-          await for (final token in session.getResponseAsync()) {
-            if (!controller.isClosed) controller.add(token);
-          }
-        } finally {
-          await session.close();
+        await for (final token in NativeLlmPlatform.generateStream(
+          _genArgs(request),
+        )) {
+          if (token.isEmpty) continue;
+          if (!controller.isClosed) controller.add(token);
         }
         await controller.close();
       } on Object catch (e, st) {
@@ -543,15 +635,17 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   void dispose() {
     _disposed = true;
     _loaded = false;
-    final m = _model;
-    _model = null;
-    if (m != null) {
-      unawaited(m.close());
-    }
+    unawaited(() async {
+      try {
+        await NativeLlmPlatform.closeModel();
+      } on Object catch (e) {
+        debugPrint('FlutterGemmaLlmEngine.dispose: closeModel: $e');
+      }
+    }());
   }
 }
 
-/// True when this process should use the real Gemma plugin (mobile shells only).
+/// True when this process should use the real on-device stack (mobile shells only).
 bool get shouldUseFlutterGemmaEngine {
   if (kIsWeb) return false;
   return Platform.isAndroid || Platform.isIOS;

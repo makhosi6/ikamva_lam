@@ -2,9 +2,10 @@ import 'llm_generate_request.dart';
 
 /// Optional capability for **streaming** partial model text to the UI ([spec.md](../../../spec.md) §7.3).
 ///
-/// **Status:** [FlutterGemmaLlmEngine] implements this on Android/iOS using the
-/// plugin async token stream. If the active engine does not implement this
-/// interface, [LlmService.tryOpenGenerateStream] returns `null`.
+/// **Status:** [FlutterGemmaLlmEngine] implements this on Android/iOS using native
+/// MethodChannels (LiteRT-LM for `.litertlm` on Android, MediaPipe on iOS). If the
+/// active engine does not implement this interface, [LlmService.tryOpenGenerateStream]
+/// returns `null`.
 ///
 /// Callers should use [LlmService.tryOpenGenerateStream] and fall back to [LlmService.generate]
 /// when the return value is null.
