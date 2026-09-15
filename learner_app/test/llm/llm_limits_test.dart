@@ -1,12 +1,23 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ikamva_lam/llm/llm_limits.dart';
 
 void main() {
   test('clampContext low vs standard defaults', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
     expect(LlmLimits.clampContext(0, lowRamProfile: false), 768);
     expect(LlmLimits.clampContext(0, lowRamProfile: true), 512);
     expect(LlmLimits.clampContext(2000, lowRamProfile: false), 1024);
     expect(LlmLimits.clampContext(400, lowRamProfile: false), 512);
+  });
+
+  test('clampContext Android uses 512 max regardless of lowRamProfile', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    expect(LlmLimits.clampContext(0, lowRamProfile: false), 512);
+    expect(LlmLimits.clampContext(0, lowRamProfile: true), 512);
+    expect(LlmLimits.clampContext(2000, lowRamProfile: false), 512);
   });
 
   test('clampMaxNewTokens', () {

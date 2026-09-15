@@ -23,7 +23,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final settings = SettingsStore();
     await settings.load();
-    LlmService.instance.invalidateCachedEngine();
+    await LlmService.instance.invalidateCachedEngine();
     LlmService.instance.configure(settings);
 
     db = openMemoryDatabase();
@@ -31,7 +31,7 @@ void main() {
   });
 
   tearDown(() async {
-    LlmService.instance.invalidateCachedEngine();
+    await LlmService.instance.invalidateCachedEngine();
     await db.close();
   });
 

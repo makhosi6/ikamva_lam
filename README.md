@@ -2,7 +2,7 @@
 
 <img src="branding/cover.png" alt="Ikamva Lam cover banner" width="1200" style="max-width: 100%; height: auto;" />
 
-Playful, Teacher/Parent-guided English practice for primary and early secondary learners (school or home). Learner app targets **offline-first** use on tablets and low-end phones; on-device AI runs via **`flutter_gemma`** with a **bundled** Gemma 4 E2B **`.litertlm`** (optional compile-time HTTP override — see [spec.md](spec.md)).
+Playful, Teacher/Parent-guided English practice for primary and early secondary learners (school or home). Learner app targets **offline-first** use on tablets and low-end phones; on-device AI runs via native **LiteRT-LM / MediaPipe** channels with **Gemma 3n or Gemma 4** `.litertlm` weights downloaded once from Hugging Face (see [learner_app/docs/model_delivery.md](learner_app/docs/model_delivery.md)).
 
 ## Repository layout
 
@@ -11,7 +11,7 @@ Playful, Teacher/Parent-guided English practice for primary and early secondary 
 | [branding/](branding/) | Logo & cover PNGs (raster), SVG source, future brand assets |
 | [scripts/](scripts/) | e.g. `generate_cover.py` — cover layout (logo + copy) |
 | [learner_app/](learner_app/) | Flutter learner client |
-| [learner_app/assets/models/](learner_app/assets/models/) | Bundled **`gemma-4-E2B-it.litertlm`** + `OBTAINING_MODELS.txt` |
+| [learner_app/docs/model_delivery.md](learner_app/docs/model_delivery.md) | How Gemma 3n / Gemma 4 weights are downloaded & opened |
 | [TASKS.md](TASKS.md) | Detailed build checklist |
 | [design.md](design.md) | UX flows and visual tokens |
 | [spec.md](spec.md) | Technical specification |
@@ -28,11 +28,11 @@ Fill this table on real hardware after profiling. Stub LLM timings are not repre
 | Metric | 4GB RAM (E2B target) | 8GB RAM (E4B target) |
 |--------|----------------------|------------------------|
 | Cold start → first interactive frame | TBD | TBD |
-| Model ready (bundled `.litertlm` install + first `generate`) | TBD | TBD |
+| Model ready (HF download + first `generate`) | TBD | TBD |
 | First-token latency (one cloze prompt) | TBD | TBD |
 | Avg. task generation (queue fill) | TBD | TBD |
 
-**How to capture (TASKS Phase 17.1):** (1) Note device model, OS version, RAM, and Git commit. (2) Cold start: time from app icon tap until Welcome or Hub is interactive. (3) Model ready: first successful `LlmService.generate` after bundled **`ensureReady()`** / hub warm-up finishes and the model is opened (Settings → “Warm up model” or first hub generation). (4) First-token: one representative `TASK: generate_cloze` prompt; stopwatch from invoke to first visible character if streaming is enabled, else full completion. (5) Queue fill: average wall time for `TaskQueueService` top-up of *N* items (pick N in app logs or debug panel). Paste numbers into this table and keep a copy for [writeup.md](writeup.md).
+**How to capture (TASKS Phase 17.1):** (1) Note device model, OS version, RAM, Git commit, and which **on-device variant** (Gemma 3n E2B/E4B or Gemma 4 E2B/E4B). (2) Cold start: time from app icon tap until Welcome or Hub is interactive. (3) Model ready: first successful `LlmService.generate` after setup download + hub warm-up finishes and the model is opened (Settings → “Warm up model” or first hub generation). (4) First-token: one representative `TASK: generate_cloze` prompt; stopwatch from invoke to first visible character if streaming is enabled, else full completion. (5) Queue fill: average wall time for `TaskQueueService` top-up of *N* items (pick N in app logs or debug panel). Paste numbers into this table and keep a copy for [writeup.md](writeup.md).
 
 **Battery / thermal (TASKS §15.4):** run a continuous 15-minute practice session on a physical device; note % battery drop and subjective warmth in your writeup. No simulator substitute.
 
@@ -67,13 +67,13 @@ python3 scripts/generate_cover.py
 
 Requires **macOS** system fonts (*Arial Rounded Bold*, *Arial*). On Linux, point the script at equivalent `.ttf` paths or install those faces.
 
-## Models (flutter_gemma + bundled `.litertlm` only)
+## Models (on-device Gemma 3n / Gemma 4)
 
-- **Production (Android / iOS):** Gemma 4 **E2B** **`gemma-4-E2B-it.litertlm`** is **bundled** under `learner_app/assets/models/` and declared in **`pubspec.yaml`**. There is **no** HTTP download of weights; first use copies via **`FlutterGemma.installModel`…`fromAsset`**. Checklist: `learner_app/assets/models/OBTAINING_MODELS.txt`, architecture: `learner_app/docs/model_delivery.md`.
-- **Persistence:** the plugin keeps the installed model on device. Cold starts re-open the active model; if it is missing or corrupt, **`LlmService.ensureReady` / `generate`** or the prepare flow can trigger a **re-install from the bundled asset**.
-- **Cross-session correctness:** prepare state stores a **bundle fingerprint**. If the bundled path changes between builds, the app may route through prepare/verify so stale artifacts are not reused.
-- **Default target:** Gemma 4 **E2B** `.litertlm` from [litert-community](https://huggingface.co/litert-community) (you vendor the file into `assets/models/`).
-- **Pin:** `flutter_gemma` version is pinned in `learner_app/pubspec.yaml`; run `pod install` under `learner_app/ios` after upgrades.
+- **Production (Android / iOS):** Download a **`.litertlm`** once from Hugging Face into app documents. Default recommendation: **Gemma 3n E2B** (multimodal-capable; needs `IKAMVA_HF_TOKEN`). **Gemma 4 E2B/E4B** from litert-community are public (no token) and suit the LiteRT prize track. Catalog + URLs: [`learner_app/docs/model_delivery.md`](learner_app/docs/model_delivery.md), [`gemma_model_config.dart`](learner_app/lib/llm/gemma_model_config.dart).
+- **Setup gate:** First launch (after onboarding) opens **`/gemma-setup`** to choose and download; Settings → **Choose on-device model** to switch later.
+- **Persistence:** weights stay under app documents. Cold starts re-open the active file; if missing or corrupt, **`LlmService.ensureReady` / `generate`** or the setup flow can re-download.
+- **Cross-session correctness:** prepare state stores a **bundle fingerprint** (`network:<url>`). Switching variants invalidates prepare prefs and purges known filenames.
+- **GPU crashes on mid-range Android:** use **Low RAM** in Settings or `--dart-define=IKAMVA_FORCE_CPU_BACKEND=1` (see [`gpu_timeout_fix.md`](learner_app/docs/gpu_timeout_fix.md)).
 - **Stub / CI:** `IKAMVA_USE_STUB_LLM=1` or `flutter test` on a desktop host does not load the mobile plugin for real inference.
 - **Privacy:** all **LLM inference is on-device**. Optional non-LLM network (e.g. sync) is separate—see `docs/api_sync_contract.md`.
 - **Optional sync:** compile with `--dart-define=IKAMVA_SYNC_URL=https://example.com/v1/summaries` to exercise outbox flush (see `docs/api_sync_contract.md`).
@@ -81,42 +81,25 @@ Requires **macOS** system fonts (*Arial Rounded Bold*, *Arial*). On Linux, point
 
 ### VS Code, `.env`, and CI
 
-- **Local:** VS Code **Run and Debug** may use **`--dart-define-from-file=${workspaceFolder}/.env`** (see **`.vscode/launch.json`**). Gemma weights are **not** configured via `.env`; use an empty **`.env`** if the launch config requires the file. Optional **`IKAMVA_MODEL_*`** defines adjust prepare-screen free-space hints (`model_prepare_config.dart`).
+- **Local:** VS Code **Run and Debug** may use **`--dart-define-from-file=${workspaceFolder}/.env`** (see **`.vscode/launch.json`**). For **Gemma 3n**, set **`IKAMVA_HF_TOKEN`** in that `.env`. Gemma 4 litert-community artifacts do not require a token.
 - **Stub LLM (tests / forced QA):** set process environment **`IKAMVA_USE_STUB_LLM=1`** (not a `dart-define` in this codebase). Launch configs do not set it by default.
-- **Release builds (GitHub Actions):** **`build-and-deploy`** creates an empty repo-root **`.env`** so **`--dart-define-from-file`** succeeds; release binaries must list the `.litertlm` in **`pubspec.yaml`**.
+- **Release builds (GitHub Actions):** **`build-and-deploy`** creates an empty repo-root **`.env`** so **`--dart-define-from-file`** succeeds; bake **`IKAMVA_HF_TOKEN`** into CI secrets for Gemma 3n release smoke tests.
 
 ### Minimum device profile (on-device Gemma)
 
-- **RAM:** target **≥ 4 GB** for Gemma 3 **1B**–class `.task` weights; enable **Low RAM** in Settings on weaker devices (smaller context, CPU preference).
-- **OS:** **iOS 16+** (see `learner_app/ios/Podfile`); Android — use a recent 64-bit device/emulator compatible with the `flutter_gemma` / MediaPipe stack.
+- **RAM:** target **≥ 4 GB** for E2B-class weights; enable **Low RAM** in Settings on weaker devices (smaller context, CPU preference). E4B wants stronger devices / more free storage.
+- **OS:** **iOS 16+** (see `learner_app/ios/Podfile`); Android — recent 64-bit device/emulator compatible with LiteRT-LM / MediaPipe.
 - **Below minimum:** model prepare or inference may fail; the app shows errors — there is **no** cloud LLM fallback.
 
-### Maintainer dependency upgrades (`flutter_gemma`)
+### Local Models Setup (optional QA)
 
-1. Bump the **exact** version in `learner_app/pubspec.yaml` and run `flutter pub get`.
-2. Re-read the [flutter_gemma changelog](https://pub.dev/packages/flutter_gemma/changelog) for iOS `Podfile` / Android manifest notes.
-3. Run `cd learner_app/ios && pod install` and verify `flutter build apk` / `flutter build ios`.
-
-### Local Models Setup (Optional)
-
-If you want to test local models like `Gemma 3 1B IT (Local)`:
-
-1. Download the model file from HuggingFace
-2. Place it in the appropriate location:
-   - **Android:** `android/app/src/main/assets/models/gemma3-1b-it-int4.task`
-   - **iOS:** Add to Xcode project under Resources
-   - **Web:** `web/assets/models/gemma3-1b-it-int4.task` (production builds only)
-3. Ensure the file is listed in `pubspec.yaml` under `flutter: assets:`
-
-```yaml
-flutter:
-  assets:
-    - assets/models/gemma3-1b-it-int4.task
-    - assets/models/gemma-3n-E2B-it-int4.task
-```
-
+Weights are **not** bundled in `pubspec.yaml`. To sideload for QA, place a `.litertlm` under the app documents path with the expected filename (see `GemmaModelConfig`) or use the in-app download flow.
 ## License
 
 This repository is licensed under [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/). See [LICENSE](LICENSE). That matches the Gemma 4 Good Hackathon winner license type; third-party dependencies (for example Flutter packages) remain under their own licenses.
 
 Use Gemma model weights only in line with [Google’s Gemma terms of use](https://ai.google.dev/gemma/terms) (separate from the Kaggle rules file).
+
+```bash
+flutter run -d 23106RN0DA --dart-define=IKAMVA_FORCE_CPU_BACKEND=1
+```

@@ -22,10 +22,10 @@ Digital Equity & Inclusivity
 	•	Supports multilingual scaffolding
 	•	Runs on low-end hardware
 
-On-device Gemma (flutter_gemma)
-	•	MediaPipe / LiteRT-LM inference via the `flutter_gemma` plugin
-	•	**Bundled** Gemma 4 E2B **`gemma-4-E2B-it.litertlm`** in the app asset bundle; first use runs **hub warm-up** / **`ensureReady()`** (`installModel`…`fromAsset`). **No** remote weight download. Plugin **persists** files on device; **re-install** from assets if missing or corrupt (`LlmService` load path / Settings warm-up)
-	•	Efficient memory + token usage (quantised mobile builds)
+On-device Gemma (LiteRT-LM / MediaPipe)
+	•	Native MethodChannel inference (Android LiteRT-LM, iOS MediaPipe GenAI)
+	•	**Hugging Face download** of **Gemma 3n** or **Gemma 4** `.litertlm` (default: Gemma 3n E2B); first-run **`/gemma-setup`**, then hub **`ensureReady()`**. Plugin / app-documents **persist** files; **re-download** if missing or corrupt
+	•	Efficient memory + token usage (quantised mobile builds; Low RAM / CPU fallback)
 
 **1.1 Adult guide (Teacher/Parent).** The adult who assigns quests and reviews summaries may be a **school teacher** or a **parent** (shared classroom tablet or home device). Specs, design, and **user-visible app copy** use **Teacher/Parent** for that role. Schema names such as `paired_teacher_code` remain shorthand for the paired adult unless a future migration renames them.
 
@@ -39,7 +39,7 @@ On-device Gemma (flutter_gemma)
     |-- UI (Flutter)
     |-- Game Engine
     |-- Local DB (SQLite)
-    |-- AI Runtime (flutter_gemma + bundled Gemma `.litertlm`, optional HTTP override, persisted on device)
+    |-- AI Runtime (LiteRT-LM / MediaPipe + HF Gemma 3n or Gemma 4 `.litertlm`, persisted on device)
     |-- Content Cache + Prompt Templates + Child-friendly gate (on-device)
     |
 [ Optional Sync Layer ]
@@ -70,13 +70,17 @@ This is where you win the competition.
 3.1 Model Selection Strategy
 
 Use Case	Model
-Low-end devices	Gemma 4 E2B (2B)
-Mid devices	Gemma 4 E4B (4B)
+Low / mid-range devices (default)	Gemma 3n E2B
+Stronger multimodal devices	Gemma 3n E4B
+LiteRT prize / public download	Gemma 4 E2B
+High-end devices	Gemma 4 E4B
 Teacher/Parent-facing analytics (optional server)	26B
 
 Why:
-	•	Small models are designed for edge/mobile use  ￼
-	•	Can run with ~8GB RAM devices  ￼
+	•	Small models are designed for edge/mobile use
+	•	Gemma 3n brings multimodal (vision/audio) capability when the app enables those modalities
+	•	Gemma 4 targets the hackathon LiteRT track with publicly resolvable litert-community artifacts
+	•	Can run with ~4–8GB RAM devices depending on variant
 
 ⸻
 
@@ -86,9 +90,9 @@ Runtime stack
 
 Flutter App (`LlmService` → `FlutterGemmaLlmEngine`)
    ↓
-`flutter_gemma` plugin (Android / iOS)
+Native LiteRT-LM / MediaPipe channels (Android / iOS)
    ↓
-Gemma `.litertlm` on disk (copied from bundled `assets/models/gemma-4-E2B-it.litertlm` — see `OBTAINING_MODELS.txt`)
+Gemma 3n or Gemma 4 `.litertlm` on disk (HF download — see `learner_app/docs/model_delivery.md`)
 
 
 ⸻

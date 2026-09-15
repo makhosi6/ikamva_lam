@@ -10,13 +10,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues({});
 
-  setUp(() {
-    LlmService.instance.invalidateCachedEngine();
+  setUp(() async {
+    await LlmService.instance.invalidateCachedEngine();
   });
 
-  tearDown(() {
+  tearDown(() async {
     // This singleton is global in app runtime; avoid leaking state across tests.
-    LlmService.instance.invalidateCachedEngine();
+    await LlmService.instance.invalidateCachedEngine();
   });
 
   test(
@@ -27,7 +27,7 @@ void main() {
       }
       final settings = SettingsStore();
       await settings.load();
-      LlmService.instance.invalidateCachedEngine();
+      await LlmService.instance.invalidateCachedEngine();
       LlmService.instance.configure(settings);
       await expectLater(
         LlmService.instance.generate(
@@ -46,7 +46,7 @@ void main() {
       }
       final settings = SettingsStore();
       await settings.load();
-      LlmService.instance.invalidateCachedEngine();
+      await LlmService.instance.invalidateCachedEngine();
       LlmService.instance.configure(settings);
       await expectLater(
         LlmService.instance.tryOpenGenerateStream(
@@ -58,7 +58,7 @@ void main() {
   );
 
   test('invalidateCachedEngine is safe and idempotent', () async {
-    LlmService.instance.invalidateCachedEngine();
-    LlmService.instance.invalidateCachedEngine();
+    await LlmService.instance.invalidateCachedEngine();
+    await LlmService.instance.invalidateCachedEngine();
   });
 }

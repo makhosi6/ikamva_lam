@@ -122,6 +122,8 @@ dependencies {
     implementation("com.google.mediapipe:tasks-genai:0.10.33")
     implementation("com.google.ai.edge.litertlm:litertlm-android:$litertlmAndroidVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    testImplementation("junit:junit:4.13.2")
 }
 
 val extractLiteRtJniLibs =

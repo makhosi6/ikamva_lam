@@ -1,5 +1,9 @@
-import 'gemma4_ondevice_variant.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
+
+import 'host_is_android.dart';
 import 'gemma_model_config.dart';
+import 'on_device_gemma_variant.dart';
 
 /// On-device Gemma install sizing / fingerprints (weights come from Hugging Face).
 abstract final class ModelPrepareConfig {
@@ -19,34 +23,47 @@ abstract final class ModelPrepareConfig {
   );
 
   /// Context window passed to native load (`maxTokens`).
+  ///
+  /// **Android CPU backend ladder** (NDJSON session 669518 — MIUI device):
+  ///   768 → `Failed to invoke the compiled model` → capped to 512.
+  ///   512 → XNNPack `DYNAMIC_UPDATE_SLICE` node 1164 at inference time
+  ///         (`RunPrefillAsync` + `nativeSendMessage`).
+  ///   256 → **worse**: DYNAMIC_UPDATE_SLICE node 2122 fails during
+  ///         `Engine.initialize()` (load_failed, before any inference).
+  ///         A smaller KV-cache makes XNNPack graph preparation fail earlier.
+  ///   → GPU (`IKAMVA_PREFER_ANDROID_GPU=true`) is the only working path.
   static int contextMaxTokensFor(bool lowRamProfile) {
     if (lowRamProfile) return 512;
     const v = int.fromEnvironment(
       'IKAMVA_CONTEXT_MAX_TOKENS',
       defaultValue: 1024,
     );
-    if (v < 512) return 512;
-    if (v > 2048) return 2048;
-    return v;
+    var t = v;
+    if (t < 512) return 512;
+    if (t > 2048) t = 2048;
+    if (!kIsWeb &&
+        (hostIsAndroid || defaultTargetPlatform == TargetPlatform.android)) {
+      // Keep native max aligned with [LlmLimits.clampContext] on Android (512).
+      // 768 still hit LiteRT "Failed to invoke the compiled model" on some
+      // devices (NDJSON session 669518 post-768-cap).
+      if (t > 512) t = 512;
+    }
+    return t;
   }
 
-  /// [ModelPreparePrefs] identity for the active Gemma 4 variant.
-  static String installFingerprint(Gemma4OnDeviceVariant variant) {
-    switch (variant) {
-      case Gemma4OnDeviceVariant.e2bHuggingFace:
-        return 'network:${GemmaModelConfig.gemma4E2bLitertlmUrl}';
-      case Gemma4OnDeviceVariant.e4bNetwork:
-        return 'network:${GemmaModelConfig.gemma4E4bLitertlmUrl}';
-    }
+  /// [ModelPreparePrefs] identity for the active on-device variant.
+  static String installFingerprint(OnDeviceGemmaVariant variant) {
+    final a = GemmaModelConfig.artifactFor(variant);
+    return 'network:${a.url}';
   }
 
-  static int estimatedInstallMbFor(Gemma4OnDeviceVariant variant) {
-    switch (variant) {
-      case Gemma4OnDeviceVariant.e2bHuggingFace:
-        return 2400;
-      case Gemma4OnDeviceVariant.e4bNetwork:
-        return 4400;
-    }
+  static int estimatedInstallMbFor(OnDeviceGemmaVariant variant) {
+    return switch (variant) {
+      OnDeviceGemmaVariant.gemma3nE2b => 3200,
+      OnDeviceGemmaVariant.gemma3nE4b => 6700,
+      OnDeviceGemmaVariant.gemma4E2b => 2400,
+      OnDeviceGemmaVariant.gemma4E4b => 4400,
+    };
   }
 
   static InstallModelFileKind fileTypeForInstallSource(String pathOrUrl) =>

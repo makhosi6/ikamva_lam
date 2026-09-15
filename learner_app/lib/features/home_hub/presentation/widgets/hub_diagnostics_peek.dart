@@ -49,22 +49,25 @@ class HubDiagnosticsPeek extends StatelessWidget {
         ),
       );
     }
-    return ListView.builder(
-      controller: controller,
-      padding: const EdgeInsets.all(8),
-      itemCount: tail.length,
-      itemBuilder: (context, i) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: SelectableText(
-            _formatLine(tail[i]),
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'monospace',
-              fontFamilyFallback: const ['monospace'],
+    return SizedBox(
+      height: height,
+      child: ListView.builder(
+        controller: controller,
+        padding: const EdgeInsets.all(8),
+        itemCount: tail.length,
+        itemBuilder: (context, i) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: SelectableText(
+              _formatLine(tail[i]),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'monospace',
+                fontFamilyFallback: const ['monospace'],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

@@ -43,20 +43,38 @@ object NativeLlmBridge {
 
     private val streamSink = AtomicReference<EventChannel.EventSink?>(null)
 
+    /** In-flight stream job — cancelled from [EventChannel.StreamHandler.onCancel] (Req 4.4). */
+    private class ActiveStream {
+        @Volatile var cancelled: Boolean = false
+        var mpSession: LlmInferenceSession? = null
+        var liteRtConversation: Conversation? = null
+    }
+
+    private val activeStream = AtomicReference<ActiveStream?>(null)
+
     fun register(messenger: BinaryMessenger, context: Context) {
         appContext = context.applicationContext
         val appCtx = appContext!!
 
         MethodChannel(messenger, "za.co.ikamvalam/native_llm").setMethodCallHandler { call, result ->
             when (call.method) {
-                "loadModel" -> executor.execute {
-                    try {
-                        handleLoad(appCtx, call)
-                        mainHandler.post { result.success(null) }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "loadModel failed", e)
-                        mainHandler.post {
-                            result.error("load_failed", e.message, null)
+                "loadModel" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val loadArgs = call.arguments as? Map<String, Any?>
+                    val rawPath = loadArgs?.get("modelPath")
+                    if (rawPath == null || rawPath !is String || rawPath.isBlank()) {
+                        result.error("bad_args", "missing or invalid modelPath", null)
+                    } else {
+                        executor.execute {
+                            try {
+                                handleLoad(appCtx, call)
+                                mainHandler.post { result.success(null) }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "loadModel failed", e)
+                                mainHandler.post {
+                                    result.error("load_failed", e.message, null)
+                                }
+                            }
                         }
                     }
                 }
@@ -99,6 +117,11 @@ object NativeLlmBridge {
                 }
 
                 override fun onCancel(arguments: Any?) {
+                    val job = activeStream.getAndSet(null)
+                    job?.cancelled = true
+                    // Do not schedule on [executor]: the stream may be holding that thread on await.
+                    job?.mpSession?.cancelGenerateResponseAsync()
+                    runCatching { job?.liteRtConversation?.close() }
                     streamSink.set(null)
                 }
             },
@@ -154,7 +177,9 @@ object NativeLlmBridge {
                     } else {
                         setPreferredBackend(LlmInference.Backend.CPU)
                     }
-                    if (maxNumImages > 0) setMaxNumImages(maxNumImages)
+                    if (supportImage && maxNumImages > 0) {
+                        setMaxNumImages(maxNumImages)
+                    }
                     if (supportAudio) {
                         setAudioModelOptions(
                             com.google.mediapipe.tasks.genai.llminference.AudioModelOptions.builder()
@@ -260,10 +285,13 @@ object NativeLlmBridge {
         val enableThinking = args["enableThinking"] as Boolean
         val path = loadedPath
 
+        val job = ActiveStream()
         try {
             if (path != null && path.endsWith(".litertlm", ignoreCase = true)) {
-                litertGenerateStream(prompt, temperature, topK, topP, enableThinking, sink)
+                activeStream.set(job)
+                litertGenerateStream(prompt, temperature, topK, topP, enableThinking, sink, job)
             } else if (mediaPipeLlm != null) {
+                activeStream.set(job)
                 mediaPipeGenerateStream(
                     prompt,
                     temperature,
@@ -272,17 +300,22 @@ object NativeLlmBridge {
                     randomSeed,
                     enableThinking,
                     sink,
+                    job,
                 )
             } else {
                 mainHandler.post {
-                    sink.error("not_loaded", "Model not loaded", null)
+                    sink.error("stream_failed", "Model not loaded", null)
                 }
                 return
             }
-            mainHandler.post { sink.endOfStream() }
+            if (!job.cancelled) {
+                mainHandler.post { sink.endOfStream() }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "stream failed", e)
             mainHandler.post { sink.error("stream_failed", e.message, null) }
+        } finally {
+            activeStream.compareAndSet(job, null)
         }
     }
 
@@ -293,6 +326,7 @@ object NativeLlmBridge {
         topP: Double,
         enableThinking: Boolean,
         sink: EventChannel.EventSink,
+        job: ActiveStream,
     ) {
         val engine = liteRtEngine ?: throw IllegalStateException("LiteRT engine not loaded")
         val samplerConfig = SamplerConfig(
@@ -305,6 +339,7 @@ object NativeLlmBridge {
             systemInstruction = null,
         )
         val conversation = engine.createConversation(conversationConfig)
+        job.liteRtConversation = conversation
         val message = Contents.of(Content.Text(prompt))
         val extra = mapOf("enable_thinking" to enableThinking)
         val done = CountDownLatch(1)
@@ -312,6 +347,7 @@ object NativeLlmBridge {
 
         val callback = object : MessageCallback {
             override fun onMessage(msg: Message) {
+                if (job.cancelled) return
                 val thinking = msg.channels["thought"]
                 val text = msg.toString()
                 val combined = buildString {
@@ -321,7 +357,9 @@ object NativeLlmBridge {
                     if (text.isNotEmpty()) append(text)
                 }
                 if (combined.isNotEmpty()) {
-                    mainHandler.post { sink.success(combined) }
+                    mainHandler.post {
+                        if (!job.cancelled) sink.success(combined)
+                    }
                 }
             }
 
@@ -354,6 +392,7 @@ object NativeLlmBridge {
         randomSeed: Int,
         enableThinking: Boolean,
         sink: EventChannel.EventSink,
+        job: ActiveStream,
     ) {
         val llm = mediaPipeLlm ?: throw IllegalStateException("MediaPipe LLM not loaded")
         if (enableThinking) {
@@ -366,12 +405,15 @@ object NativeLlmBridge {
             .setTopP(topP.toFloat())
             .build()
         val session = LlmInferenceSession.createFromOptions(llm, sessionOptions)
+        job.mpSession = session
         val done = CountDownLatch(1)
         try {
             session.addQueryChunk(prompt)
             session.generateResponseAsync { partial, isDone ->
-                if (partial != null) {
-                    mainHandler.post { sink.success(partial) }
+                if (partial != null && !job.cancelled) {
+                    mainHandler.post {
+                        if (!job.cancelled) sink.success(partial)
+                    }
                 }
                 if (isDone) {
                     done.countDown()

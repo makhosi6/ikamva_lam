@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../debug/agent_debug_log.dart';
 import '../state/settings_store.dart';
 import 'android_hf_download_setup.dart';
 import 'gemma4_ondevice_variant.dart';
@@ -15,11 +18,14 @@ import 'huggingface_auth_token_store.dart';
 import 'llm_engine.dart';
 import 'llm_exceptions.dart';
 import 'llm_generate_request.dart';
+import 'llm_limits.dart';
 import 'llm_output_filters.dart';
+import 'model_cache_checker.dart';
 import 'model_diagnostics.dart';
 import 'model_prepare_config.dart';
 import 'model_prepare_prefs.dart';
 import 'native_llm_platform.dart';
+import 'on_device_gemma_variant.dart';
 import 'streaming_llm_capability.dart';
 
 /// Upper bound for native GPU weight upload / delegate setup.
@@ -68,13 +74,18 @@ bool gemmaErrorLooksLikeInvalidTaskArchive(Object error) {
       (s.contains('unable to open') && s.contains('zip'));
 }
 
-GemmaHfModelDownloadService _hfServiceForVariant(Gemma4OnDeviceVariant v) {
-  switch (v) {
-    case Gemma4OnDeviceVariant.e2bHuggingFace:
-      return GemmaHfModelDownloadService.e2b();
-    case Gemma4OnDeviceVariant.e4bNetwork:
-      return GemmaHfModelDownloadService.e4b();
-  }
+GemmaHfModelDownloadService _hfServiceForVariant(OnDeviceGemmaVariant v) {
+  return GemmaHfModelDownloadService.forVariant(v);
+}
+
+/// Pure predicate behind [shouldUseFlutterGemmaEngine] (Requirements 10.2, 11.4).
+bool computeShouldUseFlutterGemmaEngine({
+  required bool isWeb,
+  required bool isAndroid,
+  required bool isIos,
+}) {
+  if (isWeb) return false;
+  return isAndroid || isIos;
 }
 
 Future<String> _documentsModelBaseDir() async {
@@ -87,7 +98,7 @@ Future<String> _documentsModelBaseDir() async {
 
 /// True when the on-disk weights for the **selected** variant exist.
 Future<bool> flutterGemmaActiveInferenceInstalled(
-  Gemma4OnDeviceVariant variant,
+  OnDeviceGemmaVariant variant,
 ) async {
   return _hfServiceForVariant(variant).isPluginModelInstalled();
 }
@@ -97,14 +108,12 @@ Future<bool> flutterGemmaActiveInferenceInstalled(
 Future<void> purgeGemmaPluginInstallCandidates() async {
   final base = await _documentsModelBaseDir();
   final ids = <String>{
-    ...GemmaModelConfig.pluginUninstallCandidateIdsFor(
-      GemmaModelConfig.gemma4E2bLitertlmUrl,
-    ),
-    ...GemmaModelConfig.pluginUninstallCandidateIdsFor(
-      GemmaModelConfig.gemma4E4bLitertlmUrl,
-    ),
-    GemmaModelConfig.gemma4E2bLitertlmFilename,
-    GemmaModelConfig.gemma4E4bLitertlmFilename,
+    for (final v in OnDeviceGemmaVariant.values) ...[
+      ...GemmaModelConfig.pluginUninstallCandidateIdsFor(
+        GemmaModelConfig.artifactFor(v).url,
+      ),
+      GemmaModelConfig.artifactFor(v).filename,
+    ],
     'ikamva_ondevice_model',
     'bundled_gemma.task',
   };
@@ -133,6 +142,18 @@ Future<void> _nativeLoad({
   required int maxTokens,
   required bool preferGpu,
 }) async {
+  // #region agent log
+  agentDebugLog(
+    location: 'flutter_gemma_llm_engine.dart:_nativeLoad',
+    message: 'native loadModel start',
+    hypothesisId: 'H4',
+    data: <String, Object?>{
+      'preferGpu': preferGpu,
+      'modelPath': modelPath,
+      'maxTokens': maxTokens,
+    },
+  );
+  // #endregion
   await NativeLlmPlatform.loadModel(<String, Object?>{
     'modelPath': modelPath,
     'maxTokens': maxTokens,
@@ -141,6 +162,17 @@ Future<void> _nativeLoad({
     'supportAudio': GemmaModelConfig.activeModelSupportAudio,
     'maxNumImages': GemmaModelConfig.activeModelMaxNumImages,
   });
+  // #region agent log
+  agentDebugLog(
+    location: 'flutter_gemma_llm_engine.dart:_nativeLoad',
+    message: 'native loadModel end',
+    hypothesisId: 'H4',
+    data: <String, Object?>{
+      'preferGpu': preferGpu,
+      'maxTokens': maxTokens,
+    },
+  );
+  // #endregion
 }
 
 /// Returns whether downloaded weights can be opened natively (mobile only).
@@ -197,10 +229,18 @@ Future<bool> probeFlutterGemmaActiveModelReady(SettingsStore settings) async {
       GemmaModelConfig.activeModelSupportAudio;
   final primaryGpu = multimodal
       ? true
-      : (!FlutterGemmaLlmEngine._forceCpuBackendBuildFlag &&
-          !settings.lowRamProfile);
+      : FlutterGemmaLlmEngine._textOnlyPreferGpuOnHost(settings);
   if (await probe(primaryGpu)) return true;
   if (!multimodal && primaryGpu && await probe(false)) {
+    return true;
+  }
+  // Android defaults to CPU for text-only; if that probe fails, one GPU try for
+  // devices where CPU path is broken but GPU works.
+  if (!multimodal &&
+      Platform.isAndroid &&
+      !FlutterGemmaLlmEngine._androidGpuOptInForTextOnly &&
+      !primaryGpu &&
+      await probe(true)) {
     return true;
   }
   return false;
@@ -252,6 +292,11 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
 
   Future<void>? _ensureLoadedInFlight;
 
+  /// Android: LiteRT **CPU** uses XNNPack; some Gemma graphs hit
+  /// `DYNAMIC_UPDATE_SLICE` / executor 786 at inference. After one such failure,
+  /// reopen with **GPU** for this engine lifetime (see `NativeLlmBridge` logs).
+  bool _androidEscalateLitertToGpu = false;
+
   int get _contextMaxTokens =>
       ModelPrepareConfig.contextMaxTokensFor(_settings.lowRamProfile);
 
@@ -266,6 +311,65 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
   static const bool _forceCpuBackendBuildFlag = _forceCpuBackendIntFlag != 0 ||
       _forceCpuBackendStringFlag == 'true' ||
       _forceCpuBackendStringFlag == 'TRUE';
+
+  /// Opt-in GPU for **text-only** `.litertlm` on **Android** (default is CPU).
+  ///
+  /// Heavy OpenCL / EGL init has killed the process on some devices **before**
+  /// any Dart error — so GPU-first on Android is unsafe without an explicit
+  /// `--dart-define` (see `post_download_crush` / QUEUE_BUFFER_TIMEOUT).
+  static const int _androidGpuForTextIntFlag = int.fromEnvironment(
+    'IKAMVA_ANDROID_GPU',
+    defaultValue: 0,
+  );
+  static const String _androidGpuForTextStringFlag = String.fromEnvironment(
+    'IKAMVA_PREFER_ANDROID_GPU',
+    defaultValue: '',
+  );
+  static bool get _androidGpuOptInForTextOnly =>
+      _androidGpuForTextIntFlag != 0 ||
+      _androidGpuForTextStringFlag == 'true' ||
+      _androidGpuForTextStringFlag == 'TRUE';
+
+  /// Re-open LiteRT with **GPU** after CPU inference hits the XNNPack /
+  /// `DYNAMIC_UPDATE_SLICE` / executor **786** path.
+  ///
+  /// **Default off:** NDJSON session **669518** — GPU `loadModel` killed the
+  /// process mid-init on a MIUI device (no `native loadModel end`). Enable only
+  /// with `--dart-define=IKAMVA_ESCALATE_LITERT_CPU_FAIL_TO_GPU=1` if you accept
+  /// that risk.
+  static const int _escalateCpuInferFailToGpuIntFlag = int.fromEnvironment(
+    'IKAMVA_ESCALATE_LITERT_CPU_FAIL_TO_GPU',
+    defaultValue: 0,
+  );
+  static const String _escalateCpuInferFailToGpuStringFlag =
+      String.fromEnvironment(
+    'IKAMVA_ESCALATE_LITERT_CPU_FAIL_TO_GPU',
+    defaultValue: '',
+  );
+  static bool get _allowEscalateCpuInferFailToGpu =>
+      _escalateCpuInferFailToGpuIntFlag != 0 ||
+      _escalateCpuInferFailToGpuStringFlag == 'true' ||
+      _escalateCpuInferFailToGpuStringFlag == 'TRUE';
+
+  static bool _textOnlyPreferGpuOnHost(SettingsStore settings) {
+    if (_forceCpuBackendBuildFlag) return false;
+    if (Platform.isAndroid && !_androidGpuOptInForTextOnly) {
+      // Android without explicit GPU opt-in → always CPU.
+      return false;
+    }
+    if (Platform.isAndroid) {
+      // Android WITH GPU opt-in: honour the flag regardless of RAM profile.
+      // On Android, [SettingsStore.lowRamProfile] controls the KV-cache token
+      // count (256 vs 512 — see [ModelPrepareConfig.contextMaxTokensFor]),
+      // NOT the compute backend. Letting lowRamProfile disable GPU here means
+      // the tier-3 Low RAM retry in [NativeLlmChatController] accidentally
+      // falls back to CPU even when IKAMVA_PREFER_ANDROID_GPU=true, causing
+      // the same XNNPack DYNAMIC_UPDATE_SLICE failure it was trying to escape.
+      return true;
+    }
+    // iOS / desktop: Low RAM mode uses CPU to reduce GPU memory pressure.
+    return !settings.lowRamProfile;
+  }
 
   static bool get _multimodalRequiresGpu =>
       GemmaModelConfig.activeModelSupportImage ||
@@ -282,26 +386,44 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       return true;
     }
     if (_forceCpuBackendBuildFlag) return false;
-    return !_settings.lowRamProfile;
+    return _textOnlyPreferGpuOnHost(_settings);
   }
+
+  /// Effective backend for [NativeLlmBridge] when
+  /// [IKAMVA_ESCALATE_LITERT_CPU_FAIL_TO_GPU] opted in after CPU infer failure.
+  bool get _effectivePreferGpu =>
+      _preferGpu ||
+      (_allowEscalateCpuInferFailToGpu &&
+          _androidEscalateLitertToGpu &&
+          Platform.isAndroid &&
+          !_multimodalRequiresGpu);
+
+  bool _litertGenerateFailedMatchesCpuXnnpack786(PlatformException e) {
+    if (e.code != 'generate_failed') return false;
+    if (_forceCpuBackendBuildFlag) return false;
+    if (!Platform.isAndroid || _multimodalRequiresGpu) return false;
+    if (_preferGpu || _androidEscalateLitertToGpu) return false;
+    if (_settings.lowRamProfile) return false;
+    final m = e.message ?? '';
+    return m.contains('786') ||
+        m.contains('DYNAMIC_UPDATE_SLICE') ||
+        m.contains('nativeSendMessage') ||
+        m.contains('Failed to invoke the compiled model') ||
+        m.contains('Failed to allocate tensors');
+  }
+
+  bool _shouldEscalateAndroidCpuLitertToGpu(PlatformException e) =>
+      _allowEscalateCpuInferFailToGpu &&
+      _litertGenerateFailedMatchesCpuXnnpack786(e);
 
   Future<void> _purgeInstallArtifacts() => purgeGemmaPluginInstallCandidates();
 
   Future<void> _installFromConfiguredSource() async {
-    switch (_settings.gemma4OnDeviceVariant) {
-      case Gemma4OnDeviceVariant.e2bHuggingFace:
-        await _installFromHfService(
-          GemmaHfModelDownloadService.e2b(),
-          'Gemma 4 E2B',
-        );
-        return;
-      case Gemma4OnDeviceVariant.e4bNetwork:
-        await _installFromHfService(
-          GemmaHfModelDownloadService.e4b(),
-          'Gemma 4 E4B',
-        );
-        return;
-    }
+    final variant = _settings.gemma4OnDeviceVariant;
+    await _installFromHfService(
+      GemmaHfModelDownloadService.forVariant(variant),
+      onDeviceGemmaVariantLabel(variant),
+    );
   }
 
   Future<void> _installFromHfService(
@@ -321,16 +443,18 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
         await ensureAndroidModelDownloadNotificationPermission();
       }
       final token = (await HuggingfaceAuthTokenStore.loadToken() ?? '').trim();
-      ModelDiagnostics.instance.log(
-        area: 'engine',
-        action: 'install_network_start',
-        message: 'Installing $label from network',
-        data: <String, Object?>{'url': service.modelUrl},
-      );
-      await service.downloadModel(
-        token: token,
-        onProgress: (p) => _emitProgress(p.round().clamp(0, 100)),
-      );
+      if (!alreadyInstalled) {
+        ModelDiagnostics.instance.log(
+          area: 'engine',
+          action: 'install_network_start',
+          message: 'Installing $label from network',
+          data: <String, Object?>{'url': service.modelUrl},
+        );
+        await service.downloadModel(
+          token: token,
+          onProgress: (p) => _emitProgress(p.round().clamp(0, 100)),
+        );
+      }
       ModelDiagnostics.instance.log(
         area: 'engine',
         action: 'install_network_ok',
@@ -370,9 +494,30 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
         area: 'engine',
         action: 'open_attempt',
         message: 'Opening native model',
-        data: <String, Object?>{'preferGpu': _preferGpu},
+        data: <String, Object?>{
+          'preferGpu': _effectivePreferGpu,
+          'androidTextCpuDefault':
+              Platform.isAndroid &&
+              !_multimodalRequiresGpu &&
+              !_effectivePreferGpu,
+        },
       );
-      if (_preferGpu) {
+      // #region agent log
+      agentDebugLog(
+        location: 'flutter_gemma_llm_engine.dart:_openActiveModel',
+        message: 'open path',
+        hypothesisId: 'G',
+        runId: 'post-fix',
+        data: <String, Object?>{
+          'preferGpu': _effectivePreferGpu,
+          'basePreferGpu': _preferGpu,
+          'androidEscalateLitertToGpu': _androidEscalateLitertToGpu,
+          'isAndroid': Platform.isAndroid,
+          'androidGpuOptIn': _androidGpuOptInForTextOnly,
+        },
+      );
+      // #endregion
+      if (_effectivePreferGpu) {
         await _nativeOpen(preferGpu: true).timeout(
           _kGpuModelOpenTimeout,
           onTimeout: () => throw TimeoutException(
@@ -383,7 +528,7 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       } else {
         await _nativeOpen(preferGpu: false);
       }
-      if (_preferGpu) {
+      if (_effectivePreferGpu) {
         await Future<void>.delayed(const Duration(milliseconds: 200));
       }
     } on Object catch (e) {
@@ -430,6 +575,18 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     }
     if (_loaded) return;
 
+    // #region agent log
+    agentDebugLog(
+      location: 'flutter_gemma_llm_engine.dart:ensureLoaded',
+      message: 'ensureLoaded scheduling body',
+      hypothesisId: 'A',
+      data: <String, Object?>{
+        'inFlight': _ensureLoadedInFlight != null,
+        'loaded': _loaded,
+        'disposed': _disposed,
+      },
+    );
+    // #endregion
     _ensureLoadedInFlight ??= _ensureLoadedBody();
     try {
       await _ensureLoadedInFlight!;
@@ -450,12 +607,23 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
       );
     }
 
-    _emit(
-      'open',
-      'Looking for on-device Gemma weights (GPU preferred: $_preferGpu)…',
-      null,
+    final cached = await ModelCacheChecker.isCached(
+      _settings.gemma4OnDeviceVariant,
     );
-    await _installFromConfiguredSource();
+    if (cached) {
+      _emit('open', 'Model found in storage — opening…', null);
+    } else {
+      _emit(
+        'open',
+        'Looking for on-device Gemma weights (GPU preferred: $_preferGpu)…',
+        null,
+      );
+      await _installFromConfiguredSource();
+    }
+
+    if (shouldUseFlutterGemmaEngine && Platform.isAndroid && _effectivePreferGpu) {
+      await SchedulerBinding.instance.endOfFrame;
+    }
 
     try {
       await _openActiveModel();
@@ -543,14 +711,9 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
         );
       } on Object catch (e2) {
         if (gemmaErrorLooksLikeInvalidTaskArchive(e2)) {
-          final hint = switch (_settings.gemma4OnDeviceVariant) {
-            Gemma4OnDeviceVariant.e2bHuggingFace =>
-              'Try re-downloading Gemma 4 E2B from Hugging Face in Settings → '
-                  'Choose on-device Gemma 4 model, or free storage and retry.',
-            Gemma4OnDeviceVariant.e4bNetwork =>
-              'Try choosing the on-device model again and re-download Gemma 4 E4B, '
-                  'or free storage and retry.',
-          };
+          final hint =
+              'Try re-downloading ${onDeviceGemmaVariantLabel(_settings.gemma4OnDeviceVariant)} '
+              'from Settings → Choose on-device model, or free storage and retry.';
           throw LlmUnavailableException(
             'The model is not a valid Gemma archive (native loader could not open it '
             'as a zip). $hint '
@@ -566,15 +729,50 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     _finishLoaded();
   }
 
+  /// Keeps the native prompt under [EngineConfig.maxNumTokens] (see NDJSON:
+  /// `547 >= 512` when [promptChars] ~2256).
+  String _truncatePromptForLiteRt(String prompt, int maxNewTokens) {
+    final window = _contextMaxTokens;
+    const overheadTokens = 48;
+    final maxInputTokens = (window - maxNewTokens - overheadTokens).clamp(
+      64,
+      window - 32,
+    );
+    const charsPerToken = 3.5;
+    final maxChars = (maxInputTokens * charsPerToken).floor();
+    if (prompt.length <= maxChars) return prompt;
+    final truncated =
+        '${prompt.substring(0, maxChars)}\n…[truncated for on-device context]';
+    // #region agent log
+    agentDebugLog(
+      location: 'flutter_gemma_llm_engine.dart:_truncatePromptForLiteRt',
+      message: 'prompt truncated for native context',
+      hypothesisId: 'H8',
+      runId: 'post-fix',
+      data: <String, Object?>{
+        'window': window,
+        'maxNew': maxNewTokens,
+        'maxInputTokens': maxInputTokens,
+        'beforeChars': prompt.length,
+        'afterChars': truncated.length,
+      },
+    );
+    // #endregion
+    return truncated;
+  }
+
   Map<String, Object?> _genArgs(LlmGenerateRequest request) {
+    final maxNew = LlmLimits.clampMaxNewTokens(
+      request.maxTokens ?? LlmLimits.defaultMaxNewTokens,
+    );
     return <String, Object?>{
-      'prompt': request.prompt.text,
+      'prompt': _truncatePromptForLiteRt(request.prompt.text, maxNew),
       'temperature': GemmaInferenceDefaults.temperature,
       'randomSeed': GemmaInferenceDefaults.randomSeed,
       'topK': GemmaInferenceDefaults.topK,
       'topP': GemmaInferenceDefaults.topP,
       'enableThinking': GemmaInferenceDefaults.enableThinking,
-      'maxNewTokens': request.maxTokens,
+      'maxNewTokens': maxNew,
     };
   }
 
@@ -583,25 +781,127 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
     if (_disposed) throw StateError('FlutterGemmaLlmEngine disposed');
     if (!_loaded) await ensureLoaded();
 
-    try {
+    Future<ModelBoundCompletion> runInfer() async {
       var text = await NativeLlmPlatform.generate(_genArgs(request));
       text = _applyStopSequences(text, request.stopSequences);
       return ModelBoundCompletion(
         LlmOutputFilters.takeThroughFirstBalancedJson(text),
       );
+    }
+
+    Future<void> logAndResetAfterGenerateFailed(
+      PlatformException e, {
+      required String hypothesisId,
+      required String message,
+    }) async {
+      _loaded = false;
+      try {
+        await NativeLlmPlatform.closeModel();
+      } on Object {
+        // MissingPlugin in tests; native may already be torn down.
+      }
+      // #region agent log
+      agentDebugLog(
+        location: 'flutter_gemma_llm_engine.dart:generate',
+        message: message,
+        hypothesisId: hypothesisId,
+        runId: 'post-fix',
+        data: <String, Object?>{
+          'code': e.code,
+          'messageLen': (e.message ?? '').length,
+        },
+      );
+      // #endregion
+    }
+
+    try {
+      return await runInfer();
+    } on PlatformException catch (e) {
+      if (e.code != 'generate_failed') {
+        throw LlmResourceException('Inference failed: $e');
+      }
+      if (_litertGenerateFailedMatchesCpuXnnpack786(e) &&
+          !_allowEscalateCpuInferFailToGpu) {
+        // #region agent log
+        agentDebugLog(
+          location: 'flutter_gemma_llm_engine.dart:generate',
+          message:
+              'skipping automatic GPU reload after CPU LiteRT failure (opt-in off; '
+              'GPU init crashed process in NDJSON 669518)',
+          hypothesisId: 'H7',
+          runId: 'post-fix',
+          data: const <String, Object?>{},
+        );
+        // #endregion
+      }
+      if (_shouldEscalateAndroidCpuLitertToGpu(e)) {
+        _androidEscalateLitertToGpu = true;
+        await logAndResetAfterGenerateFailed(
+          e,
+          hypothesisId: 'H6',
+          message: 'escalate LiteRT to GPU after CPU/XNNPack infer failure',
+        );
+        await ensureLoaded();
+        // #region agent log
+        agentDebugLog(
+          location: 'flutter_gemma_llm_engine.dart:generate',
+          message: 'post-escalation ensureLoaded complete',
+          hypothesisId: 'H6b',
+          runId: 'post-fix',
+          data: <String, Object?>{'loaded': _loaded},
+        );
+        // #endregion
+        // #region agent log
+        agentDebugLog(
+          location: 'flutter_gemma_llm_engine.dart:generate',
+          message: 'GPU retry infer start',
+          hypothesisId: 'H6c',
+          runId: 'post-fix',
+          data: const <String, Object?>{},
+        );
+        // #endregion
+        try {
+          return await runInfer();
+        } on PlatformException catch (e2) {
+          throw LlmResourceException('Inference failed: $e2');
+        }
+      }
+      // Do not close/reload native weights here — reload does not fix XNNPack
+      // 786 or oversize prompts and caused hundreds of loadModel cycles (NDJSON).
+      throw LlmResourceException('Inference failed: $e');
     } on Object catch (e) {
       throw LlmResourceException('Inference failed: $e');
     }
   }
 
   String _applyStopSequences(String text, List<String> stops) {
-    var out = text;
+    var earliest = text.length;
     for (final stop in stops) {
       if (stop.isEmpty) continue;
-      final i = out.indexOf(stop);
-      if (i >= 0) out = out.substring(0, i);
+      final i = text.indexOf(stop);
+      if (i >= 0 && i < earliest) earliest = i;
     }
-    return out;
+    if (earliest < text.length) return text.substring(0, earliest);
+    return text;
+  }
+
+  /// True when [e] is a native stream failure that matches the LiteRT-LM
+  /// XNNPack / DYNAMIC_UPDATE_SLICE / executor 786 pattern on the **async**
+  /// prefill path (`RunPrefillAsync`).
+  ///
+  /// These are recoverable by closing + reloading the engine and falling back
+  /// to the synchronous [generate] path ([NativeLlmPlatform.generate]).
+  static bool _streamFailedMatchesLiteRt(Object e) {
+    if (e is! PlatformException) return false;
+    if (e.code != 'stream_failed') return false;
+    final m = (e.message ?? '').toLowerCase();
+    return m.contains('failed to invoke') ||
+        m.contains('failed to allocate') ||
+        m.contains('dynamic_update_slice') ||
+        m.contains('status code:') ||
+        m.contains('litertlmjniexception') ||
+        m.contains('litertlm') ||
+        m.contains('litert');
   }
 
   @override
@@ -621,10 +921,37 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
           if (!controller.isClosed) controller.add(token);
         }
         await controller.close();
-      } on Object catch (e, st) {
-        if (!controller.isClosed) {
-          controller.addError(e, st);
+      } on PlatformException catch (e, st) {
+        // Reset engine state so callers can invalidate + reload cleanly.
+        // The Kotlin conversation is already closed in the finally block of
+        // litertGenerateStream, but the Dart _loaded flag is still true.
+        if (_streamFailedMatchesLiteRt(e)) {
+          _loaded = false;
+          unawaited(() async {
+            try {
+              await NativeLlmPlatform.closeModel();
+            } on Object {
+              // ignore — best-effort cleanup before caller reloads
+            }
+          }());
+          // #region agent log
+          agentDebugLog(
+            location: 'flutter_gemma_llm_engine.dart:generateChunkStream',
+            message: 'stream_failed matches LiteRT pattern — reset _loaded, '
+                'closed native; caller should invalidate + retry sync',
+            hypothesisId: 'H_stream_786',
+            runId: 'stream-fix',
+            data: <String, Object?>{
+              'code': e.code,
+              'messageLen': (e.message ?? '').length,
+            },
+          );
+          // #endregion
         }
+        if (!controller.isClosed) controller.addError(e, st);
+        await controller.close();
+      } on Object catch (e, st) {
+        if (!controller.isClosed) controller.addError(e, st);
         await controller.close();
       }
     }());
@@ -633,6 +960,14 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
 
   @override
   void dispose() {
+    // #region agent log
+    agentDebugLog(
+      location: 'flutter_gemma_llm_engine.dart:dispose',
+      message: 'engine dispose',
+      hypothesisId: 'A',
+      data: <String, Object?>{'wasLoaded': _loaded},
+    );
+    // #endregion
     _disposed = true;
     _loaded = false;
     unawaited(() async {
@@ -646,7 +981,17 @@ class FlutterGemmaLlmEngine implements LlmEngine, StreamingLlmCapability {
 }
 
 /// True when this process should use the real on-device stack (mobile shells only).
-bool get shouldUseFlutterGemmaEngine {
-  if (kIsWeb) return false;
-  return Platform.isAndroid || Platform.isIOS;
+bool get shouldUseFlutterGemmaEngine => computeShouldUseFlutterGemmaEngine(
+  isWeb: kIsWeb,
+  isAndroid: Platform.isAndroid,
+  isIos: Platform.isIOS,
+);
+
+/// Test access to the native `generate` / `generateStream` argument map (Req. 8.2).
+extension FlutterGemmaLlmEngineChannelArgsTest on FlutterGemmaLlmEngine {
+  Map<String, Object?> channelArgsForTest(LlmGenerateRequest request) =>
+      _genArgs(request);
+
+  String applyStopSequencesForTest(String text, List<String> stops) =>
+      _applyStopSequences(text, stops);
 }

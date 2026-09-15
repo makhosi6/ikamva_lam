@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../llm/android_hf_download_setup.dart';
+import '../llm/download_progress_utils.dart';
+import '../debug/agent_debug_log.dart';
 import '../llm/flutter_gemma_llm_engine.dart';
-import '../llm/gemma4_ondevice_variant.dart';
 import '../llm/gemma_hf_model_download_service.dart';
 import '../llm/hf_install_error_format.dart';
 import '../llm/huggingface_auth_token_store.dart';
@@ -13,11 +14,12 @@ import '../llm/llm_exceptions.dart';
 import '../llm/llm_service.dart';
 import '../llm/model_prepare_config.dart';
 import '../llm/model_prepare_prefs.dart';
+import '../llm/on_device_gemma_variant.dart';
 import '../state/settings_scope.dart';
 import '../widgets/constrained_content.dart';
 import '../widgets/ikamva_app_bar_title.dart';
 
-/// On-device lesson helper: smaller or larger model download (Gemma 4).
+/// On-device helper: choose Gemma 3n or Gemma 4, download once, continue.
 class GemmaSetupScreen extends StatefulWidget {
   const GemmaSetupScreen({super.key});
 
@@ -26,11 +28,13 @@ class GemmaSetupScreen extends StatefulWidget {
 }
 
 class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
-  Gemma4OnDeviceVariant _selected = Gemma4OnDeviceVariant.e2bHuggingFace;
-  double _e2bHfProgress = 0;
-  double _e4bProgress = 0;
-  bool _e2bHfDownloading = false;
-  bool _e4bDownloading = false;
+  OnDeviceGemmaVariant _selected = OnDeviceGemmaVariant.gemma3nE2b;
+  final Map<OnDeviceGemmaVariant, double> _progress = {
+    for (final v in OnDeviceGemmaVariant.values) v: 0,
+  };
+  final Map<OnDeviceGemmaVariant, bool> _downloading = {
+    for (final v in OnDeviceGemmaVariant.values) v: false,
+  };
   bool _busy = false;
   bool _depsReady = false;
 
@@ -45,7 +49,7 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
       }
       _downloadDiagLines.add(line);
     });
-    if (_e2bHfDownloading || _e4bDownloading) {
+    if (_downloading[_selected] == true) {
       _presentErrorBanner(_downloadDiagLines.join('\n'));
     }
   }
@@ -104,104 +108,76 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
     super.didChangeDependencies();
     if (!_depsReady) {
       _depsReady = true;
-      _selected = SettingsScope.of(context).gemma4OnDeviceVariant;
-      if (_selected == Gemma4OnDeviceVariant.e2bHuggingFace) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _checkE2bHf());
-      } else if (_selected == Gemma4OnDeviceVariant.e4bNetwork) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _checkE4b());
-      }
+      _selected = SettingsScope.of(context).onDeviceGemmaVariant;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkSelected());
     }
   }
 
   Future<String> _hfToken() async =>
       (await HuggingfaceAuthTokenStore.loadToken())?.trim() ?? '';
 
-  /// Some paths report **0–1** fractions; [DetailedSmartDownloader] uses **0–100** ints.
-  /// Use **strict** `< 1` for fractions so `1` means **1%**, not 100%.
-  static double _normalizeHfPercent(double p) {
-    if (p.isNaN || p.isInfinite) return 0;
-    if (p > 0 && p < 1) return (p * 100).clamp(0, 100);
-    return p.clamp(0, 100);
-  }
+  static double _normalizeHfPercent(double p) => normalizeHfPercent(p);
 
   static const double _kInstallProgressDone = 99.5;
 
-  bool get _e2bInstallLooksComplete => _e2bHfProgress >= _kInstallProgressDone;
-  bool get _e4bInstallLooksComplete => _e4bProgress >= _kInstallProgressDone;
-
-  bool get _needsHfProgress {
-    return _selected == Gemma4OnDeviceVariant.e2bHuggingFace ||
-        _selected == Gemma4OnDeviceVariant.e4bNetwork;
-  }
+  bool _installLooksComplete(OnDeviceGemmaVariant v) =>
+      (_progress[v] ?? 0) >= _kInstallProgressDone;
 
   bool get _canContinue {
     if (_busy) return false;
-    // Native install can sit at 100% progress while the Dart Future is still pending;
-    // don't block Continue once progress shows the transfer is done.
-    if (_e2bHfDownloading &&
-        _selected == Gemma4OnDeviceVariant.e2bHuggingFace &&
-        !_e2bInstallLooksComplete) {
+    if (_downloading[_selected] == true && !_installLooksComplete(_selected)) {
       return false;
     }
-    if (_e4bDownloading &&
-        _selected == Gemma4OnDeviceVariant.e4bNetwork &&
-        !_e4bInstallLooksComplete) {
-      return false;
-    }
-    return switch (_selected) {
-      Gemma4OnDeviceVariant.e2bHuggingFace => _e2bInstallLooksComplete,
-      Gemma4OnDeviceVariant.e4bNetwork => _e4bInstallLooksComplete,
-    };
+    return _installLooksComplete(_selected);
   }
 
-  /// When progress is complete but `downloadModel()` hasn't returned yet, verify on
-  /// disk and clear the "downloading" flag so the tonal button label recovers.
-  Future<void> _finalizeE2bIfInstalled() async {
-    if (!_e2bHfDownloading) return;
-    final svc = _e2bHfSvc;
-    final token = await _hfToken();
-    final ok = await svc.checkModelExistence(token);
-    if (!mounted || !ok) return;
-    setState(() {
-      _e2bHfDownloading = false;
-      _e2bHfProgress = 100;
-    });
-  }
+  GemmaHfModelDownloadService _svc(OnDeviceGemmaVariant v) =>
+      GemmaHfModelDownloadService.forVariant(v);
 
-  Future<void> _finalizeE4bIfInstalled() async {
-    if (!_e4bDownloading) return;
-    final svc = _e4bSvc;
-    final token = await _hfToken();
-    final ok = await svc.checkModelExistence(token);
-    if (!mounted || !ok) return;
-    setState(() {
-      _e4bDownloading = false;
-      _e4bProgress = 100;
-    });
-  }
-
-  GemmaHfModelDownloadService get _e2bHfSvc => GemmaHfModelDownloadService.e2b();
-  GemmaHfModelDownloadService get _e4bSvc => GemmaHfModelDownloadService.e4b();
-
-  /// Human-readable download size from [ModelPrepareConfig.estimatedInstallMbFor].
-  static String _aboutDownloadSize(Gemma4OnDeviceVariant variant) {
+  static String _aboutDownloadSize(OnDeviceGemmaVariant variant) {
     final mb = ModelPrepareConfig.estimatedInstallMbFor(variant);
     final gb = mb / 1024;
     final s = gb >= 10 ? gb.toStringAsFixed(0) : gb.toStringAsFixed(1);
     return 'About $s GB';
   }
 
-  Future<void> _checkE2bHf() async {
+  String _subtitleFor(OnDeviceGemmaVariant v) {
+    final size = _aboutDownloadSize(v);
+    return switch (v) {
+      OnDeviceGemmaVariant.gemma3nE2b =>
+        '$size · Recommended. Multimodal-capable Gemma 3n; works well on mid-range phones. Needs a Hugging Face token.',
+      OnDeviceGemmaVariant.gemma3nE4b =>
+        '$size · Stronger Gemma 3n with vision/audio subgraphs. Needs more RAM and a Hugging Face token.',
+      OnDeviceGemmaVariant.gemma4E2b =>
+        '$size · Gemma 4 LiteRT prize target. Text-first; public download (no HF token). Prefer CPU / Low RAM on mid-range GPUs.',
+      OnDeviceGemmaVariant.gemma4E4b =>
+        '$size · Larger Gemma 4 for stronger devices. Public download (no HF token).',
+    };
+  }
+
+  Future<void> _finalizeIfInstalled(OnDeviceGemmaVariant v) async {
+    if (_downloading[v] != true) return;
+    final ok = await _svc(v).checkModelExistence(await _hfToken());
+    if (!mounted || !ok) return;
+    setState(() {
+      _downloading[v] = false;
+      _progress[v] = 100;
+    });
+  }
+
+  Future<void> _checkSelected() async {
     setState(() => _busy = true);
     try {
-      final svc = _e2bHfSvc;
-      final token = await _hfToken();
-      final ok = await svc.checkModelExistence(token);
+      final ok = await _svc(_selected).checkModelExistence(await _hfToken());
       if (!mounted) return;
-      final hint = ok ? null : 'This model isn’t on the device yet. Tap Download below.';
+      final hint = ok
+          ? null
+          : (onDeviceGemmaVariantNeedsAuth(_selected)
+              ? 'This model isn’t on the device yet. Ensure IKAMVA_HF_TOKEN is set, then tap Download.'
+              : 'This model isn’t on the device yet. Tap Download below.');
       setState(() {
-        _e2bHfProgress = ok ? 100 : 0;
-        if (ok) _e2bHfDownloading = false;
+        _progress[_selected] = ok ? 100 : 0;
+        if (ok) _downloading[_selected] = false;
       });
       _presentErrorBanner(hint);
     } finally {
@@ -209,44 +185,27 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
     }
   }
 
-  Future<void> _checkE4b() async {
-    setState(() => _busy = true);
-    try {
-      final svc = _e4bSvc;
-      final token = await _hfToken();
-      final ok = await svc.checkModelExistence(token);
-      if (!mounted) return;
-      final hint = ok ? null : 'This model isn’t on the device yet. Tap Download below.';
-      setState(() {
-        _e4bProgress = ok ? 100 : 0;
-        if (ok) _e4bDownloading = false;
-      });
-      _presentErrorBanner(hint);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _downloadE2bHf() async {
+  Future<void> _downloadSelected() async {
     await ensureAndroidModelDownloadNotificationPermission();
-    final svc = _e2bHfSvc;
+    final svc = _svc(_selected);
     final token = await _hfToken();
     if (svc.needsAuth && token.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'This build needs a download key from your team. Ask whoever set up '
-            'the app for help.',
+            'Gemma 3n downloads need a Hugging Face token. Put IKAMVA_HF_TOKEN '
+            'in the repo-root .env (or dart-define) and rebuild.',
           ),
         ),
       );
       return;
     }
+    final variant = _selected;
     setState(() {
       _downloadDiagLines.clear();
-      _e2bHfDownloading = true;
-      _e2bHfProgress = 0;
+      _downloading[variant] = true;
+      _progress[variant] = 0;
     });
     _presentErrorBanner(null);
     try {
@@ -255,98 +214,51 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
         onDiagnostic: _appendDownloadDiag,
         onProgress: (p) {
           final n = _normalizeHfPercent(p);
-          if (mounted) setState(() => _e2bHfProgress = n);
+          if (mounted) setState(() => _progress[variant] = n);
           if (n >= _kInstallProgressDone) {
-            unawaited(_finalizeE2bIfInstalled());
+            unawaited(_finalizeIfInstalled(variant));
           }
         },
       );
       if (mounted) {
         setState(() {
-          _e2bHfProgress = 100;
+          _progress[variant] = 100;
           _downloadDiagLines.clear();
         });
         _presentErrorBanner(null);
       }
     } on Object catch (e) {
       if (mounted) {
-        final msg = _formatInstallError(e);
-        setState(() {
-          _e2bHfProgress = 0;
-        });
-        _presentErrorBanner(msg);
+        setState(() => _progress[variant] = 0);
+        _presentErrorBanner(_formatInstallError(e));
       }
     } finally {
-      if (mounted) setState(() => _e2bHfDownloading = false);
-    }
-  }
-
-  Future<void> _downloadE4b() async {
-    await ensureAndroidModelDownloadNotificationPermission();
-    final svc = _e4bSvc;
-    final token = await _hfToken();
-    if (svc.needsAuth && token.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'This build needs a download key from your team. Ask whoever set up '
-            'the app for help.',
-          ),
-        ),
-      );
-      return;
-    }
-    setState(() {
-      _downloadDiagLines.clear();
-      _e4bDownloading = true;
-      _e4bProgress = 0;
-    });
-    _presentErrorBanner(null);
-    try {
-      await svc.downloadModel(
-        token: token,
-        onDiagnostic: _appendDownloadDiag,
-        onProgress: (p) {
-          final n = _normalizeHfPercent(p);
-          if (mounted) setState(() => _e4bProgress = n);
-          if (n >= _kInstallProgressDone) {
-            unawaited(_finalizeE4bIfInstalled());
-          }
-        },
-      );
-      if (mounted) {
-        setState(() {
-          _e4bProgress = 100;
-          _downloadDiagLines.clear();
-        });
-        _presentErrorBanner(null);
-      }
-    } on Object catch (e) {
-      if (mounted) {
-        final msg = _formatInstallError(e);
-        setState(() {
-          _e4bProgress = 0;
-        });
-        _presentErrorBanner(msg);
-      }
-    } finally {
-      if (mounted) setState(() => _e4bDownloading = false);
+      if (mounted) setState(() => _downloading[variant] = false);
     }
   }
 
   Future<void> _complete() async {
+    agentDebugLog(
+      location: 'gemma_setup_screen.dart:_complete',
+      message: 'setup Continue tapped',
+      hypothesisId: 'A',
+      data: <String, Object?>{
+        'variant': _selected.name,
+        'progress': _progress[_selected],
+        'downloading': _downloading[_selected],
+      },
+    );
     final settings = SettingsScope.of(context, listen: false);
-    final previous = settings.gemma4OnDeviceVariant;
+    final previous = settings.onDeviceGemmaVariant;
     setState(() => _busy = true);
     try {
       if (previous != _selected) {
         await purgeGemmaPluginInstallCandidates();
         await ModelPreparePrefs.clearPrepareDone();
       }
-      await settings.setGemma4OnDeviceVariant(_selected);
+      await settings.setOnDeviceGemmaVariant(_selected);
       await settings.setGemma4SetupComplete(true);
-      LlmService.instance.invalidateCachedEngine();
+      await LlmService.instance.invalidateCachedEngine();
       if (shouldUseFlutterGemmaEngine) {
         try {
           await LlmService.instance.ensureReady();
@@ -379,6 +291,9 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final settings = SettingsScope.of(context);
+    final selectedProgress = _progress[_selected] ?? 0;
+    final selectedDownloading = _downloading[_selected] == true;
+    final selectedDone = _installLooksComplete(_selected);
 
     return Scaffold(
       appBar: AppBar(
@@ -396,153 +311,93 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
             : null,
       ),
       body: SafeArea(
+        // ListView is the primary scroller — disable ConstrainedContent's
+        // SingleChildScrollView so vertical constraints stay bounded.
         child: ConstrainedContent(
+          scrollable: false,
           child: AnimatedBuilder(
             animation: settings,
             builder: (context, _) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              return ListView(
+                padding: const EdgeInsets.only(bottom: 24),
                 children: [
                   Text(
-                    'Choose a model size',
+                    'Choose an on-device model',
                     style: theme.textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'The helper that gives hints and feedback lives on this device. '
-                    'Pick one size, download it once using Wi‑Fi, then tap Continue. '
-                    'You need enough free storage for the size you pick.',
+                    'Hints and practice tasks run fully offline after one download. '
+                    'Gemma 3n is recommended for most devices; Gemma 4 is available '
+                    'for the LiteRT track. Use Wi‑Fi and keep enough free storage.',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _ModelChoiceCard(
-                    title: 'Smaller model (recommended)',
-                    subtitle:
-                        '${_aboutDownloadSize(Gemma4OnDeviceVariant.e2bHuggingFace)} download. '
-                        'Fits most phones and tablets; slightly lighter quality.',
-                    selected: _selected == Gemma4OnDeviceVariant.e2bHuggingFace,
-                    onTap: _busy
-                        ? null
-                        : () {
-                            setState(() {
-                              _selected = Gemma4OnDeviceVariant.e2bHuggingFace;
-                            });
-                            _presentErrorBanner(null);
-                            unawaited(_checkE2bHf());
-                          },
-                  ),
-                  const SizedBox(height: 12),
-                  _ModelChoiceCard(
-                    title: 'Larger model',
-                    subtitle:
-                        '${_aboutDownloadSize(Gemma4OnDeviceVariant.e4bNetwork)} download. '
-                        'Richer answers; needs more space and a stronger device.',
-                    selected: _selected == Gemma4OnDeviceVariant.e4bNetwork,
-                    onTap: _busy
-                        ? null
-                        : () {
-                            setState(() {
-                              _selected = Gemma4OnDeviceVariant.e4bNetwork;
-                            });
-                            _presentErrorBanner(null);
-                            unawaited(_checkE4b());
-                          },
-                  ),
-                  if (_needsHfProgress) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Download (${_aboutDownloadSize(_selected)})',
-                      style: theme.textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Stay on this screen and keep Wi‑Fi on. First download can take '
-                      'several minutes.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
-                      ),
+                  for (final v in OnDeviceGemmaVariant.values) ...[
+                    _ModelChoiceCard(
+                      title: onDeviceGemmaVariantLabel(v),
+                      subtitle: _subtitleFor(v),
+                      selected: _selected == v,
+                      onTap: _busy
+                          ? null
+                          : () {
+                              setState(() => _selected = v);
+                              _presentErrorBanner(null);
+                              unawaited(_checkSelected());
+                            },
                     ),
                     const SizedBox(height: 12),
-                    if (_selected == Gemma4OnDeviceVariant.e2bHuggingFace) ...[
-                      if (_e2bHfDownloading && !_e2bInstallLooksComplete) ...[
-                        if (_e2bHfProgress > 0) ...[
-                          LinearProgressIndicator(value: _e2bHfProgress / 100),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${_e2bHfProgress.toStringAsFixed(0)}% · ${_aboutDownloadSize(Gemma4OnDeviceVariant.e2bHuggingFace)}',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ] else ...[
-                          const LinearProgressIndicator(),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Starting… · ${_aboutDownloadSize(Gemma4OnDeviceVariant.e2bHuggingFace)}',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
-                      ] else if (_e2bInstallLooksComplete && !_e2bHfDownloading) ...[
-                        Text(
-                          'Download finished. You can continue.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                      FilledButton.tonal(
-                        onPressed: (_busy || _e2bHfDownloading)
-                            ? null
-                            : _downloadE2bHf,
-                        child: Text(
-                          _e2bHfDownloading && !_e2bInstallLooksComplete
-                              ? 'Downloading…'
-                              : (_e2bHfDownloading
-                                    ? 'Almost done…'
-                                    : 'Download'),
-                        ),
-                      ),
-                    ],
-                    if (_selected == Gemma4OnDeviceVariant.e4bNetwork) ...[
-                      if (_e4bDownloading && !_e4bInstallLooksComplete) ...[
-                        if (_e4bProgress > 0) ...[
-                          LinearProgressIndicator(value: _e4bProgress / 100),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${_e4bProgress.toStringAsFixed(0)}% · ${_aboutDownloadSize(Gemma4OnDeviceVariant.e4bNetwork)}',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ] else ...[
-                          const LinearProgressIndicator(),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Starting… · ${_aboutDownloadSize(Gemma4OnDeviceVariant.e4bNetwork)}',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
-                      ] else if (_e4bInstallLooksComplete && !_e4bDownloading) ...[
-                        Text(
-                          'Download finished. You can continue.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                      FilledButton.tonal(
-                        onPressed: (_busy || _e4bDownloading) ? null : _downloadE4b,
-                        child: Text(
-                          _e4bDownloading && !_e4bInstallLooksComplete
-                              ? 'Downloading…'
-                              : (_e4bDownloading
-                                    ? 'Almost done…'
-                                    : 'Download'),
-                        ),
-                      ),
-                    ],
                   ],
+                  Text(
+                    'Download (${_aboutDownloadSize(_selected)})',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Stay on this screen and keep Wi‑Fi on. First download can take '
+                    'several minutes.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (selectedDownloading && !selectedDone) ...[
+                    if (selectedProgress > 0) ...[
+                      LinearProgressIndicator(value: selectedProgress / 100),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${selectedProgress.toStringAsFixed(0)}% · ${_aboutDownloadSize(_selected)}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ] else ...[
+                      const LinearProgressIndicator(),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Starting… · ${_aboutDownloadSize(_selected)}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ] else if (selectedDone && !selectedDownloading) ...[
+                    Text(
+                      'Download finished. You can continue.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  FilledButton.tonal(
+                    onPressed: (_busy || selectedDownloading)
+                        ? null
+                        : _downloadSelected,
+                    child: Text(
+                      selectedDownloading && !selectedDone
+                          ? 'Downloading…'
+                          : (selectedDownloading ? 'Almost done…' : 'Download'),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   if (!_canContinue && !_busy) ...[
                     Text(
@@ -555,7 +410,9 @@ class _GemmaSetupScreenState extends State<GemmaSetupScreen> {
                   ],
                   FilledButton(
                     onPressed: (_canContinue && !_busy) ? _complete : null,
-                    child: Text(_busy || _needsHfProgress || !_canContinue ? 'Working…' : 'Continue'),
+                    child: Text(
+                      _busy || !_canContinue ? 'Working…' : 'Continue',
+                    ),
                   ),
                   if (settings.lowRamProfile) ...[
                     const SizedBox(height: 16),

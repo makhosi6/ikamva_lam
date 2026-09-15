@@ -8,6 +8,7 @@ import 'detailed_smart_downloader.dart';
 import 'gemma_model_config.dart';
 import 'hf_local_file.dart';
 import 'huggingface_auth_token_store.dart';
+import 'on_device_gemma_variant.dart';
 
 /// Hugging Face `.litertlm` install into app documents + [DetailedSmartDownloader].
 class GemmaHfModelDownloadService {
@@ -25,23 +26,27 @@ class GemmaHfModelDownloadService {
   /// Android foreground download (example: `null` = auto by size).
   final bool? foreground;
 
-  factory GemmaHfModelDownloadService.e2b() {
+  factory GemmaHfModelDownloadService.forVariant(OnDeviceGemmaVariant variant) {
+    final a = GemmaModelConfig.artifactFor(variant);
     return GemmaHfModelDownloadService(
-      modelUrl: GemmaModelConfig.gemma4E2bLitertlmUrl,
-      modelFilename: GemmaModelConfig.gemma4E2bLitertlmFilename,
-      needsAuth: false,
+      modelUrl: a.url,
+      modelFilename: a.filename,
+      needsAuth: a.needsAuth,
       foreground: true,
     );
   }
 
-  factory GemmaHfModelDownloadService.e4b() {
-    return GemmaHfModelDownloadService(
-      modelUrl: GemmaModelConfig.gemma4E4bLitertlmUrl,
-      modelFilename: GemmaModelConfig.gemma4E4bLitertlmFilename,
-      needsAuth: false,
-      foreground: true,
-    );
-  }
+  factory GemmaHfModelDownloadService.gemma3nE2b() =>
+      GemmaHfModelDownloadService.forVariant(OnDeviceGemmaVariant.gemma3nE2b);
+
+  factory GemmaHfModelDownloadService.gemma3nE4b() =>
+      GemmaHfModelDownloadService.forVariant(OnDeviceGemmaVariant.gemma3nE4b);
+
+  factory GemmaHfModelDownloadService.e2b() =>
+      GemmaHfModelDownloadService.forVariant(OnDeviceGemmaVariant.gemma4E2b);
+
+  factory GemmaHfModelDownloadService.e4b() =>
+      GemmaHfModelDownloadService.forVariant(OnDeviceGemmaVariant.gemma4E4b);
 
   Future<String?> loadToken() => HuggingfaceAuthTokenStore.loadToken();
 
@@ -110,6 +115,11 @@ class GemmaHfModelDownloadService {
     required void Function(double progress) onProgress,
     void Function(String line)? onDiagnostic,
   }) async {
+    if (await isPluginModelInstalled()) {
+      onProgress(100);
+      return;
+    }
+
     final authToken = token.isEmpty ? null : token;
     final void Function(String line)? previous = DetailedSmartDownloader.onDiagnostic;
     if (onDiagnostic != null) {

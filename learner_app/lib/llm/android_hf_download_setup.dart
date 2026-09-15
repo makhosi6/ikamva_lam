@@ -14,6 +14,11 @@ const String kFlutterGemmaHfDownloadTaskGroup = 'smart_downloads';
 ///
 /// Call once after [WidgetsFlutterBinding.ensureInitialized], before any HF
 /// model install. Safe no-op on non-Android and on web.
+///
+/// This only registers notification/foreground behavior for
+/// [background_downloader]; it does not fetch weights. Actual installs skip
+/// network work when the target file is already present
+/// ([GemmaHfModelDownloadService.downloadModel]).
 Future<void> configureAndroidLargeModelHfDownloadSupport() async {
   if (kIsWeb || !Platform.isAndroid) return;
   try {

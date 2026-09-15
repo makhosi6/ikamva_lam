@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../llm/flutter_gemma_llm_engine.dart';
-import '../llm/gemma4_ondevice_variant.dart';
 import '../llm/llm_exceptions.dart';
 import '../llm/llm_generate_request.dart';
 import '../llm/llm_service.dart';
+import '../llm/on_device_gemma_variant.dart';
 import '../state/settings_scope.dart';
 import '../version.dart';
 import '../widgets/constrained_content.dart';
@@ -52,7 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(
           content: Text(
             '${e.message} On mobile, try Warm up model below or open '
-            'Settings → Choose on-device Gemma 4 model to download E2B or E4B from '
+            'Settings → Choose on-device model to download Gemma 3n or Gemma 4 from '
             'Hugging Face.',
           ),
         ),
@@ -184,13 +184,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: settings.lowRamProfile,
                     onChanged: (v) async {
                       await settings.setLowRamProfile(v);
-                      LlmService.instance.invalidateCachedEngine();
+                      await LlmService.instance.invalidateCachedEngine();
                     },
                   ),
                   const SizedBox(height: 8),
                   Text(
                     shouldUseFlutterGemmaEngine
-                        ? 'Gemma 4 only: E2B or E4B from Hugging Face (see Choose model).'
+                        ? 'Gemma 3n or Gemma 4 from Hugging Face (see Choose model).'
                         : 'On-device Gemma runs on Android and iOS builds only.',
                     style: theme.textTheme.bodySmall,
                   ),
@@ -198,14 +198,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 8),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Choose on-device Gemma 4 model'),
+                      title: const Text('Choose on-device model'),
                       subtitle: Text(
-                        'Current: ${switch (settings.gemma4OnDeviceVariant) {
-                          Gemma4OnDeviceVariant.e2bHuggingFace =>
-                            'E2B (Hugging Face)',
-                          Gemma4OnDeviceVariant.e4bNetwork =>
-                            'E4B (Hugging Face)',
-                        }}',
+                        'Current: ${onDeviceGemmaVariantLabel(settings.onDeviceGemmaVariant)}',
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/gemma-setup'),

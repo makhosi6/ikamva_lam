@@ -32,6 +32,8 @@ Future<void> main() async {
   const hfTokenAlt1 = String.fromEnvironment('HUGGINGFACE_TOKEN');
   const hfTokenAlt2 = String.fromEnvironment('HF_TOKEN');
   const modelUrl = String.fromEnvironment('IKAMVA_MODEL_DOWNLOAD_URL');
+  const androidGpuInt = int.fromEnvironment('IKAMVA_ANDROID_GPU');
+  const androidGpuStr = String.fromEnvironment('IKAMVA_PREFER_ANDROID_GPU');
   String redact(String? v) {
     if (v == null || v.isEmpty) return '<empty>';
     return '${v.substring(0, v.length.clamp(0, 6))}…';
@@ -45,6 +47,8 @@ Future<void> main() async {
   HUGGINGFACE_TOKEN (define):      ${redact(hfTokenAlt1)}
   HF_TOKEN (define):               ${redact(hfTokenAlt2)}
   IKAMVA_MODEL_DOWNLOAD_URL:       ${modelUrl.isEmpty ? '<empty>' : modelUrl}
+  IKAMVA_ANDROID_GPU (int):        $androidGpuInt
+  IKAMVA_PREFER_ANDROID_GPU:       "$androidGpuStr"
 ''');
   runApp(IkamvaApp(settings: settings, database: database));
 }

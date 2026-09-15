@@ -8,12 +8,12 @@ import 'package:flutter/services.dart';
 import '../analytics/export_summary_service.dart';
 import '../game/task_queue_service.dart';
 import '../llm/flutter_gemma_llm_engine.dart';
-import '../llm/gemma4_ondevice_variant.dart';
 import '../llm/gemma_model_config.dart';
 import '../llm/llm_service.dart';
 import '../llm/model_diagnostics.dart';
 import '../llm/model_prepare_config.dart';
 import '../llm/model_prepare_prefs.dart';
+import '../llm/on_device_gemma_variant.dart';
 import '../metrics/metrics_store.dart';
 import '../state/database_scope.dart';
 import '../state/settings_scope.dart';
@@ -307,11 +307,8 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                       _kv(context, 'Resolved engine', _resolvedEngineLabel),
                       _kv(
                         context,
-                        'Gemma 4 variant',
-                        switch (settings.gemma4OnDeviceVariant) {
-                          Gemma4OnDeviceVariant.e2bHuggingFace => 'E2B HF',
-                          Gemma4OnDeviceVariant.e4bNetwork => 'E4B HF',
-                        },
+                        'On-device variant',
+                        onDeviceGemmaVariantLabel(settings.onDeviceGemmaVariant),
                       ),
                       _kv(
                         context,
@@ -320,15 +317,27 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                       ),
                       _kv(
                         context,
-                        'E2B HF URL',
+                        'Active URL',
+                        GemmaModelConfig.artifactFor(
+                          settings.onDeviceGemmaVariant,
+                        ).url,
+                      ),
+                      _kv(
+                        context,
+                        'Gemma 3n E2B URL',
+                        GemmaModelConfig.gemma3nE2bLitertlmUrl,
+                      ),
+                      _kv(
+                        context,
+                        'Gemma 4 E2B URL',
                         GemmaModelConfig.gemma4E2bLitertlmUrl,
                       ),
                       _kv(
                         context,
-                        'E4B URL',
+                        'Gemma 4 E4B URL',
                         GemmaModelConfig.gemma4E4bLitertlmUrl,
                       ),
-                      _kv(context, 'Model family', 'Gemma 4 IT (.litertlm)'),
+                      _kv(context, 'Model family', 'Gemma 3n / Gemma 4 (.litertlm)'),
                       _kv(
                         context,
                         'Active install fingerprint',
@@ -380,8 +389,9 @@ class _DebugStatsScreenState extends State<DebugStatsScreen> {
                   FilledButton.tonalIcon(
                     onPressed: _busy
                         ? null
-                        : () {
-                            LlmService.instance.invalidateCachedEngine();
+                        : () async {
+                            await LlmService.instance.invalidateCachedEngine();
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('LLM engine cache cleared.'),

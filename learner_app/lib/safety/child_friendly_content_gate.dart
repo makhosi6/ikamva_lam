@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
+
 import '../hub/daily_quest_ids.dart';
 import '../llm/llm_exceptions.dart';
 import '../llm/llm_generate_request.dart';
@@ -199,11 +202,28 @@ abstract final class ChildFriendlyContentGate {
     if (!shouldUseFlutterGemmaEngine) {
       return const ContentSafetyVerdict(ok: true);
     }
-    final encoded = jsonEncode(normalizedTopics);
-    return _sentimentLlm(
-      'hub_topic_batch',
-      'ITEMS_JSON (array of short theme titles):\n$encoded',
-    );
+    const batchSize = 4;
+    var violations = <String>[];
+    for (var i = 0; i < normalizedTopics.length; i += batchSize) {
+      final slice = normalizedTopics.sublist(
+        i,
+        i + batchSize > normalizedTopics.length
+            ? normalizedTopics.length
+            : i + batchSize,
+      );
+      final encoded = jsonEncode(slice);
+      final sent = await _sentimentLlm(
+        'hub_topic_batch',
+        'ITEMS_JSON (array of short theme titles):\n$encoded',
+      );
+      if (!sent.ok) {
+        violations = [...violations, ...sent.violations];
+      }
+    }
+    if (violations.isEmpty) {
+      return const ContentSafetyVerdict(ok: true);
+    }
+    return ContentSafetyVerdict(ok: false, violations: violations);
   }
 
   /// Full task payload: rules on every string, then **one** Gemma pass on all text.
@@ -249,7 +269,11 @@ abstract final class ChildFriendlyContentGate {
     if (!shouldUseFlutterGemmaEngine) {
       return rules;
     }
-    final cap = m.length > 2200 ? '${m.substring(0, 2200)}\n…' : m;
+    final capChars =
+        (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+        ? 700
+        : 2200;
+    final cap = m.length > capChars ? '${m.substring(0, capChars)}\n…' : m;
     final sent = await _sentimentLlm(kind, cap);
     if (sent.ok) return rules;
     return ContentSafetyVerdict(

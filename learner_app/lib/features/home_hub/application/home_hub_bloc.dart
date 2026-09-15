@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../db/app_database.dart';
+import '../../../debug/agent_debug_log.dart';
 import '../../../llm/flutter_gemma_llm_engine.dart';
 import '../../../llm/llm_service.dart';
 import '../../../llm/model_diagnostics.dart';
@@ -50,21 +51,49 @@ class HomeHubBloc extends Bloc<HomeHubEvent, HomeHubState> {
         // saturates the OpenCL pipeline; if it starts on the same vsync as the
         // first frame, FlutterSurfaceView/TextureView can lose its buffer queue
         // (BLASTBufferQueue "Already acquired max frames") mid-init and crash.
-        await SchedulerBinding.instance.endOfFrame;
-        // Run warm-up before hub payload. Overlapping used to hide latency on fast
-        // devices, but [DailyTopicsService] can call `LlmService.generate` (and the
-        // cached path runs batch sentiment) while LiteRT is still compiling the
-        // OpenCL delegate — that stacks GPU + Impeller work and triggers
-        // QUEUE_BUFFER_TIMEOUT / process death on weak GPUs (see crush_log).
+        // Run warm-up before hub payload. Let the loading panel paint once before
+        // LiteRT GPU init (same as engine path — reduces BLAST / buffer-queue issues).
         try {
-          await LlmService.instance.ensureReady();
-          modelWarmSucceeded = true;
-          if (!isClosed) {
+          if (LlmService.instance.onDeviceWeightsReady.value) {
             ModelDiagnostics.instance.log(
               area: 'hub',
-              action: 'warm_ok',
-              message: 'Gemma is ready for today\'s topics.',
+              action: 'warm_skip',
+              message:
+                  'On-device model already warm — skipping redundant ensureReady.',
             );
+            modelWarmSucceeded = true;
+            if (!isClosed) {
+              ModelDiagnostics.instance.log(
+                area: 'hub',
+                action: 'warm_ok',
+                message: 'Gemma is ready for today\'s topics.',
+              );
+            }
+          } else {
+            await SchedulerBinding.instance.endOfFrame;
+            // #region agent log
+            agentDebugLog(
+              location: 'home_hub_bloc.dart:_onStarted',
+              message: 'hub warm ensureReady start',
+              hypothesisId: 'A',
+            );
+            // #endregion
+            await LlmService.instance.ensureReady();
+            // #region agent log
+            agentDebugLog(
+              location: 'home_hub_bloc.dart:_onStarted',
+              message: 'hub warm ensureReady end',
+              hypothesisId: 'A',
+            );
+            // #endregion
+            modelWarmSucceeded = true;
+            if (!isClosed) {
+              ModelDiagnostics.instance.log(
+                area: 'hub',
+                action: 'warm_ok',
+                message: 'Gemma is ready for today\'s topics.',
+              );
+            }
           }
         } on Object catch (e) {
           if (!isClosed) {

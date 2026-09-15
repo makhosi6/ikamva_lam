@@ -27,6 +27,16 @@ enum NativeLlmBridge {
         result(FlutterError(code: "bad_args", message: nil, details: nil))
         return
       }
+      guard let path = args["modelPath"] as? String, !path.isEmpty else {
+        result(
+          FlutterError(
+            code: "bad_args",
+            message: "missing or invalid modelPath",
+            details: nil,
+          ),
+        )
+        return
+      }
       do {
         try loadModel(args: args)
         result(nil)
@@ -62,8 +72,12 @@ enum NativeLlmBridge {
 
   private static func loadModel(args: [String: Any]) throws {
     closeAll()
-    guard let path = args["modelPath"] as? String else {
-      throw NSError(domain: "NativeLlm", code: 1, userInfo: [NSLocalizedDescriptionKey: "missing modelPath"])
+    guard let path = args["modelPath"] as? String, !path.isEmpty else {
+      throw NSError(
+        domain: "NativeLlm",
+        code: 1,
+        userInfo: [NSLocalizedDescriptionKey: "missing modelPath"],
+      )
     }
     guard FileManager.default.fileExists(atPath: path) else {
       throw NSError(domain: "NativeLlm", code: 2, userInfo: [NSLocalizedDescriptionKey: "model not found: \(path)"])
@@ -71,12 +85,14 @@ enum NativeLlmBridge {
     let maxTokens = (args["maxTokens"] as? NSNumber)?.intValue ?? 1024
     let preferGpu = (args["preferGpu"] as? Bool) ?? true
     let maxNumImages = (args["maxNumImages"] as? NSNumber)?.intValue ?? 0
+    let supportImage = (args["supportImage"] as? Bool) ?? false
     let supportAudio = (args["supportAudio"] as? Bool) ?? false
 
     let options = LlmInference.Options(modelPath: path)
     options.maxTokens = maxTokens
     options.waitForWeightUploads = true
-    if maxNumImages > 0 {
+    // Req 2.6 + design Property 1: vision only when both flags are set.
+    if supportImage && maxNumImages > 0 {
       options.maxImages = maxNumImages
     }
     options.preferredBackend = preferGpu ? .gpu : .cpu

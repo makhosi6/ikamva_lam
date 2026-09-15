@@ -2,6 +2,36 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "chat: run GPU (23106RN0DA)",
+      "type": "shell",
+      "command": "${workspaceFolder}/learner_app/tool/run_chat.sh",
+      "args": ["--gpu"],
+      "options": {
+        "cwd": "${workspaceFolder}/learner_app"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "chat"
+      }
+    },
+    {
+      "label": "chat: run CPU (23106RN0DA)",
+      "type": "shell",
+      "command": "${workspaceFolder}/learner_app/tool/run_chat.sh",
+      "args": ["--cpu"],
+      "options": {
+        "cwd": "${workspaceFolder}/learner_app"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "chat"
+      }
+    },
+    {
       "label": "Flutter: clean build + run (iOS)",
       "type": "shell",
       "command": "${workspaceFolder}/learner_app/tool/clear_build_and_run.sh",
@@ -39,6 +69,23 @@
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "adb: reverse debug ingest (23106RN0DA)",
+      "type": "shell",
+      "command": "adb",
+      "args": [
+        "-s",
+        "L7P7AIMZYLN7WCT8",
+        "reverse",
+        "tcp:7388",
+        "tcp:7388"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
         "panel": "shared"
       }
     },

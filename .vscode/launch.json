@@ -2,6 +2,122 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "flutter_gemma example (debug)",
+      "cwd": "${workspaceFolder}/learner_app/bak",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "presentation": {
+        "group": "bak",
+        "order": 1
+      }
+    },
+    {
+      "name": "flutter_gemma example (debug • 23106RN0DA)",
+      "cwd": "${workspaceFolder}/learner_app/bak",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "L7P7AIMZYLN7WCT8",
+      "presentation": {
+        "group": "bak",
+        "order": 2
+      },
+      "preLaunchTask": "adb: reverse debug ingest (23106RN0DA)"
+    },
+    {
+      "name": "flutter_gemma example (profile)",
+      "cwd": "${workspaceFolder}/learner_app/bak",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "program": "lib/main.dart",
+      "presentation": {
+        "group": "bak",
+        "order": 3
+      }
+    },
+    {
+      "name": "cli chat (GPU • 23106RN0DA)",
+      "cwd": "${workspaceFolder}/learner_app",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "program": "bin/native_llm_chat.dart",
+      "presentation": {
+        "group": "cli",
+        "order": 1
+      },
+      "preLaunchTask": "adb: reverse debug ingest (23106RN0DA)",
+      "deviceId": "L7P7AIMZYLN7WCT8",
+      "toolArgs": [
+        "--dart-define-from-file=${workspaceFolder}/.env",
+        "--dart-define=IKAMVA_FORCE_CPU_BACKEND=0",
+        "--dart-define=IKAMVA_ANDROID_GPU=1",
+        "--dart-define=IKAMVA_PREFER_ANDROID_GPU=true",
+        "--dart-define=IKAMVA_ESCALATE_LITERT_CPU_FAIL_TO_GPU=1"
+      ]
+    },
+    {
+      "name": "cli chat (CPU • 23106RN0DA)",
+      "cwd": "${workspaceFolder}/learner_app",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "program": "bin/native_llm_chat.dart",
+      "presentation": {
+        "group": "cli",
+        "order": 2
+      },
+      "preLaunchTask": "adb: reverse debug ingest (23106RN0DA)",
+      "deviceId": "L7P7AIMZYLN7WCT8",
+      "toolArgs": [
+        "--dart-define-from-file=${workspaceFolder}/.env",
+        "--dart-define=IKAMVA_FORCE_CPU_BACKEND=1"
+      ]
+    },
+    {
+      "name": "ikamva_lam (debug • 23106RN0DA)",
+      "cwd": "${workspaceFolder}/learner_app",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "L7P7AIMZYLN7WCT8",
+      "presentation": {
+        "group": "physical",
+        "order": 1
+      },
+      "preLaunchTask": "adb: reverse debug ingest (23106RN0DA)",
+      "toolArgs": [
+        "--dart-define-from-file=${workspaceFolder}/.env",
+        "--dart-define=IKAMVA_MODEL_DOWNLOAD_URL=https://huggingface.co/datasets/ikamva",
+        "--dart-define=IKAMVA_MODEL_ESTIMATED_MB=2048",
+        "--dart-define=IKAMVA_MODEL_MIN_FREE_MB=2048",
+        "--dart-define=IKAMVA_MODEL_HEADROOM_MB=256"
+      ]
+    },
+    {
+      "name": "ikamva_lam (debug • 23106RN0DA, Android GPU)",
+      "cwd": "${workspaceFolder}/learner_app",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "L7P7AIMZYLN7WCT8",
+      "presentation": {
+        "group": "physical",
+        "order": 2
+      },
+      "preLaunchTask": "adb: reverse debug ingest (23106RN0DA)",
+      "toolArgs": [
+        "--dart-define-from-file=${workspaceFolder}/.env",
+        "--dart-define=IKAMVA_ANDROID_GPU=1",
+        "--dart-define=IKAMVA_MODEL_DOWNLOAD_URL=https://huggingface.co/datasets/ikamva",
+        "--dart-define=IKAMVA_MODEL_ESTIMATED_MB=2048",
+        "--dart-define=IKAMVA_MODEL_MIN_FREE_MB=2048",
+        "--dart-define=IKAMVA_MODEL_HEADROOM_MB=256"
+      ]
+    },
+    {
       "name": "ikamva_lam (debug)",
       "cwd": "${workspaceFolder}/learner_app",
       "request": "launch",
@@ -24,6 +140,7 @@
       "toolArgs": [
         "--dart-define-from-file=${workspaceFolder}/.env",
         "--dart-define=IKAMVA_FORCE_CPU_BACKEND=0",
+        "--dart-define=IKAMVA_ANDROID_GPU=1",
         "--dart-define=IKAMVA_MODEL_DOWNLOAD_URL=https://huggingface.co/datasets/ikamva",
         "--dart-define=IKAMVA_MODEL_ESTIMATED_MB=2048",
         "--dart-define=IKAMVA_MODEL_MIN_FREE_MB=2048",

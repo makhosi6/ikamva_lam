@@ -4,7 +4,7 @@
 
 ![Ikamva Lam logo](branding/logo.png) · *Vector: [branding/logo.svg](branding/logo.svg)*
 
-Playful English practice for primary and secondary learners—guided by a **Teacher/Parent** (school or home) and powered by on-device Gemma 4
+Playful English practice for primary and secondary learners—guided by a **Teacher/Parent** (school or home) and powered by on-device **Gemma 3n / Gemma 4**
 
 ---
 
@@ -96,11 +96,11 @@ This allows teachers and parents to:
 
 ---
 
-## 🤖 On-Device AI (Gemma 4)
+## 🤖 On-Device AI (Gemma 3n / Gemma 4)
 
-The key innovation is using Gemma 4 locally, not in the cloud.
+The key innovation is running Gemma **locally**, not in the cloud.
 
-We run inference with **`flutter_gemma`** (MediaPipe / LiteRT-LM) so Gemma stays **fully on-device** on phones and tablets—no cloud LLM, no runtime download of weights. Bundled `.task` models and a **Low RAM** profile keep the experience usable on modest hardware.
+Inference uses native **LiteRT-LM** (Android) / **MediaPipe GenAI** (iOS) MethodChannels so models stay **fully on-device** on phones and tablets—no cloud LLM. Learners download a **Gemma 3n** or **Gemma 4** `.litertlm` once from Hugging Face (default recommendation: **Gemma 3n E2B** for mid-range devices; **Gemma 4 E2B** for the LiteRT prize track). A **Low RAM** profile and optional CPU backend keep the experience usable when GPU init would otherwise stall.
 
 This enables:
 
@@ -123,7 +123,7 @@ Generation stays bounded: short outputs, tight token budgets, curriculum-aligned
 
 - Flutter learner client (tablet / low-end laptop friendly) with a lightweight game layer
 - Local persistence (e.g. SQLite) for progress, cache, and templates
-- On-device inference via `flutter_gemma` + quantised Gemma `.task` downloaded over HTTPS once per device (smaller builds on the weakest devices, larger where storage/RAM allows)
+- On-device inference via LiteRT-LM / MediaPipe + quantised Gemma **3n or 4** `.litertlm` downloaded over HTTPS once per device (E2B on modest hardware, E4B where storage/RAM allow)
 - Structured prompting (not open chat), focused on:
   - Game generation
   - Hint generation
